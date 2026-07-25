@@ -1,0 +1,37 @@
+-- Freedom Platform seed template.
+-- Do not commit real user emails, passwords, or UUIDs.
+-- Users must be created in Supabase Authentication first.
+
+-- 1. Assign the first platform owner manually.
+-- Replace placeholders with real Auth user UUIDs in your local SQL Editor.
+--
+-- insert into public.platform_user_roles (user_id, role, created_by)
+-- values (
+--   '00000000-0000-0000-0000-000000000000',
+--   'platform_owner',
+--   null
+-- )
+-- on conflict (user_id) do nothing;
+
+-- 2. Create The Liga organization as an authenticated platform owner.
+-- Run after signing in as platform owner or from SQL Editor with a valid owner context.
+--
+-- select *
+-- from public.create_organization_with_admin(
+--   name := 'The Liga',
+--   slug := 'the-liga',
+--   description := 'Main operating organization.',
+--   logo_path := null,
+--   default_locale := 'ru',
+--   timezone := 'Asia/Baku',
+--   currency_code := 'AZN',
+--   admin_user_id := '11111111-1111-1111-1111-111111111111'
+-- );
+
+-- 3. Assign an existing Auth user as organization admin later.
+--
+-- select *
+-- from public.assign_organization_admin(
+--   target_organization_id := '22222222-2222-2222-2222-222222222222',
+--   target_user_id := '11111111-1111-1111-1111-111111111111'
+-- );
