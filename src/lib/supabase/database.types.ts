@@ -96,6 +96,47 @@ export type NotificationType =
 
 export type OperationalDayStatus = 'open' | 'waiting_final_shift' | 'completed' | 'corrected'
 
+export type FinanceTransactionType =
+  | 'income'
+  | 'expense'
+  | 'purchase'
+  | 'platform_share_accrual'
+  | 'platform_share_payment'
+  | 'adjustment'
+
+export type FinanceTransactionStatus = 'planned' | 'pending' | 'paid' | 'partial' | 'cancelled'
+
+export type FinancePaymentMethod = 'cash' | 'card_transfer' | 'bank_transfer' | 'other'
+
+export type FinanceSourceType =
+  | 'order'
+  | 'manual'
+  | 'stock_document'
+  | 'recurring_expense'
+  | 'platform_share'
+  | 'adjustment'
+
+export type FinancialPeriodStatus =
+  | 'open'
+  | 'submitted'
+  | 'clarification_requested'
+  | 'approved'
+  | 'locked'
+  | 'rejected'
+
+export type PlatformShareStatus =
+  | 'accumulating'
+  | 'pending_approval'
+  | 'approved'
+  | 'partially_paid'
+  | 'paid'
+  | 'overdue'
+  | 'disputed'
+
+export type RecurringFrequency = 'weekly' | 'monthly' | 'quarterly' | 'yearly'
+
+export type ExpenseApprovalStatus = 'not_required' | 'pending' | 'approved' | 'rejected'
+
 export type ProfileRow = {
   id: string
   email: string | null
@@ -716,6 +757,221 @@ export type NotificationOutboxRow = {
   updated_at: string
 }
 
+export type FinanceCategoryRow = {
+  id: string
+  organization_id: string
+  transaction_type: FinanceTransactionType
+  name: string
+  description: string | null
+  system_code: string | null
+  affects_profit: boolean
+  affects_cash_flow: boolean
+  eligible_for_platform_share_deduction: boolean
+  sort_order: number
+  is_active: boolean
+  is_system: boolean
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export type OrganizationFinanceSettingsRow = {
+  organization_id: string
+  large_expense_threshold: number | null
+  require_large_expense_approval: boolean
+  default_platform_share_percentage: number | null
+  reporting_currency_code: string | null
+  financial_month_close_day: number | null
+  platform_share_payment_due_days: number
+  created_at: string
+  updated_at: string
+}
+
+export type FinanceTransactionRow = {
+  id: string
+  organization_id: string
+  transaction_type: FinanceTransactionType
+  category_id: string | null
+  source_type: FinanceSourceType
+  source_id: string | null
+  title: string
+  description: string | null
+  amount: number
+  paid_amount: number
+  status: FinanceTransactionStatus
+  payment_method: FinancePaymentMethod | null
+  accrual_date: string
+  paid_date: string | null
+  recipient_or_supplier: string | null
+  reference: string | null
+  document_path: string | null
+  affects_profit: boolean
+  affects_cash_flow: boolean
+  eligible_for_platform_share_deduction: boolean
+  expense_approval_status: ExpenseApprovalStatus
+  approval_requested_by: string | null
+  approved_by: string | null
+  approved_at: string | null
+  created_by: string
+  cancelled_by: string | null
+  cancelled_at: string | null
+  cancellation_reason: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type RecurringExpenseRow = {
+  id: string
+  organization_id: string
+  category_id: string
+  title: string
+  amount: number
+  frequency: RecurringFrequency
+  start_date: string
+  next_generation_date: string
+  end_date: string | null
+  payment_method: FinancePaymentMethod | null
+  recipient_or_supplier: string | null
+  description: string | null
+  affects_profit: boolean
+  affects_cash_flow: boolean
+  is_active: boolean
+  last_generated_at: string | null
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export type FinancialPeriodRow = {
+  id: string
+  organization_id: string
+  period_start: string
+  period_end: string
+  status: FinancialPeriodStatus
+  revenue: number
+  cogs: number
+  gross_profit: number
+  operating_expenses: number
+  other_income: number
+  net_profit_before_platform_share: number
+  platform_share_percentage: number
+  platform_share_amount: number
+  organization_owner_amount: number
+  cash_inflow: number
+  cash_outflow: number
+  submitted_by: string | null
+  submitted_at: string | null
+  reviewed_by: string | null
+  reviewed_at: string | null
+  review_comment: string | null
+  locked_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type OrganizationPlatformShareRateRow = {
+  id: string
+  organization_id: string
+  percentage: number
+  effective_from: string
+  effective_to: string | null
+  created_by: string
+  created_at: string
+  comment: string | null
+}
+
+export type PlatformShareAccrualRow = {
+  id: string
+  organization_id: string
+  financial_period_id: string
+  percentage_snapshot: number
+  net_profit_snapshot: number
+  accrued_amount: number
+  paid_amount: number
+  outstanding_amount: number
+  status: PlatformShareStatus
+  due_date: string | null
+  approved_at: string | null
+  fully_paid_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type PlatformSharePaymentRow = {
+  id: string
+  organization_id: string
+  accrual_id: string
+  amount: number
+  payment_method: FinancePaymentMethod | null
+  payment_date: string
+  reference: string | null
+  document_path: string | null
+  marked_sent_by: string | null
+  confirmed_received_by: string | null
+  marked_sent_at: string | null
+  confirmed_received_at: string | null
+  status: 'reported_sent' | 'confirmed' | 'rejected'
+  comment: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type FinanceAuditLogRow = {
+  id: string
+  organization_id: string | null
+  actor_user_id: string | null
+  action: string
+  entity_type: string
+  entity_id: string | null
+  before_data: unknown
+  after_data: unknown
+  reason: string | null
+  created_at: string
+}
+
+export type OrderFinancialSummaryRow = {
+  organization_id: string
+  order_id: string
+  order_number: number
+  payment_id: string
+  order_payment_method: PaymentMethod
+  finance_payment_method: FinancePaymentMethod
+  paid_at: string | null
+  business_date: string
+  revenue: number
+  cogs: number
+  gross_profit: number
+  closed_shift_id: string | null
+  operational_day_id: string | null
+}
+
+export type FinanceDashboardSummaryRow = {
+  organization_id: string
+  total_income: number
+  total_expenses: number
+  total_purchases: number
+  platform_share_outstanding: number
+  pending_expense_approvals: number
+  periods_waiting_review: number
+}
+
+export type FinancialPeriodSummary = {
+  organization_id: string
+  period_start: string
+  period_end: string
+  revenue: number
+  cogs: number
+  gross_profit: number
+  operating_expenses: number
+  other_income: number
+  net_profit_before_platform_share: number
+  platform_share_percentage: number
+  platform_share_amount: number
+  organization_owner_amount: number
+  cash_inflow: number
+  cash_outflow: number
+}
+
 export type ShiftSummary = {
   shift_id: string
   organization_id: string
@@ -998,6 +1254,59 @@ export type Database = {
         NotificationOutboxRow,
         Partial<NotificationOutboxRow>
       >
+      finance_categories: TableDefinition<
+        FinanceCategoryRow,
+        Partial<FinanceCategoryRow> &
+          Pick<FinanceCategoryRow, 'organization_id' | 'transaction_type' | 'name' | 'created_by'>,
+        Partial<Omit<FinanceCategoryRow, 'id' | 'organization_id' | 'created_by' | 'created_at'>>
+      >
+      organization_finance_settings: TableDefinition<
+        OrganizationFinanceSettingsRow,
+        Partial<OrganizationFinanceSettingsRow> &
+          Pick<OrganizationFinanceSettingsRow, 'organization_id'>,
+        Partial<Omit<OrganizationFinanceSettingsRow, 'organization_id' | 'created_at'>>
+      >
+      finance_transactions: TableDefinition<
+        FinanceTransactionRow,
+        Partial<FinanceTransactionRow> &
+          Pick<
+            FinanceTransactionRow,
+            | 'organization_id'
+            | 'transaction_type'
+            | 'source_type'
+            | 'title'
+            | 'amount'
+            | 'accrual_date'
+            | 'created_by'
+          >,
+        Partial<Omit<FinanceTransactionRow, 'id' | 'organization_id' | 'source_type' | 'source_id' | 'created_by' | 'created_at'>>
+      >
+      recurring_expenses: TableDefinition<
+        RecurringExpenseRow,
+        Partial<RecurringExpenseRow> &
+          Pick<
+            RecurringExpenseRow,
+            'organization_id' | 'category_id' | 'title' | 'amount' | 'frequency' | 'start_date' | 'next_generation_date' | 'created_by'
+          >,
+        Partial<Omit<RecurringExpenseRow, 'id' | 'organization_id' | 'created_by' | 'created_at'>>
+      >
+      financial_periods: TableDefinition<FinancialPeriodRow, FinancialPeriodRow, Partial<FinancialPeriodRow>>
+      organization_platform_share_rates: TableDefinition<
+        OrganizationPlatformShareRateRow,
+        OrganizationPlatformShareRateRow,
+        Partial<OrganizationPlatformShareRateRow>
+      >
+      platform_share_accruals: TableDefinition<
+        PlatformShareAccrualRow,
+        PlatformShareAccrualRow,
+        Partial<PlatformShareAccrualRow>
+      >
+      platform_share_payments: TableDefinition<
+        PlatformSharePaymentRow,
+        PlatformSharePaymentRow,
+        Partial<PlatformSharePaymentRow>
+      >
+      finance_audit_logs: TableDefinition<FinanceAuditLogRow, FinanceAuditLogRow, never>
     }
     Views: {
       employee_categories: { Row: EmployeeCategoryRow; Relationships: [] }
@@ -1014,6 +1323,8 @@ export type Database = {
       employee_current_shift_view: { Row: EmployeeCurrentShiftViewRow; Relationships: [] }
       admin_shift_reports: { Row: AdminShiftReportRow; Relationships: [] }
       admin_operational_day_reports: { Row: AdminOperationalDayReportRow; Relationships: [] }
+      order_financial_summary: { Row: OrderFinancialSummaryRow; Relationships: [] }
+      finance_dashboard_summary: { Row: FinanceDashboardSummaryRow; Relationships: [] }
     }
     Functions: {
       create_organization_with_admin: {
@@ -1298,6 +1609,122 @@ export type Database = {
         Args: Record<string, never>
         Returns: AppRole | null
       }
+      seed_standard_finance_categories: {
+        Args: {
+          target_organization_id?: string | null
+        }
+        Returns: number
+      }
+      sync_order_income: {
+        Args: {
+          target_order_id: string
+        }
+        Returns: FinanceTransactionRow | null
+      }
+      create_purchase_finance_transaction: {
+        Args: {
+          target_document_id: string
+        }
+        Returns: FinanceTransactionRow | null
+      }
+      create_manual_income: {
+        Args: {
+          target_organization_id: string
+          target_title: string
+          target_amount: number
+          target_payment_method?: FinancePaymentMethod | null
+          target_accrual_date?: string
+          target_paid_date?: string | null
+          target_category_id?: string | null
+          target_description?: string | null
+          target_reference?: string | null
+        }
+        Returns: FinanceTransactionRow
+      }
+      create_expense: {
+        Args: {
+          target_organization_id: string
+          target_title: string
+          target_amount: number
+          target_category_id: string
+          target_payment_method?: FinancePaymentMethod | null
+          target_accrual_date?: string
+          target_paid_date?: string | null
+          target_recipient_or_supplier?: string | null
+          target_description?: string | null
+          target_document_path?: string | null
+          target_source_type?: FinanceSourceType
+          target_source_id?: string | null
+        }
+        Returns: FinanceTransactionRow
+      }
+      approve_expense: {
+        Args: {
+          target_transaction_id: string
+          target_decision: 'approved' | 'rejected'
+          target_comment?: string | null
+        }
+        Returns: FinanceTransactionRow
+      }
+      generate_due_recurring_expenses: {
+        Args: {
+          target_organization_id: string
+          target_until_date?: string
+        }
+        Returns: number
+      }
+      calculate_financial_period: {
+        Args: {
+          target_organization_id: string
+          target_period_start: string
+          target_period_end: string
+        }
+        Returns: FinancialPeriodSummary
+      }
+      submit_financial_period: {
+        Args: {
+          target_period_start: string
+          target_period_end: string
+        }
+        Returns: FinancialPeriodRow
+      }
+      review_financial_period: {
+        Args: {
+          target_period_id: string
+          target_decision: 'approved' | 'clarification_requested' | 'rejected'
+          target_comment?: string | null
+        }
+        Returns: FinancialPeriodRow
+      }
+      set_platform_share_rate: {
+        Args: {
+          target_organization_id: string
+          target_percentage: number
+          target_effective_from: string
+          target_comment?: string | null
+        }
+        Returns: OrganizationPlatformShareRateRow
+      }
+      report_platform_share_payment: {
+        Args: {
+          target_accrual_id: string
+          target_amount: number
+          target_payment_method: FinancePaymentMethod
+          target_payment_date: string
+          target_reference?: string | null
+          target_document_path?: string | null
+          target_comment?: string | null
+        }
+        Returns: PlatformSharePaymentRow
+      }
+      confirm_platform_share_payment: {
+        Args: {
+          target_payment_id: string
+          target_decision: 'confirmed' | 'rejected'
+          target_comment?: string | null
+        }
+        Returns: PlatformSharePaymentRow
+      }
     }
     Enums: {
       app_role: AppRole
@@ -1326,6 +1753,14 @@ export type Database = {
       notification_outbox_status: NotificationOutboxStatus
       notification_type: NotificationType
       operational_day_status: OperationalDayStatus
+      finance_transaction_type: FinanceTransactionType
+      finance_transaction_status: FinanceTransactionStatus
+      finance_payment_method: FinancePaymentMethod
+      finance_source_type: FinanceSourceType
+      financial_period_status: FinancialPeriodStatus
+      platform_share_status: PlatformShareStatus
+      recurring_frequency: RecurringFrequency
+      expense_approval_status: ExpenseApprovalStatus
     }
     CompositeTypes: Record<string, never>
   }

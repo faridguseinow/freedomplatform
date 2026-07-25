@@ -106,6 +106,81 @@ const AdminNotificationSettingsPage = lazy(() =>
     default: module.AdminNotificationSettingsPage,
   })),
 )
+const AdminFinancePage = lazy(() =>
+  import('../../features/finance/pages/AdminFinancePages').then((module) => ({
+    default: module.AdminFinancePage,
+  })),
+)
+const AdminFinanceIncomePage = lazy(() =>
+  import('../../features/finance/pages/AdminFinancePages').then((module) => ({
+    default: module.AdminFinanceIncomePage,
+  })),
+)
+const AdminFinanceExpensesPage = lazy(() =>
+  import('../../features/finance/pages/AdminFinancePages').then((module) => ({
+    default: module.AdminFinanceExpensesPage,
+  })),
+)
+const AdminFinanceRecurringPage = lazy(() =>
+  import('../../features/finance/pages/AdminFinancePages').then((module) => ({
+    default: module.AdminFinanceRecurringPage,
+  })),
+)
+const AdminFinancePurchasesPage = lazy(() =>
+  import('../../features/finance/pages/AdminFinancePages').then((module) => ({
+    default: module.AdminFinancePurchasesPage,
+  })),
+)
+const AdminFinanceCashFlowPage = lazy(() =>
+  import('../../features/finance/pages/AdminFinancePages').then((module) => ({
+    default: module.AdminFinanceCashFlowPage,
+  })),
+)
+const AdminFinanceProfitLossPage = lazy(() =>
+  import('../../features/finance/pages/AdminFinancePages').then((module) => ({
+    default: module.AdminFinanceProfitLossPage,
+  })),
+)
+const AdminFinancePeriodsPage = lazy(() =>
+  import('../../features/finance/pages/AdminFinancePages').then((module) => ({
+    default: module.AdminFinancePeriodsPage,
+  })),
+)
+const AdminFinancePeriodDetailPage = lazy(() =>
+  import('../../features/finance/pages/AdminFinancePages').then((module) => ({
+    default: module.AdminFinancePeriodDetailPage,
+  })),
+)
+const AdminFinancePlatformSharePage = lazy(() =>
+  import('../../features/finance/pages/AdminFinancePages').then((module) => ({
+    default: module.AdminFinancePlatformSharePage,
+  })),
+)
+const AdminFinanceSettingsPage = lazy(() =>
+  import('../../features/finance/pages/AdminFinancePages').then((module) => ({
+    default: module.AdminFinanceSettingsPage,
+  })),
+)
+const PlatformFinancePage = lazy(() =>
+  import('../../features/finance/pages/PlatformFinancePages').then((module) => ({
+    default: module.PlatformFinancePage,
+  })),
+)
+const PlatformFinanceOrganizationPage = lazy(() =>
+  import('../../features/finance/pages/PlatformFinancePages').then((module) => ({
+    default: module.PlatformFinanceOrganizationPage,
+  })),
+)
+const PlatformFinancePeriodPage = lazy(() =>
+  import('../../features/finance/pages/PlatformFinancePages').then((module) => ({
+    default: module.PlatformFinancePeriodPage,
+  })),
+)
+const PlatformFinancePaymentsPage = lazy(() =>
+  import('../../features/finance/pages/PlatformFinancePages').then((module) => ({
+    default: module.PlatformFinancePaymentsPage,
+  })),
+)
 
 const lazyPage = (element: ReactNode) => (
   <Suspense fallback={<FullPageLoader />}>{element}</Suspense>
@@ -128,6 +203,16 @@ export function AppRouter() {
                 element={<PlatformOrganizationUsersPage />}
                 path="organizations/:organizationId/users"
               />
+              <Route element={lazyPage(<PlatformFinancePage />)} path="finance" />
+              <Route
+                element={lazyPage(<PlatformFinanceOrganizationPage />)}
+                path="finance/organizations/:organizationId"
+              />
+              <Route
+                element={lazyPage(<PlatformFinancePeriodPage />)}
+                path="finance/periods/:periodId"
+              />
+              <Route element={lazyPage(<PlatformFinancePaymentsPage />)} path="finance/payments" />
               <Route element={<PlatformSettingsPage />} path="settings" />
             </Route>
           </Route>
@@ -154,6 +239,17 @@ export function AppRouter() {
               <Route element={lazyPage(<AdminShiftTemplatesPage />)} path="shift-templates" />
               <Route element={lazyPage(<AdminOperationalDaysPage />)} path="operational-days" />
               <Route element={lazyPage(<AdminNotificationSettingsPage />)} path="notification-settings" />
+              <Route element={lazyPage(<AdminFinancePage />)} path="finance" />
+              <Route element={lazyPage(<AdminFinanceIncomePage />)} path="finance/income" />
+              <Route element={lazyPage(<AdminFinanceExpensesPage />)} path="finance/expenses" />
+              <Route element={lazyPage(<AdminFinanceRecurringPage />)} path="finance/recurring" />
+              <Route element={lazyPage(<AdminFinancePurchasesPage />)} path="finance/purchases" />
+              <Route element={lazyPage(<AdminFinanceCashFlowPage />)} path="finance/cash-flow" />
+              <Route element={lazyPage(<AdminFinanceProfitLossPage />)} path="finance/profit-loss" />
+              <Route element={lazyPage(<AdminFinancePeriodsPage />)} path="finance/periods" />
+              <Route element={lazyPage(<AdminFinancePeriodDetailPage />)} path="finance/periods/:periodId" />
+              <Route element={lazyPage(<AdminFinancePlatformSharePage />)} path="finance/platform-share" />
+              <Route element={lazyPage(<AdminFinanceSettingsPage />)} path="finance/settings" />
               <Route element={<AdminSettingsPage />} path="settings" />
             </Route>
           </Route>
