@@ -85,7 +85,7 @@ const buildSlug = (value: string) =>
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
 
-const buildOrganizationUrl = (slug: string) => `https://freedom-platform.vercel.app/${slug}`
+const buildOrganizationUrl = (slug: string) => `https://freedomplatform.vercel.app/${slug}`
 
 const organizationSchema = z.object({
   name: z.string().trim().min(2, 'Введите название организации.'),

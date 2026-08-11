@@ -376,7 +376,7 @@ export function PlatformOverviewPage() {
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium text-slate-950">{organization.name}</div>
                     <div className="mt-0.5 truncate text-xs text-slate-500">
-                      freedom-platform.vercel.app/{organization.slug}
+                      freedomplatform.vercel.app/{organization.slug}
                     </div>
                   </div>
                   <span

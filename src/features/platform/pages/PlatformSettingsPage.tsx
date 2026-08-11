@@ -48,7 +48,7 @@ type SettingSectionProps = {
 const storageKey = 'freedom-platform.platform-settings'
 
 const defaultSettings: PlatformSettings = {
-  publicBaseUrl: 'https://freedom-platform.vercel.app',
+  publicBaseUrl: 'https://freedomplatform.vercel.app',
   organizationUrlMode: 'path',
   defaultLocale: 'az',
   defaultTimezone: 'Asia/Baku',
