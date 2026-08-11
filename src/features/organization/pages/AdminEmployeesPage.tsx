@@ -4,9 +4,11 @@ import {
   BriefcaseBusiness,
   CheckCircle2,
   Edit3,
+  KeyRound,
   Loader2,
   Plus,
   Search,
+  ShieldCheck,
   UserMinus,
   UserRoundCheck,
   X,
@@ -17,6 +19,7 @@ import { z } from 'zod'
 import { EmptyState } from '../../../components/common/EmptyState'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
+import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
 import { supabase } from '../../../lib/supabase/client'
 import type {
@@ -31,12 +34,14 @@ const membershipSelect =
 
 const addEmployeeSchema = z.object({
   email: z.string().trim().email('Введите корректный email.'),
+  full_name: z.string().trim().optional(),
   job_title: z.string().trim().optional(),
   phone: z.string().trim().optional(),
   notes: z.string().trim().optional(),
 })
 
 const editEmployeeSchema = z.object({
+  full_name: z.string().trim().optional(),
   job_title: z.string().trim().optional(),
   phone: z.string().trim().optional(),
   notes: z.string().trim().optional(),
@@ -46,6 +51,14 @@ const editEmployeeSchema = z.object({
 type AddEmployeeValues = z.infer<typeof addEmployeeSchema>
 type EditEmployeeValues = z.infer<typeof editEmployeeSchema>
 type EmployeeFilter = 'all' | 'active' | 'inactive'
+
+type EmployeeLockState = {
+  membership_id: string
+  has_pin: boolean
+  pin_set_at: string | null
+  has_pending_pin_change: boolean
+  pending_pin_change_requested_at: string | null
+}
 
 const filterLabels: Record<EmployeeFilter, string> = {
   all: 'Все',
@@ -60,6 +73,14 @@ const formatDate = (value: string) =>
     year: 'numeric',
   }).format(new Date(value))
 
+const formatDateTime = (value: string) =>
+  new Intl.DateTimeFormat('ru', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value))
+
 const getDisplayName = (employee: OrganizationMembershipWithProfile) =>
   employee.profile?.full_name || employee.profile?.email || 'Без имени'
 
@@ -67,6 +88,8 @@ const getInitial = (profile: Pick<ProfileRow, 'full_name' | 'email'> | null) =>
   (profile?.full_name?.[0] ?? profile?.email?.[0] ?? '?').toUpperCase()
 
 const normalizeSearch = (value: string) => value.trim().toLowerCase()
+const normalizePin = (value: string) => value.replace(/\D/g, '').slice(0, 4)
+const isPinValid = (value: string) => /^\d{4}$/.test(value)
 
 export function AdminEmployeesPage() {
   const queryClient = useQueryClient()
@@ -76,6 +99,8 @@ export function AdminEmployeesPage() {
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<AvailableUserSearchResult | null>(null)
   const [searchError, setSearchError] = useState<string | null>(null)
+  const [employeePin, setEmployeePin] = useState('')
+  const [pinError, setPinError] = useState<string | null>(null)
   const [selectedEmployee, setSelectedEmployee] =
     useState<OrganizationMembershipWithProfile | null>(null)
 
@@ -83,6 +108,7 @@ export function AdminEmployeesPage() {
     resolver: zodResolver(addEmployeeSchema),
     defaultValues: {
       email: '',
+      full_name: '',
       job_title: '',
       phone: '',
       notes: '',
@@ -92,6 +118,7 @@ export function AdminEmployeesPage() {
   const editForm = useForm<EditEmployeeValues>({
     resolver: zodResolver(editEmployeeSchema),
     defaultValues: {
+      full_name: '',
       job_title: '',
       phone: '',
       notes: '',
@@ -139,6 +166,22 @@ export function AdminEmployeesPage() {
     },
   })
 
+  const employeeLockStatesQuery = useQuery({
+    enabled: Boolean(organizationId),
+    queryKey: ['admin', 'employee-lock-states', organizationId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_organization_employee_lock_states', {
+        target_organization_id: organizationId!,
+      })
+
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      return data as EmployeeLockState[]
+    },
+  })
+
   const findUserMutation = useMutation({
     mutationFn: async (email: string) => {
       if (!organizationId) {
@@ -158,6 +201,7 @@ export function AdminEmployeesPage() {
     },
     onSuccess: (user) => {
       setSelectedUser(user)
+      addForm.setValue('full_name', user?.full_name ?? '')
       setSearchError(user ? null : 'Пользователь с таким email не найден. Сначала создайте его в Supabase Authentication.')
     },
     onError: (error) => {
@@ -175,6 +219,7 @@ export function AdminEmployeesPage() {
       const { data, error } = await supabase.rpc('assign_organization_employee', {
         target_organization_id: organizationId,
         target_user_id: selectedUser.user_id,
+        target_full_name: values.full_name || null,
         target_job_title: values.job_title || null,
         target_phone: values.phone || null,
         target_notes: values.notes || null,
@@ -206,6 +251,7 @@ export function AdminEmployeesPage() {
 
       const { data, error } = await supabase.rpc('update_organization_employee', {
         target_membership_id: selectedEmployee.id,
+        target_full_name: values.full_name || null,
         target_job_title: values.job_title || null,
         target_phone: values.phone || null,
         target_notes: values.notes || null,
@@ -264,6 +310,65 @@ export function AdminEmployeesPage() {
     },
   })
 
+  const setEmployeePinMutation = useMutation({
+    mutationFn: async ({ employee, pin }: { employee: OrganizationMembershipWithProfile; pin: string }) => {
+      const { error } = await supabase.rpc('set_employee_lock_pin', {
+        target_membership_id: employee.id,
+        target_pin: pin,
+      })
+
+      if (error) {
+        throw new Error(error.message)
+      }
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'employee-lock-states', organizationId] })
+      setEmployeePin('')
+      setPinError(null)
+    },
+    onError: (error) => {
+      setPinError(error instanceof Error ? error.message : 'Не удалось сохранить PIN.')
+    },
+  })
+
+  const approveEmployeePinMutation = useMutation({
+    mutationFn: async (employee: OrganizationMembershipWithProfile) => {
+      const { error } = await supabase.rpc('approve_employee_lock_pin_change', {
+        target_membership_id: employee.id,
+      })
+
+      if (error) {
+        throw new Error(error.message)
+      }
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'employee-lock-states', organizationId] })
+      setPinError(null)
+    },
+    onError: (error) => {
+      setPinError(error instanceof Error ? error.message : 'Не удалось одобрить PIN.')
+    },
+  })
+
+  const rejectEmployeePinMutation = useMutation({
+    mutationFn: async (employee: OrganizationMembershipWithProfile) => {
+      const { error } = await supabase.rpc('reject_employee_lock_pin_change', {
+        target_membership_id: employee.id,
+      })
+
+      if (error) {
+        throw new Error(error.message)
+      }
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'employee-lock-states', organizationId] })
+      setPinError(null)
+    },
+    onError: (error) => {
+      setPinError(error instanceof Error ? error.message : 'Не удалось отклонить заявку.')
+    },
+  })
+
   const employees = useMemo(() => employeesQuery.data ?? [], [employeesQuery.data])
   const visibleEmployees = useMemo(() => {
     const normalizedSearch = normalizeSearch(search)
@@ -295,15 +400,26 @@ export function AdminEmployeesPage() {
       return searchable.includes(normalizedSearch)
     })
   }, [employees, filter, search])
+  const lockStateByMembershipId = useMemo(
+    () =>
+      new Map(
+        (employeeLockStatesQuery.data ?? []).map((state) => [state.membership_id, state]),
+      ),
+    [employeeLockStatesQuery.data],
+  )
 
   const activeCount = employees.filter((employee) => employee.is_active).length
   const inactiveCount = employees.length - activeCount
+  const selectedEmployeeLockState = selectedEmployee
+    ? lockStateByMembershipId.get(selectedEmployee.id)
+    : null
 
   const openAddModal = () => {
     setSelectedUser(null)
     setSearchError(null)
     addForm.reset({
       email: '',
+      full_name: '',
       job_title: '',
       phone: '',
       notes: '',
@@ -313,7 +429,10 @@ export function AdminEmployeesPage() {
 
   const openEditModal = (employee: OrganizationMembershipWithProfile) => {
     setSelectedEmployee(employee)
+    setEmployeePin('')
+    setPinError(null)
     editForm.reset({
+      full_name: employee.profile?.full_name ?? '',
       job_title: employee.job_title ?? '',
       phone: employee.phone ?? '',
       notes: employee.notes ?? '',
@@ -334,6 +453,15 @@ export function AdminEmployeesPage() {
   const handleUpdateEmployee = editForm.handleSubmit(async (values) => {
     await updateEmployeeMutation.mutateAsync(values)
   })
+
+  const handleSetEmployeePin = (employee: OrganizationMembershipWithProfile) => {
+    if (!isPinValid(employeePin)) {
+      setPinError('PIN должен состоять из 4 цифр.')
+      return
+    }
+
+    setEmployeePinMutation.mutate({ employee, pin: employeePin })
+  }
 
   if (!organizationId || !currentOrganization) {
     return (
@@ -452,6 +580,7 @@ export function AdminEmployeesPage() {
                   <th className="px-4 py-3">Должность</th>
                   <th className="px-4 py-3">Телефон</th>
                   <th className="px-4 py-3">Статус</th>
+                  <th className="px-4 py-3">PIN</th>
                   <th className="px-4 py-3">Дата</th>
                   <th className="px-4 py-3 text-right">Действия</th>
                 </tr>
@@ -492,6 +621,21 @@ export function AdminEmployeesPage() {
                       >
                         {employee.is_active ? 'Активен' : 'Отключен'}
                       </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {lockStateByMembershipId.get(employee.id)?.has_pending_pin_change ? (
+                        <span className="rounded-md bg-orange-50 px-2 py-1 text-xs font-medium text-orange-800">
+                          Заявка
+                        </span>
+                      ) : lockStateByMembershipId.get(employee.id)?.has_pin ? (
+                        <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800">
+                          Задан
+                        </span>
+                      ) : (
+                        <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+                          Не задан
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-slate-600">{formatDate(employee.created_at)}</td>
                     <td className="px-4 py-3">
@@ -544,6 +688,14 @@ export function AdminEmployeesPage() {
                     <p className="mt-1 truncate text-sm text-slate-700">
                       {employee.job_title || 'Должность не указана'}
                     </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      PIN:{' '}
+                      {lockStateByMembershipId.get(employee.id)?.has_pending_pin_change
+                        ? 'ожидает одобрения'
+                        : lockStateByMembershipId.get(employee.id)?.has_pin
+                          ? 'задан'
+                          : 'не задан'}
+                    </p>
                   </div>
                   <span
                     className={cn(
@@ -567,7 +719,7 @@ export function AdminEmployeesPage() {
       ) : null}
 
       {isAddOpen ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4 py-6">
+        <Modal onClose={() => setIsAddOpen(false)}>
           <section className="grid max-h-[calc(100svh-3rem)] w-full max-w-2xl gap-4 overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -636,6 +788,12 @@ export function AdminEmployeesPage() {
 
                 <form className="grid gap-4" noValidate onSubmit={handleAddEmployee}>
                   <div className="grid gap-4 sm:grid-cols-2">
+                    <Input
+                      id="employee_full_name"
+                      label="Имя"
+                      placeholder="Имя сотрудника"
+                      {...addForm.register('full_name')}
+                    />
                     <Input id="employee_job_title" label="Должность" {...addForm.register('job_title')} />
                     <Input id="employee_phone" label="Телефон" {...addForm.register('phone')} />
                     <label className="grid gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
@@ -672,11 +830,11 @@ export function AdminEmployeesPage() {
               </div>
             ) : null}
           </section>
-        </div>
+        </Modal>
       ) : null}
 
       {selectedEmployee ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4 py-6">
+        <Modal onClose={() => setSelectedEmployee(null)}>
           <form
             className="grid max-h-[calc(100svh-3rem)] w-full max-w-2xl gap-4 overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-xl"
             noValidate
@@ -729,7 +887,124 @@ export function AdminEmployeesPage() {
               </div>
             </dl>
 
+            <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-950">PIN блокировки сайта</h4>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    {employeeLockStatesQuery.isLoading
+                      ? 'Загрузка статуса PIN...'
+                      : selectedEmployeeLockState?.has_pending_pin_change
+                        ? `Сотрудник запросил смену PIN${
+                            selectedEmployeeLockState.pending_pin_change_requested_at
+                              ? ` ${formatDateTime(selectedEmployeeLockState.pending_pin_change_requested_at)}`
+                              : ''
+                          }.`
+                        : selectedEmployeeLockState?.has_pin
+                          ? 'PIN задан и может использоваться для блокировки рабочего экрана.'
+                          : 'PIN ещё не задан.'}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    'w-fit rounded-md px-2 py-1 text-xs font-medium',
+                    selectedEmployeeLockState?.has_pending_pin_change
+                      ? 'bg-orange-50 text-orange-800'
+                      : selectedEmployeeLockState?.has_pin
+                        ? 'bg-emerald-50 text-emerald-800'
+                        : 'bg-slate-100 text-slate-600',
+                  )}
+                >
+                  {selectedEmployeeLockState?.has_pending_pin_change
+                    ? 'Нужна проверка'
+                    : selectedEmployeeLockState?.has_pin
+                      ? 'Активен'
+                      : 'Не задан'}
+                </span>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                  <span>Новый PIN</span>
+                  <input
+                    className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-center text-lg font-semibold tracking-[0.35em] text-slate-950 outline-none transition-colors placeholder:tracking-normal placeholder:text-sm placeholder:font-normal focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                    inputMode="numeric"
+                    maxLength={4}
+                    onChange={(event) => {
+                      setPinError(null)
+                      setEmployeePin(normalizePin(event.target.value))
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault()
+                        handleSetEmployeePin(selectedEmployee)
+                      }
+                    }}
+                    placeholder="0000"
+                    type="password"
+                    value={employeePin}
+                  />
+                </label>
+                <div className="flex items-end">
+                  <Button
+                    disabled={setEmployeePinMutation.isPending}
+                    onClick={() => handleSetEmployeePin(selectedEmployee)}
+                    type="button"
+                    variant="secondary"
+                  >
+                    {setEmployeePinMutation.isPending ? (
+                      <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+                    ) : (
+                      <KeyRound aria-hidden="true" className="size-4" />
+                    )}
+                    Задать PIN
+                  </Button>
+                </div>
+              </div>
+
+              {selectedEmployeeLockState?.has_pending_pin_change ? (
+                <div className="flex flex-col gap-2 rounded-md border border-orange-100 bg-orange-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-orange-900">Одобрите заявку, чтобы новый PIN начал работать.</p>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      disabled={approveEmployeePinMutation.isPending || rejectEmployeePinMutation.isPending}
+                      onClick={() => approveEmployeePinMutation.mutate(selectedEmployee)}
+                      type="button"
+                    >
+                      {approveEmployeePinMutation.isPending ? (
+                        <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+                      ) : (
+                        <ShieldCheck aria-hidden="true" className="size-4" />
+                      )}
+                      Одобрить
+                    </Button>
+                    <Button
+                      disabled={approveEmployeePinMutation.isPending || rejectEmployeePinMutation.isPending}
+                      onClick={() => rejectEmployeePinMutation.mutate(selectedEmployee)}
+                      type="button"
+                      variant="secondary"
+                    >
+                      Отклонить
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+
+              {pinError ? (
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm leading-6 text-red-800">
+                  {pinError}
+                </div>
+              ) : null}
+            </section>
+
             <div className="grid gap-4 sm:grid-cols-2">
+              <Input
+                error={editForm.formState.errors.full_name?.message}
+                id="edit_full_name"
+                label="Имя"
+                placeholder="Имя сотрудника"
+                {...editForm.register('full_name')}
+              />
               <Input
                 error={editForm.formState.errors.job_title?.message}
                 id="edit_job_title"
@@ -805,7 +1080,7 @@ export function AdminEmployeesPage() {
               </div>
             </div>
           </form>
-        </div>
+        </Modal>
       ) : null}
     </section>
   )

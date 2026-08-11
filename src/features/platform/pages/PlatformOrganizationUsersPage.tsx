@@ -1,11 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Loader2, ShieldCheck, UserMinus, Users } from 'lucide-react'
+import { ArrowLeft, Check, Copy, Edit3, Loader2, Save, ShieldCheck, UserMinus, Users, X } from 'lucide-react'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useParams } from 'react-router-dom'
 import { z } from 'zod'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
+import { Modal } from '../../../components/ui/Modal'
 import { supabase } from '../../../lib/supabase/client'
 import type {
   OrganizationMembershipRow,
@@ -44,6 +46,10 @@ const formatDate = (value: string) =>
 export function PlatformOrganizationUsersPage() {
   const { organizationId } = useParams<{ organizationId: string }>()
   const queryClient = useQueryClient()
+  const [copiedUserId, setCopiedUserId] = useState<string | null>(null)
+  const [editingMembership, setEditingMembership] = useState<MembershipWithProfile | null>(null)
+  const [editFullName, setEditFullName] = useState('')
+  const [editProfileError, setEditProfileError] = useState<string | null>(null)
 
   const {
     formState: { errors, isSubmitting },
@@ -165,6 +171,31 @@ export function PlatformOrganizationUsersPage() {
     },
   })
 
+  const updateProfileMutation = useMutation({
+    mutationFn: async ({ fullName, userId }: { fullName: string; userId: string }) => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ full_name: fullName.trim() || null })
+        .eq('id', userId)
+        .select('id,email,full_name,is_active')
+        .single()
+
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      return data
+    },
+    onSuccess: async () => {
+      setEditingMembership(null)
+      setEditFullName('')
+      setEditProfileError(null)
+      await queryClient.invalidateQueries({
+        queryKey: ['platform', 'organizations', organizationId, 'memberships'],
+      })
+    },
+  })
+
   const onAssignAdmin = handleSubmit(async (values) => {
     try {
       await assignAdminMutation.mutateAsync(values)
@@ -177,6 +208,39 @@ export function PlatformOrganizationUsersPage() {
 
   const organization = organizationQuery.data
   const memberships = membershipsQuery.data ?? []
+
+  const copyUserId = async (userId: string) => {
+    await navigator.clipboard.writeText(userId)
+    setCopiedUserId(userId)
+    window.setTimeout(() => setCopiedUserId((current) => (current === userId ? null : current)), 1400)
+  }
+
+  const openEditProfile = (membership: MembershipWithProfile) => {
+    setEditingMembership(membership)
+    setEditFullName(membership.profile?.full_name ?? '')
+    setEditProfileError(null)
+  }
+
+  const closeEditProfile = () => {
+    if (updateProfileMutation.isPending) return
+    setEditingMembership(null)
+    setEditFullName('')
+    setEditProfileError(null)
+  }
+
+  const saveProfileName = async () => {
+    if (!editingMembership) return
+
+    try {
+      setEditProfileError(null)
+      await updateProfileMutation.mutateAsync({
+        fullName: editFullName,
+        userId: editingMembership.user_id,
+      })
+    } catch (error) {
+      setEditProfileError(error instanceof Error ? error.message : 'Не удалось обновить имя пользователя.')
+    }
+  }
 
   return (
     <section className="grid gap-5">
@@ -250,7 +314,7 @@ export function PlatformOrganizationUsersPage() {
 
       {memberships.length ? (
         <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="grid min-w-[760px] grid-cols-[1.4fr_1fr_0.8fr_0.7fr_auto] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase text-slate-500">
+          <div className="grid min-w-[980px] grid-cols-[1.2fr_2fr_0.75fr_0.7fr_auto] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase text-slate-500">
             <span>Пользователь</span>
             <span>UUID</span>
             <span>Роль</span>
@@ -260,7 +324,7 @@ export function PlatformOrganizationUsersPage() {
           <div className="overflow-x-auto">
             {memberships.map((membership) => (
               <div
-                className="grid min-w-[760px] grid-cols-[1.4fr_1fr_0.8fr_0.7fr_auto] items-center gap-3 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0"
+                className="grid min-w-[980px] grid-cols-[1.2fr_2fr_0.75fr_0.7fr_auto] items-center gap-3 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0"
                 key={membership.id}
               >
                 <div className="min-w-0">
@@ -271,10 +335,31 @@ export function PlatformOrganizationUsersPage() {
                     {membership.profile?.email ?? 'Email недоступен'}
                   </p>
                 </div>
-                <span className="truncate font-mono text-xs text-slate-500">{membership.user_id}</span>
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="break-all font-mono text-xs leading-5 text-slate-600">
+                    {membership.user_id}
+                  </span>
+                  <Button
+                    className="min-h-8 shrink-0 px-2 py-1 text-xs"
+                    onClick={() => void copyUserId(membership.user_id)}
+                    type="button"
+                    variant="secondary"
+                  >
+                    {copiedUserId === membership.user_id ? (
+                      <Check aria-hidden="true" className="size-3.5" />
+                    ) : (
+                      <Copy aria-hidden="true" className="size-3.5" />
+                    )}
+                    {copiedUserId === membership.user_id ? 'Скопировано' : 'Копировать'}
+                  </Button>
+                </div>
                 <span className="text-slate-700">{roleLabel[membership.role]}</span>
                 <span className="text-slate-600">{formatDate(membership.created_at)}</span>
-                <div className="text-right">
+                <div className="flex justify-end gap-2">
+                  <Button onClick={() => openEditProfile(membership)} type="button" variant="secondary">
+                    <Edit3 aria-hidden="true" className="size-4" />
+                    Редактировать
+                  </Button>
                   <Button
                     disabled={!membership.is_active || deactivateMutation.isPending}
                     onClick={() => deactivateMutation.mutate(membership)}
@@ -289,6 +374,62 @@ export function PlatformOrganizationUsersPage() {
             ))}
           </div>
         </div>
+      ) : null}
+
+      {editingMembership ? (
+        <Modal onClose={closeEditProfile}>
+          <section className="grid w-full max-w-md gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-950">Редактировать пользователя</h3>
+                <p className="mt-1 break-all text-xs leading-5 text-slate-500">
+                  {editingMembership.user_id}
+                </p>
+              </div>
+              <button
+                aria-label="Закрыть"
+                className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                onClick={closeEditProfile}
+                type="button"
+              >
+                <X aria-hidden="true" className="size-4" />
+              </button>
+            </div>
+
+            <Input
+              id="profile_full_name"
+              label="Имя пользователя"
+              onChange={(event) => setEditFullName(event.target.value)}
+              placeholder={editingMembership.profile?.email ?? 'Имя'}
+              value={editFullName}
+            />
+
+            {editProfileError ? (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm leading-6 text-red-800">
+                {editProfileError}
+              </div>
+            ) : null}
+
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                disabled={updateProfileMutation.isPending}
+                onClick={closeEditProfile}
+                type="button"
+                variant="secondary"
+              >
+                Отмена
+              </Button>
+              <Button disabled={updateProfileMutation.isPending} onClick={saveProfileName} type="button">
+                {updateProfileMutation.isPending ? (
+                  <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+                ) : (
+                  <Save aria-hidden="true" className="size-4" />
+                )}
+                Сохранить
+              </Button>
+            </div>
+          </section>
+        </Modal>
       ) : null}
     </section>
   )

@@ -29,6 +29,8 @@ export type AuthContextValue = {
   signOut: () => Promise<void>
   refreshProfile: () => Promise<ProfileRow | null>
   refreshAccessContext: () => Promise<AppRole | null>
+  selectOrganizationBySlug: (slug: string) => AppRole | null
+  clearOrganizationView: () => void
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

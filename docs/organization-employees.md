@@ -49,8 +49,8 @@ The admin frontend does not use `service_role`.
 RPC functions:
 
 - `find_available_user_by_email(target_email, target_organization_id)`
-- `assign_organization_employee(target_organization_id, target_user_id, target_job_title, target_phone, target_notes)`
-- `update_organization_employee(target_membership_id, target_job_title, target_phone, target_notes, target_sort_order)`
+- `assign_organization_employee(target_organization_id, target_user_id, target_full_name, target_job_title, target_phone, target_notes)`
+- `update_organization_employee(target_membership_id, target_full_name, target_job_title, target_phone, target_notes, target_sort_order)`
 - `set_organization_employee_active(target_membership_id, target_is_active)`
 
 The functions validate the current `auth.uid()` against active organization admin access. They also reject platform owners and non-employee role changes.
@@ -62,7 +62,7 @@ Organization admin can:
 - read employees of the current organization;
 - find an existing Auth user by exact email;
 - add the user as `employee`;
-- edit `job_title`, `phone`, `notes`, and `sort_order`;
+- edit employee `full_name`, `job_title`, `phone`, `notes`, and `sort_order`;
 - deactivate or reactivate employee access.
 
 Organization admin cannot:

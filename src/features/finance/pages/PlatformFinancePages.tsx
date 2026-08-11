@@ -101,7 +101,7 @@ export function PlatformFinanceOrganizationPage() {
         <Input label="Процент" max="100" min="0" name="percentage" required step="0.0001" type="number" />
         <Input defaultValue={todayDate()} label="Действует с" name="effective_from" type="date" />
         <Input label="Комментарий" name="comment" />
-        <Button type="submit">Установить ставку</Button>
+        <Button disabled={mutations.setRate.isPending} type="submit">Установить ставку</Button>
       </form>
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-md border border-slate-200 bg-white p-4">
@@ -157,14 +157,14 @@ export function PlatformFinancePeriodPage() {
           <p className="font-medium text-slate-950">{period.data.period_start} - {period.data.period_end}</p>
           <p className="text-sm text-slate-600">прибыль {money(period.data.net_profit_before_platform_share)} · доля {money(period.data.platform_share_amount)} · {statusLabel[period.data.status] ?? period.data.status}</p>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => review('approved')} type="button">
+            <Button disabled={mutations.review.isPending} onClick={() => review('approved')} type="button">
               <CheckCircle2 aria-hidden="true" className="size-4" />
               Одобрить
             </Button>
-            <Button onClick={() => review('clarification_requested')} type="button" variant="secondary">
+            <Button disabled={mutations.review.isPending} onClick={() => review('clarification_requested')} type="button" variant="secondary">
               Запросить уточнение
             </Button>
-            <Button onClick={() => review('rejected')} type="button" variant="danger">
+            <Button disabled={mutations.review.isPending} onClick={() => review('rejected')} type="button" variant="danger">
               <XCircle aria-hidden="true" className="size-4" />
               Отклонить
             </Button>
@@ -198,11 +198,11 @@ export function PlatformFinancePaymentsPage() {
             <p className="text-sm text-slate-600">{payment.payment_date} · {payment.reference ?? 'без reference'}</p>
             {payment.status === 'reported_sent' ? (
               <div className="flex gap-2">
-                <Button onClick={() => mutations.confirmPayment.mutate({ paymentId: payment.id, decision: 'confirmed' })} type="button">
+                <Button disabled={mutations.confirmPayment.isPending} onClick={() => mutations.confirmPayment.mutate({ paymentId: payment.id, decision: 'confirmed' })} type="button">
                   <Landmark aria-hidden="true" className="size-4" />
                   Подтвердить
                 </Button>
-                <Button onClick={() => mutations.confirmPayment.mutate({ paymentId: payment.id, decision: 'rejected' })} type="button" variant="danger">
+                <Button disabled={mutations.confirmPayment.isPending} onClick={() => mutations.confirmPayment.mutate({ paymentId: payment.id, decision: 'rejected' })} type="button" variant="danger">
                   Отклонить
                 </Button>
               </div>

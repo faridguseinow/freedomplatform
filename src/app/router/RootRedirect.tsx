@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { getRoleHomePath } from '../../types/roles'
 
 export function RootRedirect() {
-  const { isLoading, role, user } = useAuth()
+  const { currentOrganization, isLoading, role, user } = useAuth()
 
   if (isLoading) {
     return <FullPageLoader />
@@ -14,5 +14,10 @@ export function RootRedirect() {
     return <Navigate replace to="/login" />
   }
 
-  return <Navigate replace to={role ? getRoleHomePath(role) : '/access-not-configured'} />
+  return (
+    <Navigate
+      replace
+      to={role ? getRoleHomePath(role, currentOrganization?.slug) : '/access-not-configured'}
+    />
+  )
 }

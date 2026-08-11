@@ -83,3 +83,26 @@ export async function uploadCatalogImage({
 
   return path
 }
+
+export async function uploadOrganizationLogo({
+  file,
+  organizationId,
+}: {
+  file: File
+  organizationId: string
+}) {
+  const blob = await compressImageToWebp(file)
+  const path = `organizations/${organizationId}/logos/logo-${Date.now()}.webp`
+  const { error } = await supabase.storage
+    .from('organization-assets')
+    .upload(path, blob, {
+      contentType: 'image/webp',
+      upsert: false,
+    })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return path
+}

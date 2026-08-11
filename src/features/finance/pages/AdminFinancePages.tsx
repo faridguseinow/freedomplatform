@@ -219,6 +219,11 @@ function MoneyForm({
 
   if (!userId) return null
 
+  const isPending =
+    type === 'income'
+      ? incomeMutations.createManualIncome.isPending
+      : expenseMutations.createExpense.isPending
+
   return (
     <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4" onSubmit={handleSubmit}>
       <div className="grid gap-3 md:grid-cols-2">
@@ -249,7 +254,7 @@ function MoneyForm({
         <Input defaultValue={type === 'income' ? DEFAULT_END : ''} label="Дата оплаты" name="paid_date" type="date" />
         {type === 'expense' ? <Input label="Получатель / поставщик" name="recipient_or_supplier" /> : null}
       </div>
-      <Button className="justify-self-start" type="submit">
+      <Button className="justify-self-start" disabled={isPending} type="submit">
         <ReceiptText aria-hidden="true" className="size-4" />
         Добавить
       </Button>
@@ -281,9 +286,11 @@ function AdminFinanceShell({
 }
 
 export function AdminFinancePage() {
-  const { organizationId } = useAuth()
+  const { currentOrganization, organizationId } = useAuth()
   const summary = useFinanceDashboardSummary(organizationId)
   const periodSummary = useFinancePeriodSummary(organizationId, DEFAULT_START, DEFAULT_END)
+  const buildAdminPath = (path: string) =>
+    currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
 
   return (
     <section className="grid gap-5">
@@ -297,7 +304,7 @@ export function AdminFinancePage() {
           <Link
             className="flex min-h-16 items-center gap-3 rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50"
             key={href}
-            to={href}
+            to={buildAdminPath(href)}
           >
             <Icon aria-hidden="true" className="size-5 text-emerald-700" />
             {label}
@@ -392,7 +399,7 @@ export function AdminFinanceRecurringPage() {
   return (
     <section className="grid gap-5">
       <PageHeader
-        action={<Button onClick={() => mutations.generateDue.mutate(undefined)} type="button">Сгенерировать</Button>}
+        action={<Button disabled={mutations.generateDue.isPending} onClick={() => mutations.generateDue.mutate(undefined)} type="button">Сгенерировать</Button>}
         description="Регулярные расходы создают финансовые операции по расписанию."
         title="Регулярные расходы"
       />
@@ -420,7 +427,7 @@ export function AdminFinanceRecurringPage() {
           <Input defaultValue={DEFAULT_END} label="Старт" name="start_date" type="date" />
           <Input defaultValue={DEFAULT_END} label="Следующее создание" name="next_generation_date" type="date" />
         </div>
-        <Button className="justify-self-start" type="submit">
+        <Button className="justify-self-start" disabled={mutations.upsert.isPending} type="submit">
           <Repeat aria-hidden="true" className="size-4" />
           Добавить правило
         </Button>
@@ -438,9 +445,11 @@ export function AdminFinanceRecurringPage() {
 }
 
 export function AdminFinancePeriodsPage() {
-  const { organizationId } = useAuth()
+  const { currentOrganization, organizationId } = useAuth()
   const rows = useFinancialPeriods(organizationId)
   const mutations = useFinancialPeriodMutations(organizationId)
+  const buildAdminPath = (path: string) =>
+    currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -457,14 +466,14 @@ export function AdminFinancePeriodsPage() {
       <form className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white p-4 sm:flex-row sm:items-end" onSubmit={handleSubmit}>
         <Input defaultValue={DEFAULT_START} label="Начало" name="period_start" type="date" />
         <Input defaultValue={DEFAULT_END} label="Конец" name="period_end" type="date" />
-        <Button type="submit">
+        <Button disabled={mutations.submit.isPending} type="submit">
           <ListChecks aria-hidden="true" className="size-4" />
           Отправить
         </Button>
       </form>
       <div className="grid gap-2">
         {rows.data?.map((row) => (
-          <Link className="rounded-md border border-slate-200 bg-white p-4 hover:bg-slate-50" key={row.id} to={`/admin/finance/periods/${row.id}`}>
+          <Link className="rounded-md border border-slate-200 bg-white p-4 hover:bg-slate-50" key={row.id} to={buildAdminPath(`/admin/finance/periods/${row.id}`)}>
             <p className="font-medium text-slate-950">{row.period_start} - {row.period_end}</p>
             <p className="text-sm text-slate-600">{statusLabel[row.status] ?? row.status} · прибыль {money(row.net_profit_before_platform_share)} · доля {money(row.platform_share_amount)}</p>
           </Link>
@@ -514,7 +523,7 @@ export function AdminFinancePlatformSharePage() {
             <Input defaultValue={DEFAULT_END} label="Дата" name="payment_date" type="date" />
             <Input label="Reference" name="reference" />
             <input name="payment_method" type="hidden" value="bank_transfer" />
-            <Button disabled={row.outstanding_amount <= 0} type="submit">Сообщить об оплате</Button>
+            <Button disabled={row.outstanding_amount <= 0 || mutations.reportPayment.isPending} type="submit">Сообщить об оплате</Button>
           </form>
         </div>
       ))}
@@ -551,7 +560,7 @@ export function AdminFinanceSettingsPage() {
             Требовать approval крупных расходов
           </label>
         </div>
-        <Button className="justify-self-start" type="submit">
+        <Button className="justify-self-start" disabled={mutation.isPending} type="submit">
           <Settings aria-hidden="true" className="size-4" />
           Сохранить
         </Button>

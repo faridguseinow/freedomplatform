@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Eye, EyeOff, Loader2, LogIn } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
@@ -17,6 +17,7 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>
 
 export function LoginPage() {
+  const location = useLocation()
   const navigate = useNavigate()
   const { authError, isLoading, role, signIn, user } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
@@ -34,11 +35,22 @@ export function LoginPage() {
     },
   })
 
+  const requestedPath =
+    typeof location.state === 'object' &&
+    location.state !== null &&
+    'from' in location.state &&
+    typeof location.state.from === 'object' &&
+    location.state.from !== null &&
+    'pathname' in location.state.from &&
+    typeof location.state.from.pathname === 'string'
+      ? `${location.state.from.pathname}${'search' in location.state.from && typeof location.state.from.search === 'string' ? location.state.from.search : ''}`
+      : null
+
   useEffect(() => {
     if (user && role) {
-      navigate(getRoleHomePath(role), { replace: true })
+      navigate(requestedPath ?? getRoleHomePath(role), { replace: true })
     }
-  }, [navigate, role, user])
+  }, [navigate, requestedPath, role, user])
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null)
@@ -51,14 +63,14 @@ export function LoginPage() {
         return
       }
 
-      navigate(getRoleHomePath(nextRole), { replace: true })
+      navigate(requestedPath ?? getRoleHomePath(nextRole), { replace: true })
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'Не удалось войти.')
     }
   })
 
   if (user && role) {
-    return <Navigate replace to={getRoleHomePath(role)} />
+    return <Navigate replace to={requestedPath ?? getRoleHomePath(role)} />
   }
 
   return (

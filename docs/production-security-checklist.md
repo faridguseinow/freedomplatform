@@ -1,0 +1,23 @@
+# Production Security Checklist
+
+- Сменить все тестовые пароли до запуска.
+- Отключить public sign-up в Supabase Auth, если пользователи создаются вручную.
+- Проверить email confirmation policy.
+- Проверить RLS на всех tenant-таблицах.
+- Проверить, что `service_role` используется только на сервере и в Edge Functions.
+- Установить Edge Function secrets: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `TELEGRAM_BOT_TOKEN`.
+- Настроить Telegram chat id только через organization notification settings.
+- Проверить Storage policies для organization assets и catalog assets.
+- Проверить CORS и production domain.
+- Настроить Supabase Auth redirect URLs.
+- Включить MFA для platform owner, если доступно.
+- Проверить backup strategy и периодичность export.
+- Проверить logging без утечки ключей, SQL body и внутренних UUID.
+- Ограничить uploads по размеру и типу файлов.
+- Проверить применение SQL migrations 006, 007, 008, 009.
+- Проверить payment/refusal flows.
+- Проверить platform share calculation на положительной и отрицательной прибыли.
+- Проверить деактивацию пользователей.
+- Проверить suspension/archive организации.
+- Проверить production domain и SSL.
+- Добавить privacy/internal-use disclaimer для первой версии.

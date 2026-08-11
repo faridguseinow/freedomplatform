@@ -7,6 +7,13 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+backups/pre-the-liga-reset/
+backups/root-before-flatten/
+
+.env
+.env.local
+.env.*.local
+
 node_modules
 dist
 dist-ssr

@@ -60,11 +60,28 @@ export function useEmployeeProducts({ organizationId }: EmployeeCatalogParams) {
         .eq('organization_id', organizationId!)
         .order('sort_order', { ascending: true })
 
+      if (!error && data.length) {
+        return data
+      }
+
+      const fallback = await supabase
+        .from('products')
+        .select(
+          'id,organization_id,category_id,sku,name,description,characteristics,image_path,sale_price,unit_name,sort_order,status',
+        )
+        .eq('organization_id', organizationId!)
+        .eq('status', 'active')
+        .order('sort_order', { ascending: true })
+
+      if (!fallback.error) {
+        return fallback.data
+      }
+
       if (error) {
         throw new Error(error.message)
       }
 
-      return data
+      throw new Error(fallback.error.message)
     },
   })
 }

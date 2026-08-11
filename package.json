@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "supabase:types": "supabase gen types typescript --local > src/lib/supabase/database.types.ts",
+    "supabase:reset-the-liga": "bash scripts/reset-the-liga-supabase.sh --confirm-reset-all-organizations",
+    "supabase:reset-the-liga:no-backup": "bash scripts/reset-the-liga-supabase.sh --confirm-reset-all-organizations --skip-backup-i-understand-data-loss"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

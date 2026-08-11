@@ -4,8 +4,11 @@ import { useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 import { EmptyState } from '../../../components/common/EmptyState'
+import { CatalogImage } from '../../../components/common/CatalogImage'
 import { Button } from '../../../components/ui/Button'
+import { ImageFileInput } from '../../../components/ui/ImageFileInput'
 import { Input } from '../../../components/ui/Input'
+import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
 import type {
   CatalogItemStatus,
@@ -136,13 +139,28 @@ export function AdminServicesPage() {
     }
     setFormError(null)
     try {
+      const file = values.image?.item(0)
+
+      if (!file && !editingService?.image_path) {
+        setFormError('Загрузите фото услуги.')
+        return
+      }
+
+      const serviceId = editingService?.id ?? crypto.randomUUID()
+      let imagePath = editingService?.image_path ?? null
+
+      if (file) {
+        imagePath = await uploadCatalogImage({ file, itemId: serviceId, kind: 'services', organizationId })
+      }
+
       const input: ServiceInput = {
+        ...(editingService ? {} : { id: serviceId }),
         organization_id: organizationId,
         category_id: values.category_id || null,
         name: values.name,
         description: values.description || null,
         characteristics: values.characteristics || null,
-        image_path: editingService?.image_path ?? null,
+        image_path: imagePath,
         pricing_type: values.pricing_type,
         fixed_price: values.pricing_type === 'fixed' ? values.fixed_price ?? null : null,
         hourly_rate: values.pricing_type === 'hourly' ? values.hourly_rate ?? null : null,
@@ -153,11 +171,7 @@ export function AdminServicesPage() {
         created_by: editingService?.created_by ?? user.id,
       }
       const saved = await serviceMutations.upsert.mutateAsync({ id: editingService?.id, input })
-      const file = values.image?.item(0)
-      if (file) {
-        const imagePath = await uploadCatalogImage({ file, itemId: saved.id, kind: 'services', organizationId })
-        await serviceMutations.upsert.mutateAsync({ id: saved.id, input: { ...input, image_path: imagePath } })
-      }
+      void saved
       setIsModalOpen(false)
       setEditingService(null)
     } catch (error) {
@@ -190,9 +204,40 @@ export function AdminServicesPage() {
       {servicesQuery.isError ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{servicesQuery.error.message}</div> : null}
       {!servicesQuery.isLoading && !visibleServices.length ? <EmptyState description="Создайте первую услугу." icon={Box} title="Услуг пока нет" /> : null}
 
-      {visibleServices.length ? <div className="grid gap-3">{visibleServices.map((service) => <article className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_auto]" key={service.id}><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="truncate text-base font-semibold text-slate-950">{service.name}</h3><span className="rounded-md bg-cyan-50 px-2 py-1 text-xs font-medium text-cyan-800">{pricingLabel[service.pricing_type]}</span><span className={cn('rounded-md px-2 py-1 text-xs font-medium', statusClass[service.status])}>{statusLabel[service.status]}</span></div><p className="mt-1 text-sm text-slate-600">{service.characteristics || service.description || 'Описание не заполнено.'}</p><dl className="mt-3 grid gap-2 text-sm sm:grid-cols-4"><div><dt className="text-xs uppercase text-slate-500">Цена</dt><dd>{service.pricing_type === 'fixed' ? service.fixed_price : service.hourly_rate}</dd></div><div><dt className="text-xs uppercase text-slate-500">Минимум</dt><dd>{service.minimum_minutes ?? '-'}</dd></div><div><dt className="text-xs uppercase text-slate-500">Шаг</dt><dd>{service.billing_step_minutes ?? '-'}</dd></div><div><dt className="text-xs uppercase text-slate-500">Порядок</dt><dd>{service.sort_order}</dd></div></dl></div><div className="flex flex-wrap gap-2 lg:justify-end"><Button onClick={() => openEdit(service)} type="button" variant="secondary"><Edit3 className="size-4" />Редактировать</Button><Button onClick={() => serviceMutations.setStatus.mutate({ id: service.id, status: service.status === 'archived' ? 'active' : 'archived' })} type="button" variant={service.status === 'archived' ? 'secondary' : 'danger'}>{service.status === 'archived' ? <RotateCcw className="size-4" /> : <Archive className="size-4" />}{service.status === 'archived' ? 'Восстановить' : 'Архивировать'}</Button></div></article>)}</div> : null}
+      {visibleServices.length ? (
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-1">
+          {visibleServices.map((service) => (
+            <article
+              className="grid gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-sm sm:gap-3 sm:p-4 lg:grid-cols-[88px_1fr_auto]"
+              key={service.id}
+            >
+              <CatalogImage alt={service.name} className="size-20 self-start sm:size-22" imagePath={service.image_path} />
+              <div className="min-w-0">
+                <div className="grid gap-1 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
+                  <h3 className="truncate text-sm font-semibold text-slate-950 sm:text-base">{service.name}</h3>
+                  <div className="flex flex-wrap gap-1">
+                    <span className="rounded-md bg-cyan-50 px-2 py-0.5 text-[11px] font-medium text-cyan-800 sm:py-1 sm:text-xs">{pricingLabel[service.pricing_type]}</span>
+                    <span className={cn('rounded-md px-2 py-0.5 text-[11px] font-medium sm:py-1 sm:text-xs', statusClass[service.status])}>{statusLabel[service.status]}</span>
+                  </div>
+                </div>
+                <p className="mt-1 hidden text-sm text-slate-600 sm:block">{service.characteristics || service.description || 'Описание не заполнено.'}</p>
+                <dl className="mt-2 grid grid-cols-2 gap-1 text-xs sm:mt-3 sm:grid-cols-4 sm:gap-2 sm:text-sm">
+                  <div><dt className="text-xs uppercase text-slate-500">Цена</dt><dd>{service.pricing_type === 'fixed' ? service.fixed_price : service.hourly_rate}</dd></div>
+                  <div><dt className="text-xs uppercase text-slate-500">Мин.</dt><dd>{service.minimum_minutes ?? '-'}</dd></div>
+                  <div className="hidden sm:block"><dt className="text-xs uppercase text-slate-500">Шаг</dt><dd>{service.billing_step_minutes ?? '-'}</dd></div>
+                  <div className="hidden sm:block"><dt className="text-xs uppercase text-slate-500">Порядок</dt><dd>{service.sort_order}</dd></div>
+                </dl>
+              </div>
+              <div className="flex flex-wrap gap-2 lg:justify-end">
+                <Button className="min-h-9 w-full px-2 text-xs sm:min-h-10 sm:w-auto sm:px-4 sm:text-sm" onClick={() => openEdit(service)} type="button" variant="secondary"><Edit3 className="size-4" />Редактировать</Button>
+                <Button className="hidden sm:inline-flex" onClick={() => serviceMutations.setStatus.mutate({ id: service.id, status: service.status === 'archived' ? 'active' : 'archived' })} type="button" variant={service.status === 'archived' ? 'secondary' : 'danger'}>{service.status === 'archived' ? <RotateCcw className="size-4" /> : <Archive className="size-4" />}{service.status === 'archived' ? 'Восстановить' : 'Архивировать'}</Button>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : null}
 
-      {isModalOpen ? <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4 py-6"><form className="grid max-h-[calc(100svh-3rem)] w-full max-w-3xl gap-4 overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-xl" noValidate onSubmit={onSubmit}><div className="flex items-start justify-between gap-3"><h3 className="text-lg font-semibold text-slate-950">{editingService ? 'Редактировать услугу' : 'Создать услугу'}</h3><button aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setIsModalOpen(false)} type="button"><X className="size-4" /></button></div><div className="grid gap-4 sm:grid-cols-2"><Input error={errors.name?.message} id="service_name" label="Название" {...register('name')} /><label className="grid gap-1.5 text-sm font-medium text-slate-700"><span>Категория</span><select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15" {...register('category_id')}><option value="">Без категории</option>{serviceCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><label className="grid gap-1.5 text-sm font-medium text-slate-700"><span>Тип цены</span><select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15" {...register('pricing_type')}><option value="fixed">Фиксированная</option><option value="hourly">Почасовая</option></select></label>{pricingType === 'fixed' ? <Input error={errors.fixed_price?.message} id="fixed_price" label="Фиксированная цена" min={0} step="0.01" type="number" {...register('fixed_price', { valueAsNumber: true })} /> : <><Input error={errors.hourly_rate?.message} id="service_hourly_rate" label="Почасовой тариф" min={0} step="0.01" type="number" {...register('hourly_rate', { valueAsNumber: true })} /><Input error={errors.minimum_minutes?.message} id="service_minimum_minutes" label="Минимум минут" min={1} type="number" {...register('minimum_minutes', { valueAsNumber: true })} /><Input error={errors.billing_step_minutes?.message} id="service_billing_step" label="Шаг тарификации" min={1} type="number" {...register('billing_step_minutes', { valueAsNumber: true })} /></>}<Input error={errors.sort_order?.message} id="service_sort" label="Порядок" min={0} type="number" {...register('sort_order', { valueAsNumber: true })} /><label className="grid gap-1.5 text-sm font-medium text-slate-700"><span>Статус</span><select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15" {...register('status')}><option value="active">Активна</option><option value="inactive">Выключена</option><option value="archived">Архив</option></select></label><label className="grid gap-1.5 text-sm font-medium text-slate-700"><span>Фото</span><input accept="image/*" type="file" {...register('image')} /></label><label className="grid gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2"><span>Характеристики</span><textarea className="min-h-20 rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15" {...register('characteristics')} /></label><label className="grid gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2"><span>Описание</span><textarea className="min-h-24 rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15" {...register('description')} /></label></div>{formError ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{formError}</div> : null}<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button onClick={() => setIsModalOpen(false)} type="button" variant="secondary">Отмена</Button><Button disabled={isSubmitting || serviceMutations.upsert.isPending} type="submit">{isSubmitting || serviceMutations.upsert.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}Сохранить</Button></div></form></div> : null}
+      {isModalOpen ? <Modal onClose={() => setIsModalOpen(false)}><form className="grid max-h-[calc(100svh-3rem)] w-full max-w-3xl gap-4 overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-xl" noValidate onSubmit={onSubmit}><div className="flex items-start justify-between gap-3"><h3 className="text-lg font-semibold text-slate-950">{editingService ? 'Редактировать услугу' : 'Создать услугу'}</h3><button aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setIsModalOpen(false)} type="button"><X className="size-4" /></button></div><div className="grid gap-4 sm:grid-cols-2"><Input error={errors.name?.message} id="service_name" label="Название" {...register('name')} /><label className="grid gap-1.5 text-sm font-medium text-slate-700"><span>Категория</span><select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15" {...register('category_id')}><option value="">Без категории</option>{serviceCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><label className="grid gap-1.5 text-sm font-medium text-slate-700"><span>Тип цены</span><select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15" {...register('pricing_type')}><option value="fixed">Фиксированная</option><option value="hourly">Почасовая</option></select></label>{pricingType === 'fixed' ? <Input error={errors.fixed_price?.message} id="fixed_price" label="Фиксированная цена" min={0} step="0.01" type="number" {...register('fixed_price', { valueAsNumber: true })} /> : <><Input error={errors.hourly_rate?.message} id="service_hourly_rate" label="Почасовой тариф" min={0} step="0.01" type="number" {...register('hourly_rate', { valueAsNumber: true })} /><Input error={errors.minimum_minutes?.message} id="service_minimum_minutes" label="Минимум минут" min={1} type="number" {...register('minimum_minutes', { valueAsNumber: true })} /><Input error={errors.billing_step_minutes?.message} id="service_billing_step" label="Шаг тарификации" min={1} type="number" {...register('billing_step_minutes', { valueAsNumber: true })} /></>}<Input error={errors.sort_order?.message} id="service_sort" label="Порядок" min={0} type="number" {...register('sort_order', { valueAsNumber: true })} /><label className="grid gap-1.5 text-sm font-medium text-slate-700"><span>Статус</span><select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15" {...register('status')}><option value="active">Активна</option><option value="inactive">Выключена</option><option value="archived">Архив</option></select></label><ImageFileInput error={errors.image?.message} id="service_image" label="Фото" {...register('image')} /><label className="grid gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2"><span>Характеристики</span><textarea className="min-h-20 rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15" {...register('characteristics')} /></label><label className="grid gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2"><span>Описание</span><textarea className="min-h-24 rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15" {...register('description')} /></label></div>{formError ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{formError}</div> : null}<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button onClick={() => setIsModalOpen(false)} type="button" variant="secondary">Отмена</Button><Button disabled={isSubmitting || serviceMutations.upsert.isPending} type="submit">{isSubmitting || serviceMutations.upsert.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}Сохранить</Button></div></form></Modal> : null}
     </section>
   )
 }

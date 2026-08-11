@@ -8,7 +8,7 @@ type RoleRouteProps = {
 }
 
 export function RoleRoute({ allowedRoles }: RoleRouteProps) {
-  const { isLoading, role, user } = useAuth()
+  const { currentOrganization, isLoading, role, user } = useAuth()
 
   if (isLoading) {
     return <FullPageLoader />
@@ -23,7 +23,7 @@ export function RoleRoute({ allowedRoles }: RoleRouteProps) {
   }
 
   if (!allowedRoles.includes(role)) {
-    return <Navigate replace to={getRoleHomePath(role)} />
+    return <Navigate replace to={getRoleHomePath(role, currentOrganization?.slug)} />
   }
 
   return <Outlet />

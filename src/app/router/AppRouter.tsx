@@ -4,23 +4,32 @@ import { FullPageLoader } from '../../components/common/StateView'
 import { AdminLayout } from '../layouts/AdminLayout'
 import { EmployeeLayout } from '../layouts/EmployeeLayout'
 import { PlatformLayout } from '../layouts/PlatformLayout'
+import { LegacyOrganizationRedirect } from './LegacyOrganizationRedirect'
+import { OrganizationSlugHomeRedirect } from './OrganizationSlugHomeRedirect'
+import { OrganizationSlugRoute } from './OrganizationSlugRoute'
 import { ProtectedRoute } from './ProtectedRoute'
 import { RoleRoute } from './RoleRoute'
 import { RootRedirect } from './RootRedirect'
 import { AccessNotConfiguredPage } from '../../features/auth/pages/AccessNotConfiguredPage'
 import { LoginPage } from '../../features/auth/pages/LoginPage'
-import { EmployeeShiftPage } from '../../features/employee/pages/EmployeeShiftPage'
-import { EmployeeWorkspacePage } from '../../features/employee/pages/EmployeeWorkspacePage'
-import { AdminDashboardPage } from '../../features/organization/pages/AdminDashboardPage'
-import { AdminEmployeesPage } from '../../features/organization/pages/AdminEmployeesPage'
-import { AdminSettingsPage } from '../../features/organization/pages/AdminSettingsPage'
-import { PlatformOrganizationUsersPage } from '../../features/platform/pages/PlatformOrganizationUsersPage'
-import { PlatformOrganizationsPage } from '../../features/platform/pages/PlatformOrganizationsPage'
-import { PlatformOverviewPage } from '../../features/platform/pages/PlatformOverviewPage'
-import { PlatformSettingsPage } from '../../features/platform/pages/PlatformSettingsPage'
 import { NotFoundPage } from '../../pages/NotFoundPage'
 import { USER_ROLES } from '../../types/roles'
 
+const AdminDashboardPage = lazy(() =>
+  import('../../features/organization/pages/AdminDashboardPage').then((module) => ({
+    default: module.AdminDashboardPage,
+  })),
+)
+const AdminEmployeesPage = lazy(() =>
+  import('../../features/organization/pages/AdminEmployeesPage').then((module) => ({
+    default: module.AdminEmployeesPage,
+  })),
+)
+const AdminSettingsPage = lazy(() =>
+  import('../../features/organization/pages/AdminSettingsPage').then((module) => ({
+    default: module.AdminSettingsPage,
+  })),
+)
 const AdminCatalogPage = lazy(() =>
   import('../../features/organization/pages/AdminCatalogPage').then((module) => ({
     default: module.AdminCatalogPage,
@@ -181,6 +190,41 @@ const PlatformFinancePaymentsPage = lazy(() =>
     default: module.PlatformFinancePaymentsPage,
   })),
 )
+const PlatformOverviewPage = lazy(() =>
+  import('../../features/platform/pages/PlatformOverviewPage').then((module) => ({
+    default: module.PlatformOverviewPage,
+  })),
+)
+const PlatformOrganizationsPage = lazy(() =>
+  import('../../features/platform/pages/PlatformOrganizationsPage').then((module) => ({
+    default: module.PlatformOrganizationsPage,
+  })),
+)
+const PlatformOrganizationUsersPage = lazy(() =>
+  import('../../features/platform/pages/PlatformOrganizationUsersPage').then((module) => ({
+    default: module.PlatformOrganizationUsersPage,
+  })),
+)
+const PlatformOrganizationSetupPage = lazy(() =>
+  import('../../features/platform/pages/PlatformOrganizationSetupPage').then((module) => ({
+    default: module.PlatformOrganizationSetupPage,
+  })),
+)
+const PlatformSettingsPage = lazy(() =>
+  import('../../features/platform/pages/PlatformSettingsPage').then((module) => ({
+    default: module.PlatformSettingsPage,
+  })),
+)
+const EmployeeWorkspacePage = lazy(() =>
+  import('../../features/employee/pages/EmployeeWorkspacePage').then((module) => ({
+    default: module.EmployeeWorkspacePage,
+  })),
+)
+const EmployeeShiftPage = lazy(() =>
+  import('../../features/employee/pages/EmployeeShiftPage').then((module) => ({
+    default: module.EmployeeShiftPage,
+  })),
+)
 
 const lazyPage = (element: ReactNode) => (
   <Suspense fallback={<FullPageLoader />}>{element}</Suspense>
@@ -197,11 +241,15 @@ export function AppRouter() {
         <Route element={<ProtectedRoute />}>
           <Route element={<RoleRoute allowedRoles={[USER_ROLES.platformOwner]} />}>
             <Route element={<PlatformLayout />} path="/platform">
-              <Route element={<PlatformOverviewPage />} index />
-              <Route element={<PlatformOrganizationsPage />} path="organizations" />
+              <Route element={lazyPage(<PlatformOverviewPage />)} index />
+              <Route element={lazyPage(<PlatformOrganizationsPage />)} path="organizations" />
               <Route
-                element={<PlatformOrganizationUsersPage />}
+                element={lazyPage(<PlatformOrganizationUsersPage />)}
                 path="organizations/:organizationId/users"
+              />
+              <Route
+                element={lazyPage(<PlatformOrganizationSetupPage />)}
+                path="organizations/:organizationId/setup"
               />
               <Route element={lazyPage(<PlatformFinancePage />)} path="finance" />
               <Route
@@ -213,15 +261,24 @@ export function AppRouter() {
                 path="finance/periods/:periodId"
               />
               <Route element={lazyPage(<PlatformFinancePaymentsPage />)} path="finance/payments" />
-              <Route element={<PlatformSettingsPage />} path="settings" />
+              <Route element={lazyPage(<PlatformSettingsPage />)} path="settings" />
             </Route>
           </Route>
 
+          <Route element={<OrganizationSlugRoute />}>
+            <Route element={<OrganizationSlugHomeRedirect />} path="/:organizationSlug" />
+          </Route>
+
           <Route element={<RoleRoute allowedRoles={[USER_ROLES.organizationAdmin]} />}>
-            <Route element={<AdminLayout />} path="/admin">
-              <Route element={<AdminDashboardPage />} index />
-              <Route element={<AdminDashboardPage />} path="dashboard" />
-              <Route element={<AdminEmployeesPage />} path="employees" />
+            <Route element={<LegacyOrganizationRedirect area="admin" />} path="/admin/*" />
+          </Route>
+
+          <Route element={<OrganizationSlugRoute />}>
+            <Route element={<RoleRoute allowedRoles={[USER_ROLES.platformOwner, USER_ROLES.organizationAdmin]} />}>
+              <Route element={<AdminLayout />} path="/:organizationSlug/admin">
+              <Route element={lazyPage(<AdminDashboardPage />)} index />
+              <Route element={lazyPage(<AdminDashboardPage />)} path="dashboard" />
+              <Route element={lazyPage(<AdminEmployeesPage />)} path="employees" />
               <Route element={lazyPage(<AdminCatalogPage />)} path="catalog" />
               <Route element={lazyPage(<AdminCategoriesPage />)} path="categories" />
               <Route element={lazyPage(<AdminPlacesPage />)} path="places" />
@@ -250,15 +307,22 @@ export function AppRouter() {
               <Route element={lazyPage(<AdminFinancePeriodDetailPage />)} path="finance/periods/:periodId" />
               <Route element={lazyPage(<AdminFinancePlatformSharePage />)} path="finance/platform-share" />
               <Route element={lazyPage(<AdminFinanceSettingsPage />)} path="finance/settings" />
-              <Route element={<AdminSettingsPage />} path="settings" />
+              <Route element={lazyPage(<AdminSettingsPage />)} path="settings" />
+              </Route>
             </Route>
           </Route>
 
           <Route element={<RoleRoute allowedRoles={[USER_ROLES.employee]} />}>
-            <Route element={<EmployeeLayout />} path="/employee">
-              <Route element={<EmployeeWorkspacePage />} index />
-              <Route element={<EmployeeWorkspacePage />} path="workspace" />
-              <Route element={<EmployeeShiftPage />} path="shift" />
+            <Route element={<LegacyOrganizationRedirect area="employee" />} path="/employee/*" />
+          </Route>
+
+          <Route element={<OrganizationSlugRoute />}>
+            <Route element={<RoleRoute allowedRoles={[USER_ROLES.platformOwner, USER_ROLES.employee]} />}>
+              <Route element={<EmployeeLayout />} path="/:organizationSlug/employee">
+              <Route element={lazyPage(<EmployeeWorkspacePage />)} index />
+              <Route element={lazyPage(<EmployeeWorkspacePage />)} path="workspace" />
+              <Route element={lazyPage(<EmployeeShiftPage />)} path="shift" />
+              </Route>
             </Route>
           </Route>
         </Route>

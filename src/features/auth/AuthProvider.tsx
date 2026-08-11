@@ -14,6 +14,7 @@ import type {
   OrganizationRow,
   ProfileRow,
 } from '../../lib/supabase/database.types'
+import { USER_ROLES } from '../../types/roles'
 import { AuthContext, type AuthContextValue, type SignInCredentials } from './AuthContext'
 
 const profileSelect =
@@ -42,6 +43,26 @@ const pickMembership = (memberships: OrganizationMembershipRow[]) =>
 
     return first.role === 'organization_admin' ? -1 : 1
   })[0] ?? null
+
+const getOrganizationSlugFromPath = () => {
+  if (typeof window === 'undefined') return null
+
+  const [firstSegment, secondSegment] = window.location.pathname.split('/').filter(Boolean)
+
+  if (!firstSegment || ['platform', 'login', 'access-not-configured'].includes(firstSegment)) {
+    return null
+  }
+
+  if (['admin', 'employee'].includes(firstSegment)) {
+    return null
+  }
+
+  if (!secondSegment || ['admin', 'employee'].includes(secondSegment)) {
+    return firstSegment
+  }
+
+  return null
+}
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<Session | null>(null)
@@ -120,15 +141,31 @@ export function AuthProvider({ children }: PropsWithChildren) {
       return null
     }
 
-    if (platformRole?.role === 'platform_owner') {
+    if (platformRole?.role === USER_ROLES.platformOwner) {
+      const { data: organizations, error: organizationsError } = await supabase
+        .from('organizations')
+        .select(organizationSelect)
+        .eq('status', 'active')
+        .order('created_at', { ascending: true })
+
+      if (organizationsError) {
+        setAuthError('Не удалось загрузить организации платформы.')
+        return null
+      }
+
+      const requestedOrganizationSlug = getOrganizationSlugFromPath()
+      const selectedOrganization = requestedOrganizationSlug
+        ? (organizations ?? []).find((item) => item.slug === requestedOrganizationSlug) ?? null
+        : null
+
       setAuthError(null)
       return {
         profile: nextProfile,
-        role: 'platform_owner',
-        organizationId: null,
-        currentOrganization: null,
+        role: USER_ROLES.platformOwner,
+        organizationId: selectedOrganization?.id ?? null,
+        currentOrganization: selectedOrganization,
         memberships: [],
-        availableOrganizations: [],
+        availableOrganizations: organizations ?? [],
       } satisfies AccessContext
     }
 
@@ -170,7 +207,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const activeMemberships = nextMemberships.filter((item) =>
       activeOrganizationIds.has(item.organization_id),
     )
-    const selectedMembership = pickMembership(activeMemberships)
+    const requestedOrganizationSlug = getOrganizationSlugFromPath()
+    const requestedOrganization = requestedOrganizationSlug
+      ? organizations.find((item) => item.slug === requestedOrganizationSlug)
+      : null
+    const requestedMembership = requestedOrganization
+      ? activeMemberships.find((item) => item.organization_id === requestedOrganization.id)
+      : null
+    const selectedMembership = requestedMembership ?? pickMembership(activeMemberships)
 
     if (!selectedMembership) {
       setAuthError('Для аккаунта нет активного доступа к организации.')
@@ -306,6 +350,45 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return context?.profile ?? null
   }, [applyAccessContext, loadAccessContext, userId])
 
+  const selectOrganizationBySlug = useCallback(
+    (slug: string) => {
+      const nextOrganization = availableOrganizations.find((organization) => organization.slug === slug)
+
+      if (!nextOrganization) {
+        return null
+      }
+
+      if (role === USER_ROLES.platformOwner) {
+        setOrganizationId(nextOrganization.id)
+        setCurrentOrganization(nextOrganization)
+        setRole(USER_ROLES.platformOwner)
+
+        return USER_ROLES.platformOwner
+      }
+
+      const nextMembership =
+        memberships.find((membership) => membership.organization_id === nextOrganization.id) ?? null
+
+      if (!nextMembership) {
+        return null
+      }
+
+      setOrganizationId(nextOrganization.id)
+      setCurrentOrganization(nextOrganization)
+      setRole(nextMembership.role)
+
+      return nextMembership.role
+    },
+    [availableOrganizations, memberships, role],
+  )
+
+  const clearOrganizationView = useCallback(() => {
+    if (role !== USER_ROLES.platformOwner) return
+
+    setOrganizationId(null)
+    setCurrentOrganization(null)
+  }, [role])
+
   const signIn = useCallback(
     async ({ login, password }: SignInCredentials) => {
       setIsLoading(true)
@@ -358,10 +441,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
       signOut,
       refreshProfile,
       refreshAccessContext,
+      selectOrganizationBySlug,
+      clearOrganizationView,
     }),
     [
       authError,
       availableOrganizations,
+      clearOrganizationView,
       currentOrganization,
       isLoading,
       memberships,
@@ -369,6 +455,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       profile,
       refreshAccessContext,
       refreshProfile,
+      selectOrganizationBySlug,
       role,
       session,
       signIn,

@@ -1,5 +1,6 @@
 import { Box, MapPin, Package, Tags } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../../../hooks/useAuth'
 
 const catalogSections = [
   {
@@ -29,6 +30,10 @@ const catalogSections = [
 ]
 
 export function AdminCatalogPage() {
+  const { currentOrganization } = useAuth()
+  const buildAdminPath = (path: string) =>
+    currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
+
   return (
     <section className="grid gap-5">
       <header className="grid gap-2">
@@ -45,7 +50,7 @@ export function AdminCatalogPage() {
           <Link
             className="flex min-h-32 gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50/30"
             key={section.href}
-            to={section.href}
+            to={buildAdminPath(section.href)}
           >
             <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-md bg-cyan-50 text-cyan-700">
               <section.icon aria-hidden="true" className="size-5" />

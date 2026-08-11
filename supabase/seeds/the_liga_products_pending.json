@@ -1,0 +1,19 @@
+{
+  "organization_slug": "the-liga",
+  "status": "pending_exact_business_data",
+  "reason": "Exact The Liga product names, sale prices, purchase prices, stock quantities, units, categories, and SKU values were not found in the repository.",
+  "instructions": "Fill products with real business data before seeding inventory. Do not invent products for live stock.",
+  "product_shape": {
+    "category_name": "İçkilər",
+    "sku": "optional-string",
+    "name": "required-string",
+    "description": "optional-string",
+    "sale_price": 0,
+    "purchase_price": 0,
+    "stock_quantity": 0,
+    "minimum_stock_quantity": 0,
+    "unit_name": "ədəd",
+    "track_stock": true
+  },
+  "products": []
+}

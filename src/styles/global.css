@@ -42,3 +42,41 @@ button:disabled {
 #root {
   min-height: 100svh;
 }
+
+.modal-overlay {
+  animation: modal-overlay-in 140ms ease-out both;
+}
+
+.modal-panel {
+  animation: modal-panel-in 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: center;
+}
+
+@keyframes modal-overlay-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-panel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay,
+  .modal-panel {
+    animation: none;
+  }
+}

@@ -61,21 +61,31 @@ const isEnabledForType = (settings: NotificationSettings, type: NotificationType
 
 const pickValue = (value: unknown) => (value === null || value === undefined || value === '' ? '-' : String(value))
 
+const limitTelegramMessage = (value: string) => value.slice(0, 3900)
+
+const safeErrorMessage = (value: unknown) => {
+  const message = value instanceof Error ? value.message : 'Unknown notification error'
+  return message
+    .replace(telegramToken ?? '', '[telegram-token]')
+    .replace(/https:\/\/api\.telegram\.org\/bot[^/\s]+/g, 'https://api.telegram.org/bot[redacted]')
+    .slice(0, 500)
+}
+
 const buildTelegramMessage = (row: OutboxRow) => {
   const payload = row.payload
   const summary = typeof payload.summary === 'object' && payload.summary ? payload.summary as Record<string, unknown> : {}
   const shift = typeof payload.shift === 'object' && payload.shift ? payload.shift as Record<string, unknown> : {}
 
   if (row.type === 'shift_opened') {
-    return [
+    return limitTelegramMessage([
       'Смена открыта',
       `Shift: ${pickValue(shift.id)}`,
       `Opening cash: ${pickValue(shift.opening_cash_amount)}`,
-    ].join('\n')
+    ].join('\n'))
   }
 
   if (row.type === 'shift_closed') {
-    return [
+    return limitTelegramMessage([
       'Смена закрыта',
       `Shift: ${pickValue(shift.id)}`,
       `Paid: ${pickValue(summary.paid_orders_total)}`,
@@ -84,33 +94,35 @@ const buildTelegramMessage = (row: OutboxRow) => {
       `Expected cash: ${pickValue(summary.expected_cash_amount)}`,
       `Actual cash: ${pickValue(shift.actual_cash_amount)}`,
       `Variance: ${pickValue(shift.cash_variance)}`,
-    ].join('\n')
+    ].join('\n'))
   }
 
   if (row.type === 'daily_summary') {
-    return [
+    return limitTelegramMessage([
       'Итог операционного дня',
       `Date: ${pickValue(payload.business_date)}`,
       `Revenue: ${pickValue(payload.total_revenue)}`,
       `Cash: ${pickValue(payload.cash_revenue)}`,
       `Card transfer: ${pickValue(payload.card_transfer_revenue)}`,
       `Orders: ${pickValue(payload.total_orders)}`,
-    ].join('\n')
+    ].join('\n'))
   }
 
   if (row.type === 'cash_shortage' || row.type === 'cash_overage') {
-    return [
+    return limitTelegramMessage([
       row.type === 'cash_shortage' ? 'Недостача наличных' : 'Излишек наличных',
       `Shift: ${pickValue(shift.id)}`,
       `Variance: ${pickValue(shift.cash_variance)}`,
-    ].join('\n')
+    ].join('\n'))
   }
 
   if (row.type === 'shift_not_closed') {
-    return ['Смена не закрыта вовремя', `Shift: ${pickValue(shift.id)}`].join('\n')
+    return limitTelegramMessage(['Смена не закрыта вовремя', `Shift: ${pickValue(shift.id)}`].join('\n'))
   }
 
-  return [`Freedom Platform notification: ${row.type}`, JSON.stringify(payload, null, 2)].join('\n')
+  return limitTelegramMessage(
+    [`Freedom Platform notification: ${row.type}`, JSON.stringify(payload, null, 2)].join('\n'),
+  )
 }
 
 const sendTelegram = async (chatId: string, text: string) => {
@@ -139,13 +151,10 @@ Deno.serve(async (request) => {
     return new Response('Method Not Allowed', { status: 405 })
   }
 
-  const { data: rows, error } = await supabase
-    .from('notification_outbox')
-    .select('id,organization_id,type,payload,attempt_count')
-    .eq('status', 'pending')
-    .lte('next_attempt_at', new Date().toISOString())
-    .order('created_at', { ascending: true })
-    .limit(20)
+  const { data: rows, error } = await supabase.rpc('claim_notification_outbox', {
+    target_batch_size: 20,
+    target_processing_timeout_minutes: 10,
+  })
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 })
@@ -155,16 +164,6 @@ Deno.serve(async (request) => {
   let failed = 0
 
   for (const row of rows as OutboxRow[]) {
-    const { data: claimed } = await supabase
-      .from('notification_outbox')
-      .update({ status: 'processing', processing_started_at: new Date().toISOString() })
-      .eq('id', row.id)
-      .eq('status', 'pending')
-      .select('id')
-      .maybeSingle()
-
-    if (!claimed) continue
-
     try {
       const { data: settings, error: settingsError } = await supabase
         .from('organization_notification_settings')
@@ -177,28 +176,30 @@ Deno.serve(async (request) => {
       if (settingsError) throw new Error(settingsError.message)
 
       if (!settings || !isEnabledForType(settings as NotificationSettings, row.type)) {
-        await supabase.from('notification_outbox').update({ status: 'cancelled' }).eq('id', row.id)
+        await supabase.rpc('finish_notification_outbox_item', {
+          target_outbox_id: row.id,
+          target_success: true,
+          target_error: null,
+          target_cancelled: true,
+        })
         continue
       }
 
       await sendTelegram((settings as NotificationSettings).telegram_chat_id!, buildTelegramMessage(row))
-      await supabase
-        .from('notification_outbox')
-        .update({ status: 'sent', sent_at: new Date().toISOString(), last_error: null })
-        .eq('id', row.id)
+      await supabase.rpc('finish_notification_outbox_item', {
+        target_outbox_id: row.id,
+        target_success: true,
+        target_error: null,
+        target_cancelled: false,
+      })
       sent += 1
     } catch (nextError) {
-      const attemptCount = row.attempt_count + 1
-      const retryMinutes = Math.min(60, 2 ** attemptCount)
-      await supabase
-        .from('notification_outbox')
-        .update({
-          status: attemptCount >= 5 ? 'failed' : 'pending',
-          attempt_count: attemptCount,
-          next_attempt_at: new Date(Date.now() + retryMinutes * 60_000).toISOString(),
-          last_error: nextError instanceof Error ? nextError.message : 'Unknown error',
-        })
-        .eq('id', row.id)
+      await supabase.rpc('finish_notification_outbox_item', {
+        target_outbox_id: row.id,
+        target_success: false,
+        target_error: safeErrorMessage(nextError),
+        target_cancelled: false,
+      })
       failed += 1
     }
   }

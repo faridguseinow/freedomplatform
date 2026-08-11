@@ -194,6 +194,26 @@ export type OrganizationMembershipWithProfile = OrganizationMembershipRow & {
   > | null
 }
 
+export type EmployeeLockPinRow = {
+  membership_id: string
+  pin_hash: string | null
+  pin_set_at: string | null
+  pin_updated_by: string | null
+  pending_pin_hash: string | null
+  pending_pin_change_requested_at: string | null
+  pending_pin_change_requested_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type EmployeeLockStateRow = {
+  membership_id: string
+  has_pin: boolean
+  pin_set_at: string | null
+  has_pending_pin_change: boolean
+  pending_pin_change_requested_at: string | null
+}
+
 export type CatalogCategoryRow = {
   id: string
   organization_id: string
@@ -224,6 +244,10 @@ export type PlaceRow = {
   billing_step_minutes: number | null
   capacity: number | null
   sort_order: number
+  workspace_x: number | null
+  workspace_y: number | null
+  workspace_w: number | null
+  workspace_h: number | null
   status: CatalogItemStatus
   created_by: string
   created_at: string
@@ -297,6 +321,10 @@ export type EmployeePlaceRow = Pick<
   | 'billing_step_minutes'
   | 'capacity'
   | 'sort_order'
+  | 'workspace_x'
+  | 'workspace_y'
+  | 'workspace_w'
+  | 'workspace_h'
   | 'status'
 >
 
@@ -972,6 +1000,24 @@ export type FinancialPeriodSummary = {
   cash_outflow: number
 }
 
+export type OrganizationReadiness = {
+  organization_id: string
+  has_admin: boolean
+  has_employee: boolean
+  has_places: boolean
+  has_timed_places: boolean
+  has_products: boolean
+  has_services: boolean
+  has_shift_templates: boolean
+  has_finance_categories: boolean
+  has_share_rate: boolean
+  telegram_configured: boolean
+  migration_schema_readiness: boolean
+  readiness_percentage: number
+  blockers: string[]
+  warnings: string[]
+}
+
 export type ShiftSummary = {
   shift_id: string
   organization_id: string
@@ -1113,6 +1159,11 @@ export type Database = {
         Partial<OrganizationMembershipRow> &
           Pick<OrganizationMembershipRow, 'organization_id' | 'user_id' | 'role'>,
         Partial<Omit<OrganizationMembershipRow, 'id' | 'organization_id' | 'user_id' | 'created_at'>>
+      >
+      employee_lock_pins: TableDefinition<
+        EmployeeLockPinRow,
+        Partial<EmployeeLockPinRow> & Pick<EmployeeLockPinRow, 'membership_id'>,
+        Partial<Omit<EmployeeLockPinRow, 'membership_id' | 'created_at'>>
       >
       catalog_categories: TableDefinition<
         CatalogCategoryRow,
@@ -1358,6 +1409,7 @@ export type Database = {
         Args: {
           target_organization_id: string
           target_user_id: string
+          target_full_name?: string | null
           target_job_title?: string | null
           target_phone?: string | null
           target_notes?: string | null
@@ -1367,6 +1419,7 @@ export type Database = {
       update_organization_employee: {
         Args: {
           target_membership_id: string
+          target_full_name: string | null
           target_job_title: string | null
           target_phone: string | null
           target_notes: string | null
@@ -1380,6 +1433,51 @@ export type Database = {
           target_is_active: boolean
         }
         Returns: OrganizationMembershipRow
+      }
+      get_my_employee_lock_state: {
+        Args: {
+          target_organization_id: string
+        }
+        Returns: EmployeeLockStateRow[]
+      }
+      get_organization_employee_lock_states: {
+        Args: {
+          target_organization_id: string
+        }
+        Returns: EmployeeLockStateRow[]
+      }
+      set_employee_lock_pin: {
+        Args: {
+          target_membership_id: string
+          target_pin: string
+        }
+        Returns: undefined
+      }
+      request_employee_lock_pin_change: {
+        Args: {
+          target_membership_id: string
+          target_pin: string
+        }
+        Returns: undefined
+      }
+      approve_employee_lock_pin_change: {
+        Args: {
+          target_membership_id: string
+        }
+        Returns: undefined
+      }
+      reject_employee_lock_pin_change: {
+        Args: {
+          target_membership_id: string
+        }
+        Returns: undefined
+      }
+      verify_employee_lock_pin: {
+        Args: {
+          target_membership_id: string
+          target_pin: string
+        }
+        Returns: boolean
       }
       set_category_status: {
         Args: {
@@ -1548,6 +1646,19 @@ export type Database = {
         Args: {
           target_order_id: string
           target_comment: string
+        }
+        Returns: OrderRow
+      }
+      complete_empty_order: {
+        Args: {
+          target_order_id: string
+        }
+        Returns: OrderRow
+      }
+      cancel_order: {
+        Args: {
+          target_order_id: string
+          target_reason: string
         }
         Returns: OrderRow
       }
@@ -1724,6 +1835,28 @@ export type Database = {
           target_comment?: string | null
         }
         Returns: PlatformSharePaymentRow
+      }
+      get_organization_readiness: {
+        Args: {
+          target_organization_id: string
+        }
+        Returns: OrganizationReadiness
+      }
+      claim_notification_outbox: {
+        Args: {
+          target_batch_size?: number
+          target_processing_timeout_minutes?: number
+        }
+        Returns: NotificationOutboxRow[]
+      }
+      finish_notification_outbox_item: {
+        Args: {
+          target_outbox_id: string
+          target_success: boolean
+          target_error?: string | null
+          target_cancelled?: boolean
+        }
+        Returns: NotificationOutboxRow
       }
     }
     Enums: {

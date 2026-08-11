@@ -3,9 +3,12 @@ import { Archive, Edit3, Loader2, Plus, RotateCcw, Save, Tags, X } from 'lucide-
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
+import { CatalogImage } from '../../../components/common/CatalogImage'
 import { EmptyState } from '../../../components/common/EmptyState'
 import { Button } from '../../../components/ui/Button'
+import { ImageFileInput } from '../../../components/ui/ImageFileInput'
 import { Input } from '../../../components/ui/Input'
+import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
 import type {
   CatalogCategoryRow,
@@ -115,12 +118,26 @@ export function AdminCategoriesPage() {
     setFormError(null)
 
     try {
+      const file = values.image?.item(0)
+      const categoryId = editingCategory?.id ?? crypto.randomUUID()
+      let imagePath = editingCategory?.image_path ?? null
+
+      if (file) {
+        imagePath = await uploadCatalogImage({
+          file,
+          itemId: categoryId,
+          kind: 'categories',
+          organizationId,
+        })
+      }
+
       const input: CategoryInput = {
+        ...(editingCategory ? {} : { id: categoryId }),
         organization_id: organizationId,
         type: values.type,
         name: values.name,
         description: values.description || null,
-        image_path: editingCategory?.image_path ?? null,
+        image_path: imagePath,
         sort_order: values.sort_order,
         status: values.status,
         created_by: editingCategory?.created_by ?? user.id,
@@ -130,20 +147,7 @@ export function AdminCategoriesPage() {
         id: editingCategory?.id,
         input,
       })
-      const file = values.image?.item(0)
-
-      if (file) {
-        const imagePath = await uploadCatalogImage({
-          file,
-          itemId: saved.id,
-          kind: 'categories',
-          organizationId,
-        })
-        await categoryMutations.upsert.mutateAsync({
-          id: saved.id,
-          input: { ...input, image_path: imagePath },
-        })
-      }
+      void saved
 
       setIsModalOpen(false)
       setEditingCategory(null)
@@ -214,9 +218,10 @@ export function AdminCategoriesPage() {
         <div className="grid gap-3">
           {visibleCategories.map((category) => (
             <article
-              className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+              className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[76px_1fr_auto] sm:items-center"
               key={category.id}
             >
+              <CatalogImage alt={category.name} className="size-20" imagePath={category.image_path} />
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="truncate text-base font-semibold text-slate-950">
@@ -233,7 +238,7 @@ export function AdminCategoriesPage() {
                   {category.description || 'Описание не заполнено.'}
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 sm:justify-end">
                 <Button onClick={() => openEdit(category)} type="button" variant="secondary">
                   <Edit3 aria-hidden="true" className="size-4" />
                   Редактировать
@@ -259,7 +264,7 @@ export function AdminCategoriesPage() {
       ) : null}
 
       {isModalOpen ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4 py-6">
+        <Modal onClose={() => setIsModalOpen(false)}>
           <form
             className="grid max-h-[calc(100svh-3rem)] w-full max-w-xl gap-4 overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-xl"
             noValidate
@@ -318,10 +323,13 @@ export function AdminCategoriesPage() {
                   {...register('description')}
                 />
               </label>
-              <label className="grid gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
-                <span>Изображение</span>
-                <input accept="image/*" type="file" {...register('image')} />
-              </label>
+              <ImageFileInput
+                className="sm:col-span-2"
+                error={errors.image?.message}
+                id="category_image"
+                label="Изображение"
+                {...register('image')}
+              />
             </div>
 
             {formError ? (
@@ -344,7 +352,7 @@ export function AdminCategoriesPage() {
               </Button>
             </div>
           </form>
-        </div>
+        </Modal>
       ) : null}
     </section>
   )

@@ -5,8 +5,11 @@ import { useForm, useWatch } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 import { z } from 'zod'
 import { EmptyState } from '../../../components/common/EmptyState'
+import { CatalogImage } from '../../../components/common/CatalogImage'
 import { Button } from '../../../components/ui/Button'
+import { ImageFileInput } from '../../../components/ui/ImageFileInput'
 import { Input } from '../../../components/ui/Input'
+import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
 import type { CatalogItemStatus, ProductRow } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
@@ -162,14 +165,34 @@ export function AdminProductsPage() {
     setFormError(null)
 
     try {
+      const file = values.image?.item(0)
+
+      if (!file && !editingProduct?.image_path) {
+        setFormError('Загрузите фото товара.')
+        return
+      }
+
+      const productId = editingProduct?.id ?? crypto.randomUUID()
+      let imagePath = editingProduct?.image_path ?? null
+
+      if (file) {
+        imagePath = await uploadCatalogImage({
+          file,
+          itemId: productId,
+          kind: 'products',
+          organizationId,
+        })
+      }
+
       const input: ProductInput = {
+        ...(editingProduct ? {} : { id: productId }),
         organization_id: organizationId,
         category_id: values.category_id || null,
         sku: values.sku || null,
         name: values.name,
         description: values.description || null,
         characteristics: values.characteristics || null,
-        image_path: editingProduct?.image_path ?? null,
+        image_path: imagePath,
         sale_price: values.sale_price,
         purchase_price: values.purchase_price ?? null,
         minimum_stock_quantity: values.track_stock ? values.minimum_stock_quantity : 0,
@@ -195,21 +218,6 @@ export function AdminProductsPage() {
           quantity: values.stock_quantity,
           unitCost: values.purchase_price ?? null,
           comment: 'Начальный остаток при создании товара',
-        })
-      }
-
-      const file = values.image?.item(0)
-
-      if (file) {
-        const imagePath = await uploadCatalogImage({
-          file,
-          itemId: saved.id,
-          kind: 'products',
-          organizationId,
-        })
-        await productMutations.upsert.mutateAsync({
-          id: saved.id,
-          input: { ...input, image_path: imagePath },
         })
       }
 
@@ -289,39 +297,41 @@ export function AdminProductsPage() {
       ) : null}
 
       {visibleProducts.length ? (
-        <div className="grid gap-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-1">
           {visibleProducts.map((product) => (
             <article
-              className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_auto]"
+              className="grid gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-sm sm:gap-3 sm:p-4 lg:grid-cols-[88px_1fr_auto]"
               key={product.id}
             >
+              <CatalogImage alt={product.name} className="size-20 self-start sm:size-22" imagePath={product.image_path} />
               <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="truncate text-base font-semibold text-slate-950">{product.name}</h3>
-                  <span className={cn('rounded-md px-2 py-1 text-xs font-medium', statusClass[product.status])}>
+                <div className="grid gap-1 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
+                  <h3 className="truncate text-sm font-semibold text-slate-950 sm:text-base">{product.name}</h3>
+                  <span className={cn('w-fit rounded-md px-2 py-0.5 text-[11px] font-medium sm:py-1 sm:text-xs', statusClass[product.status])}>
                     {statusLabel[product.status]}
                   </span>
                 </div>
-                <p className="mt-1 text-sm text-slate-600">{product.characteristics || 'Характеристики не заполнены.'}</p>
-                <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-5">
-                  <div><dt className="text-xs uppercase text-slate-500">SKU</dt><dd>{product.sku || '-'}</dd></div>
+                <p className="mt-1 hidden text-sm text-slate-600 sm:block">{product.characteristics || 'Характеристики не заполнены.'}</p>
+                <dl className="mt-2 grid grid-cols-2 gap-1 text-xs sm:mt-3 sm:grid-cols-5 sm:gap-2 sm:text-sm">
+                  <div className="hidden sm:block"><dt className="text-xs uppercase text-slate-500">SKU</dt><dd>{product.sku || '-'}</dd></div>
                   <div><dt className="text-xs uppercase text-slate-500">Продажа</dt><dd>{formatMoney(product.sale_price)}</dd></div>
                   <div><dt className="text-xs uppercase text-slate-500">Закупка</dt><dd>{formatMoney(product.purchase_price)}</dd></div>
                   <div><dt className="text-xs uppercase text-slate-500">Остаток</dt><dd>{product.track_stock ? `${product.stock_quantity} ${product.unit_name}` : 'Не ведется'}</dd></div>
-                  <div><dt className="text-xs uppercase text-slate-500">Минимум</dt><dd>{product.minimum_stock_quantity}</dd></div>
+                  <div className="hidden sm:block"><dt className="text-xs uppercase text-slate-500">Минимум</dt><dd>{product.minimum_stock_quantity}</dd></div>
                 </dl>
               </div>
               <div className="flex flex-wrap gap-2 lg:justify-end">
-                <Button onClick={() => openEdit(product)} type="button" variant="secondary">
+                <Button className="min-h-9 w-full px-2 text-xs sm:min-h-10 sm:w-auto sm:px-4 sm:text-sm" onClick={() => openEdit(product)} type="button" variant="secondary">
                   <Edit3 className="size-4" /> Редактировать
                 </Button>
                 <Link
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
+                  className="hidden min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2 sm:inline-flex"
                   to={`/admin/inventory/products/${product.id}`}
                 >
                   <History className="size-4" /> История
                 </Link>
                 <Button
+                  className="hidden sm:inline-flex"
                   onClick={() =>
                     productMutations.setStatus.mutate({
                       id: product.id,
@@ -341,7 +351,7 @@ export function AdminProductsPage() {
       ) : null}
 
       {isModalOpen ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4 py-6">
+        <Modal onClose={() => setIsModalOpen(false)}>
           <form className="grid max-h-[calc(100svh-3rem)] w-full max-w-3xl gap-4 overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-xl" noValidate onSubmit={onSubmit}>
             <div className="flex items-start justify-between gap-3">
               <h3 className="text-lg font-semibold text-slate-950">{editingProduct ? 'Редактировать товар' : 'Создать товар'}</h3>
@@ -396,10 +406,12 @@ export function AdminProductsPage() {
                   <option value="archived">Архив</option>
                 </select>
               </label>
-              <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                <span>Фото</span>
-                <input accept="image/*" type="file" {...register('image')} />
-              </label>
+              <ImageFileInput
+                error={errors.image?.message}
+                id="product_image"
+                label="Фото"
+                {...register('image')}
+              />
               <label className="grid gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
                 <span>Характеристики</span>
                 <textarea className="min-h-20 rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15" {...register('characteristics')} />
@@ -419,7 +431,7 @@ export function AdminProductsPage() {
               </Button>
             </div>
           </form>
-        </div>
+        </Modal>
       ) : null}
     </section>
   )

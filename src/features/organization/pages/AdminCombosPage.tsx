@@ -5,7 +5,9 @@ import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 import { EmptyState } from '../../../components/common/EmptyState'
 import { Button } from '../../../components/ui/Button'
+import { ImageFileInput } from '../../../components/ui/ImageFileInput'
 import { Input } from '../../../components/ui/Input'
+import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
 import type { ComboRow, ComboStatus } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
@@ -248,7 +250,7 @@ export function AdminCombosPage() {
       </div>
 
       {isModalOpen ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4 py-6">
+        <Modal onClose={() => setIsModalOpen(false)}>
           <form className="grid max-h-[calc(100svh-3rem)] w-full max-w-3xl gap-4 overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-xl" noValidate onSubmit={onSubmit}>
             <div className="flex items-start justify-between gap-3">
               <div><h3 className="text-lg font-semibold text-slate-950">Создать комбо</h3><p className="mt-1 text-sm text-slate-600">Режим выбора: fixed. Choice будет добавлен позже.</p></div>
@@ -260,7 +262,7 @@ export function AdminCombosPage() {
               <label className="grid gap-1.5 text-sm font-medium text-slate-700"><span>Категория</span><select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register('category_id')}><option value="">Без категории</option>{comboCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
               <Input error={errors.sort_order?.message} id="combo_sort" label="Порядок" min={0} type="number" {...register('sort_order', { valueAsNumber: true })} />
               <label className="grid gap-1.5 text-sm font-medium text-slate-700"><span>Статус</span><select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register('status')}><option value="active">Активно</option><option value="inactive">Выключено</option><option value="archived">Архив</option></select></label>
-              <label className="grid gap-1.5 text-sm font-medium text-slate-700"><span>Фото</span><input accept="image/*" type="file" {...register('image')} /></label>
+              <ImageFileInput error={errors.image?.message} id="combo_image" label="Фото" {...register('image')} />
               <label className="grid gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2"><span>Описание</span><textarea className="min-h-20 rounded-md border border-slate-200 px-3 py-2 text-sm" {...register('description')} /></label>
             </div>
             <div className="grid gap-3">
@@ -281,7 +283,7 @@ export function AdminCombosPage() {
             {formError ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{formError}</div> : null}
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button onClick={() => setIsModalOpen(false)} type="button" variant="secondary">Отмена</Button><Button disabled={isSubmitting || comboMutations.upsertCombo.isPending} type="submit">{isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}Сохранить</Button></div>
           </form>
-        </div>
+        </Modal>
       ) : null}
     </section>
   )

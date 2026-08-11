@@ -10,8 +10,10 @@ import type {
 
 export const categorySelect =
   'id,organization_id,type,name,description,image_path,sort_order,status,created_by,created_at,updated_at,archived_at'
-export const placeSelect =
+const basePlaceSelect =
   'id,organization_id,category_id,name,type,custom_type_name,description,image_path,has_timer,hourly_rate,minimum_minutes,billing_step_minutes,capacity,sort_order,status,created_by,created_at,updated_at,archived_at'
+export const placeSelect =
+  'id,organization_id,category_id,name,type,custom_type_name,description,image_path,has_timer,hourly_rate,minimum_minutes,billing_step_minutes,capacity,sort_order,workspace_x,workspace_y,workspace_w,workspace_h,status,created_by,created_at,updated_at,archived_at'
 export const productSelect =
   'id,organization_id,category_id,sku,name,description,characteristics,image_path,sale_price,purchase_price,stock_quantity,minimum_stock_quantity,average_purchase_cost,unit_name,track_stock,sort_order,status,created_by,created_at,updated_at,archived_at'
 export const serviceSelect =
@@ -21,17 +23,44 @@ type UseCatalogParams = {
   organizationId: string | null
 }
 
+const isMissingWorkspaceLayoutColumn = (error: unknown) =>
+  error instanceof Error &&
+  (error.message.includes('workspace_x') ||
+    error.message.includes('workspace_y') ||
+    error.message.includes('workspace_w') ||
+    error.message.includes('workspace_h'))
+
+const withWorkspaceLayoutDefaults = (place: Omit<PlaceRow, 'workspace_x' | 'workspace_y' | 'workspace_w' | 'workspace_h'> | PlaceRow): PlaceRow => ({
+  ...place,
+  workspace_x: 'workspace_x' in place ? place.workspace_x : null,
+  workspace_y: 'workspace_y' in place ? place.workspace_y : null,
+  workspace_w: 'workspace_w' in place ? place.workspace_w : null,
+  workspace_h: 'workspace_h' in place ? place.workspace_h : null,
+})
+
+const stripWorkspaceLayoutFields = (input: PlaceInput) => {
+  const { workspace_h: _workspaceH, workspace_w: _workspaceW, workspace_x: _workspaceX, workspace_y: _workspaceY, ...baseInput } = input
+  void _workspaceH
+  void _workspaceW
+  void _workspaceX
+  void _workspaceY
+  return baseInput
+}
+
 export type CategoryInput = Omit<
   CatalogCategoryRow,
   'id' | 'created_at' | 'updated_at' | 'archived_at'
->
-export type PlaceInput = Omit<PlaceRow, 'id' | 'created_at' | 'updated_at' | 'archived_at'>
+> &
+  Partial<Pick<CatalogCategoryRow, 'id'>>
+export type PlaceInput = Omit<PlaceRow, 'id' | 'created_at' | 'updated_at' | 'archived_at'> &
+  Partial<Pick<PlaceRow, 'id'>>
 export type ProductInput = Omit<
   ProductRow,
   'id' | 'created_at' | 'updated_at' | 'archived_at' | 'stock_quantity' | 'average_purchase_cost'
 > &
-  Partial<Pick<ProductRow, 'stock_quantity' | 'average_purchase_cost'>>
-export type ServiceInput = Omit<ServiceRow, 'id' | 'created_at' | 'updated_at' | 'archived_at'>
+  Partial<Pick<ProductRow, 'id' | 'stock_quantity' | 'average_purchase_cost'>>
+export type ServiceInput = Omit<ServiceRow, 'id' | 'created_at' | 'updated_at' | 'archived_at'> &
+  Partial<Pick<ServiceRow, 'id'>>
 
 export function useCatalogCategories({ organizationId }: UseCatalogParams) {
   return useQuery({
@@ -59,18 +88,53 @@ export function usePlaces({ organizationId }: UseCatalogParams) {
     enabled: Boolean(organizationId),
     queryKey: ['admin', 'catalog', 'places', organizationId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const query = supabase
         .from('places')
         .select(placeSelect)
         .eq('organization_id', organizationId!)
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false })
 
-      if (error) {
+      const { data, error } = await query
+
+      if (!error) {
+        return data.map((place) => withWorkspaceLayoutDefaults(place as PlaceRow))
+      }
+
+      if (!isMissingWorkspaceLayoutColumn(new Error(error.message))) {
         throw new Error(error.message)
       }
 
-      return data
+      const fallback = await supabase
+        .from('places')
+        .select(basePlaceSelect)
+        .eq('organization_id', organizationId!)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: false })
+
+      if (fallback.error) {
+        throw new Error(fallback.error.message)
+      }
+
+      return fallback.data.map((place) => withWorkspaceLayoutDefaults(place))
+    },
+  })
+}
+
+export function usePlacesLayoutSchemaStatus(organizationId: string | null) {
+  return useQuery({
+    enabled: Boolean(organizationId),
+    queryKey: ['admin', 'catalog', 'places-layout-schema', organizationId],
+    queryFn: async () => {
+      const { error } = await supabase
+        .from('places')
+        .select('id,workspace_x')
+        .eq('organization_id', organizationId!)
+        .limit(1)
+
+      if (!error) return true
+      if (isMissingWorkspaceLayoutColumn(new Error(error.message))) return false
+      throw new Error(error.message)
     },
   })
 }
@@ -121,6 +185,7 @@ export function useCategoryMutations(organizationId: string | null) {
   const queryClient = useQueryClient()
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: ['admin', 'catalog'] })
+    await queryClient.invalidateQueries({ queryKey: ['employee', 'catalog', 'categories', organizationId] })
   }
 
   return {
@@ -164,10 +229,10 @@ export function useCategoryMutations(organizationId: string | null) {
 }
 
 export function usePlaceMutations(_organizationId: string | null) {
-  void _organizationId
   const queryClient = useQueryClient()
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: ['admin', 'catalog'] })
+    await queryClient.invalidateQueries({ queryKey: ['employee', 'workspace', _organizationId] })
   }
 
   return {
@@ -178,11 +243,25 @@ export function usePlaceMutations(_organizationId: string | null) {
           : supabase.from('places').insert(input).select(placeSelect).single()
         const { data, error } = await query
 
-        if (error) {
+        if (!error) {
+          return withWorkspaceLayoutDefaults(data as PlaceRow)
+        }
+
+        if (!isMissingWorkspaceLayoutColumn(new Error(error.message))) {
           throw new Error(error.message)
         }
 
-        return data
+        const baseInput = stripWorkspaceLayoutFields(input)
+        const fallbackQuery = id
+          ? supabase.from('places').update(baseInput).eq('id', id).select(basePlaceSelect).single()
+          : supabase.from('places').insert(baseInput).select(basePlaceSelect).single()
+        const fallback = await fallbackQuery
+
+        if (fallback.error) {
+          throw new Error(fallback.error.message)
+        }
+
+        return withWorkspaceLayoutDefaults(fallback.data)
       },
       onSuccess: invalidate,
     }),
@@ -205,10 +284,10 @@ export function usePlaceMutations(_organizationId: string | null) {
 }
 
 export function useProductMutations(_organizationId: string | null) {
-  void _organizationId
   const queryClient = useQueryClient()
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: ['admin', 'catalog'] })
+    await queryClient.invalidateQueries({ queryKey: ['employee', 'catalog', 'products', _organizationId] })
   }
 
   return {
@@ -246,10 +325,10 @@ export function useProductMutations(_organizationId: string | null) {
 }
 
 export function useServiceMutations(_organizationId: string | null) {
-  void _organizationId
   const queryClient = useQueryClient()
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: ['admin', 'catalog'] })
+    await queryClient.invalidateQueries({ queryKey: ['employee', 'catalog', 'services', _organizationId] })
   }
 
   return {

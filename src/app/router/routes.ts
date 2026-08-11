@@ -21,6 +21,7 @@ export type NavItem = {
   path: string
   icon: LucideIcon
   end?: boolean
+  mobile?: boolean
 }
 
 export const platformNavItems: NavItem[] = [
@@ -68,26 +69,31 @@ export const adminNavItems: NavItem[] = [
     label: 'Места',
     path: '/admin/places',
     icon: MapPin,
+    mobile: false,
   },
   {
     label: 'Товары',
     path: '/admin/products',
     icon: Package,
+    mobile: false,
   },
   {
     label: 'Услуги',
     path: '/admin/services',
     icon: Tags,
+    mobile: false,
   },
   {
     label: 'Склад',
     path: '/admin/inventory',
     icon: Warehouse,
+    mobile: false,
   },
   {
     label: 'Комбо',
     path: '/admin/combos',
     icon: Gift,
+    mobile: false,
   },
   {
     label: 'Заказы',
@@ -98,16 +104,19 @@ export const adminNavItems: NavItem[] = [
     label: 'Финансы',
     path: '/admin/finance',
     icon: Landmark,
+    mobile: false,
   },
   {
     label: 'Исправления',
     path: '/admin/adjustment-requests',
     icon: Clock3,
+    mobile: false,
   },
   {
     label: 'Смены',
     path: '/admin/shifts',
     icon: Clock3,
+    mobile: false,
   },
   {
     label: 'Настройки',
@@ -152,6 +161,7 @@ export const pageTitles = [
   { label: 'Настройки финансов', path: '/admin/finance/settings', icon: Landmark },
   { label: 'Финансы платформы', path: '/platform/finance', icon: Landmark },
   { label: 'Финансы организации', path: '/platform/finance/organizations', icon: Landmark },
+  { label: 'Setup организации', path: '/platform/organizations', icon: Building2 },
   { label: 'Финансовый период', path: '/platform/finance/periods', icon: Landmark },
   { label: 'Платежи платформе', path: '/platform/finance/payments', icon: Landmark },
   { label: 'Рабочая панель', path: '/employee/workspace', icon: BriefcaseBusiness },

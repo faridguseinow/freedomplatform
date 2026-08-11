@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { EmptyState } from '../../../components/common/EmptyState'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
+import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
 import type { StockMovementType } from '../../../lib/supabase/database.types'
 import { useProducts } from '../catalog/catalogApi'
@@ -244,7 +245,7 @@ export function AdminInventoryPage() {
       </section>
 
       {isModalOpen ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4 py-6">
+        <Modal onClose={() => setIsModalOpen(false)}>
           <form className="grid max-h-[calc(100svh-3rem)] w-full max-w-3xl gap-4 overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-xl" noValidate onSubmit={onSubmit}>
             <div className="flex items-start justify-between gap-3">
               <h3 className="text-lg font-semibold text-slate-950">Складской документ</h3>
@@ -276,7 +277,7 @@ export function AdminInventoryPage() {
               <Button disabled={isSubmitting || inventoryMutations.createDocument.isPending} type="submit">{isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}Сохранить</Button>
             </div>
           </form>
-        </div>
+        </Modal>
       ) : null}
     </section>
   )
