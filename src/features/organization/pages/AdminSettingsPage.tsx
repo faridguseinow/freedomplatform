@@ -1,7 +1,10 @@
 import { AlertTriangle, Building2, Clock3, Landmark, Settings, Warehouse } from 'lucide-react'
+import type { ChangeEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { EmptyState } from '../../../components/common/EmptyState'
 import { useAuth } from '../../../hooks/useAuth'
+import { useI18n } from '../../../lib/i18n/I18nContext'
+import { languageLabels, supportedLanguages, type SystemLanguage } from '../../../lib/i18n/translations'
 
 const mobileManagementLinks = [
   {
@@ -32,8 +35,12 @@ const mobileManagementLinks = [
 
 export function AdminSettingsPage() {
   const { currentOrganization } = useAuth()
+  const { language, setLanguage, t } = useI18n()
   const buildAdminPath = (path: string) =>
     currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
+  const handleLanguageChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    setLanguage(event.target.value as SystemLanguage)
+  }
 
   if (!currentOrganization) {
     return (
@@ -55,6 +62,32 @@ export function AdminSettingsPage() {
           Базовые параметры текущей организации. Редактирование будет расширено следующим этапом.
         </p>
       </header>
+
+      <article className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="grid gap-1">
+          <h3 className="text-lg font-semibold text-slate-950">{t('Язык системы')}</h3>
+          <p className="text-sm leading-6 text-slate-600">
+            {t(
+              'Язык интерфейса хранится локально на этом устройстве и применяется для администратора и рабочего места сотрудника в этом браузере.',
+            )}
+          </p>
+        </div>
+
+        <label className="grid max-w-sm gap-1 text-sm font-medium text-slate-700">
+          <span>{t('Язык')}</span>
+          <select
+            className="h-11 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950 shadow-sm outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20"
+            onChange={handleLanguageChange}
+            value={language}
+          >
+            {supportedLanguages.map((item) => (
+              <option key={item} value={item}>
+                {languageLabels[item]}
+              </option>
+            ))}
+          </select>
+        </label>
+      </article>
 
       <article className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-start gap-3">

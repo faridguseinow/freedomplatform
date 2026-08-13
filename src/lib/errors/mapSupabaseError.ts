@@ -1,3 +1,5 @@
+import { translateByCurrentLanguage } from '../i18n/translator'
+
 type SupabaseLikeError = {
   code?: string
   message?: string
@@ -45,18 +47,18 @@ export function mapSupabaseError(error: unknown, fallback = 'Не удалось
   }
 
   if (rawCode && codeMessages[rawCode]) {
-    return codeMessages[rawCode]
+    return translateByCurrentLanguage(codeMessages[rawCode])
   }
 
   for (const [pattern, message] of messageRules) {
-    if (pattern.test(rawMessage)) return message
+    if (pattern.test(rawMessage)) return translateByCurrentLanguage(message)
   }
 
   if (!rawMessage || technicalPatterns.some((pattern) => pattern.test(rawMessage))) {
-    return fallback
+    return translateByCurrentLanguage(fallback)
   }
 
-  return rawMessage.replace(/\([0-9a-f-]{36}\)/gi, '').trim()
+  return translateByCurrentLanguage(rawMessage.replace(/\([0-9a-f-]{36}\)/gi, '').trim())
 }
 
 export function throwMappedSupabaseError(error: unknown, fallback?: string): never {
