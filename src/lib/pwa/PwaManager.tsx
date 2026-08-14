@@ -6,7 +6,8 @@ import { USER_ROLES } from '../../types/roles'
 
 const defaultThemeColor = '#047857'
 const defaultBackgroundColor = '#f8fafc'
-const freedomIcon = '/pwa/freedom-platform.svg'
+const freedomIcon = '/pwa/freedom-platform-512.png'
+const freedomAppleIcon = '/pwa/freedom-platform-180.png'
 const organizationFallbackIcon = '/pwa/the-league.svg'
 
 type PwaConfig = {
@@ -16,6 +17,8 @@ type PwaConfig = {
   startUrl: string
   scope: string
   iconUrl: string
+  appleIconUrl?: string
+  staticManifestUrl?: string
 }
 
 function upsertMeta(name: string, content: string, attribute: 'name' | 'property' = 'name') {
@@ -52,6 +55,7 @@ function buildManifest(config: PwaConfig) {
     name: config.name,
     short_name: config.shortName,
     description: config.description,
+    id: toAbsoluteUrl(config.startUrl),
     start_url: toAbsoluteUrl(config.startUrl),
     scope: toAbsoluteUrl(config.scope),
     display: 'standalone',
@@ -63,7 +67,7 @@ function buildManifest(config: PwaConfig) {
     icons: [
       {
         src: toAbsoluteUrl(config.iconUrl),
-        sizes: 'any',
+        sizes: config.iconUrl.endsWith('.svg') ? 'any' : '512x512',
         type: config.iconUrl.endsWith('.svg') ? 'image/svg+xml' : 'image/png',
         purpose: 'any maskable',
       },
@@ -105,20 +109,24 @@ export function PwaManager() {
       startUrl: '/platform',
       scope: '/',
       iconUrl: freedomIcon,
+      appleIconUrl: freedomAppleIcon,
+      staticManifestUrl: '/manifest.webmanifest',
     }
   }, [currentOrganization, organizationLogo.data, role])
 
   useEffect(() => {
-    const manifest = buildManifest(config)
-    const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' })
-    const manifestUrl = URL.createObjectURL(manifestBlob)
+    const manifestUrl = config.staticManifestUrl
+      ? config.staticManifestUrl
+      : URL.createObjectURL(
+          new Blob([JSON.stringify(buildManifest(config))], { type: 'application/manifest+json' }),
+        )
 
     document.documentElement.lang = 'ru'
     document.title = getDocumentTitle(config)
 
     upsertLink('manifest', manifestUrl, 'application/manifest+json')
     upsertLink('icon', config.iconUrl)
-    upsertLink('apple-touch-icon', config.iconUrl)
+    upsertLink('apple-touch-icon', config.appleIconUrl ?? config.iconUrl)
 
     upsertMeta('application-name', config.name)
     upsertMeta('apple-mobile-web-app-title', config.name)
@@ -131,7 +139,9 @@ export function PwaManager() {
     upsertMeta('og:description', config.description, 'property')
     upsertMeta('og:image', config.iconUrl, 'property')
 
-    return () => URL.revokeObjectURL(manifestUrl)
+    return () => {
+      if (!config.staticManifestUrl) URL.revokeObjectURL(manifestUrl)
+    }
   }, [config])
 
   useEffect(() => {

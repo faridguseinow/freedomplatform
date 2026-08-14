@@ -1,5 +1,15 @@
-const CACHE_NAME = 'freedom-platform-shell-v2'
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/pwa/freedom-platform.svg', '/pwa/the-league.svg']
+const CACHE_NAME = 'freedom-platform-shell-v3'
+const APP_SHELL = [
+  '/',
+  '/platform',
+  '/index.html',
+  '/manifest.webmanifest',
+  '/pwa/freedom-platform.svg',
+  '/pwa/freedom-platform-180.png',
+  '/pwa/freedom-platform-192.png',
+  '/pwa/freedom-platform-512.png',
+  '/pwa/the-league.svg',
+]
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
