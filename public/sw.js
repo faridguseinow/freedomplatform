@@ -1,4 +1,4 @@
-const CACHE_NAME = 'freedom-platform-shell-v1'
+const CACHE_NAME = 'freedom-platform-shell-v2'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/pwa/freedom-platform.svg', '/pwa/the-league.svg']
 
 self.addEventListener('install', (event) => {
@@ -26,7 +26,12 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(() => caches.match('/index.html').then((response) => response ?? Response.error())),
+      fetch(request)
+        .then((response) => {
+          if (response.ok) return response
+          return caches.match('/index.html').then((cached) => cached ?? response)
+        })
+        .catch(() => caches.match('/index.html').then((response) => response ?? Response.error())),
     )
     return
   }
