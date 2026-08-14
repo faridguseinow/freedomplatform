@@ -76,6 +76,8 @@ export const azTranslations: Record<string, string> = {
   'Валюта отчёта': 'Hesabat valyutası',
   'Валюта по умолчанию': 'Standart valyuta',
   Войти: 'Daxil ol',
+  'Будут удалены заказы, платежи, смены, операционные дни, доходы от заказов и складские списания по заказам. Товары, услуги, комбо, складские документы и расходы останутся.':
+    'Sifarişlər, ödənişlər, növbələr, əməliyyat günləri, sifariş gəlirləri və sifariş üzrə anbar silinmələri silinəcək. Məhsullar, xidmətlər, kombo, anbar sənədləri və xərclər qalacaq.',
   'Ваш аккаунт создан, но доступ к организации еще не настроен.':
     'Hesabınız yaradılıb, amma təşkilata giriş hələ qurulmayıb.',
   'Ваш аккаунт создан, но доступ к организации еще не настроен. Обратитесь к владельцу Freedom Platform.':
@@ -86,6 +88,8 @@ export const azTranslations: Record<string, string> = {
   'Введите название организации.': 'Təşkilat adını daxil edin.',
   'Введите название.': 'Ad daxil edin.',
   'Введите пароль': 'Şifrəni daxil edin',
+  'Введите RESET_TEST_ORDERS для окончательной очистки.':
+    'Son təmizləmə üçün RESET_TEST_ORDERS daxil edin.',
   Включено: 'Aktivdir',
   Включить: 'Aktiv et',
   'Владелец платформы': 'Platforma sahibi',
@@ -313,6 +317,7 @@ export const azTranslations: Record<string, string> = {
   'Не удалось сохранить схему.': 'Sxemi saxlamaq mümkün olmadı.',
   'Не удалось сохранить товар.': 'Məhsulu saxlamaq mümkün olmadı.',
   'Не удалось удалить товар.': 'Məhsulu silmək mümkün olmadı.',
+  'Не удалось очистить тестовые заказы.': 'Test sifarişlərini təmizləmək mümkün olmadı.',
   'Не удалось сохранить услугу.': 'Xidməti saxlamaq mümkün olmadı.',
   'Не удалось сохранить шаблон.': 'Şablonu saxlamaq mümkün olmadı.',
   'Не удалось обновить остаток.': 'Qalığı yeniləmək mümkün olmadı.',
@@ -669,6 +674,8 @@ export const azTranslations: Record<string, string> = {
   'Доступ не настроен': 'Giriş qurulmayıb',
   'Доступ открыт только для созданных пользователей платформы и организаций.':
     'Giriş yalnız yaradılmış platforma və təşkilat istifadəçiləri üçün açıqdır.',
+  'Доступно только владельцу платформы. Действие необратимое.':
+    'Yalnız platforma sahibinə əlçatandır. Əməliyyat geri qaytarılmır.',
   'Доступы и роли команды.': 'Komandanın girişləri və rolları.',
   Ежегодно: 'İllik',
   Ежеквартально: 'Rüblük',
@@ -733,6 +740,8 @@ export const azTranslations: Record<string, string> = {
   Картой: 'Kartla',
   'Кассовая ответственность, закрытия, расхождения и передачи.':
     'Kassa məsuliyyəti, bağlamalar, uyğunsuzluqlar və təhvil vermələr.',
+  'Код подтверждения неверный. Очистка не выполнена.':
+    'Təsdiq kodu yanlışdır. Təmizləmə icra olunmadı.',
   'Каталог продаж с ценами и изображениями. Остатки меняются через складские документы.':
     'Qiymətlər və şəkillərlə satış kataloqu. Qalıqlar anbar sənədləri ilə dəyişir.',
   'Категории, товары, услуги и комбо.': 'Kateqoriyalar, məhsullar, xidmətlər və kombo.',
@@ -800,6 +809,8 @@ export const azTranslations: Record<string, string> = {
     'Kartı siçanla lazımi xanaya sürükləyin. Ölçü W/H düymələri və ya yer forması ilə dəyişir.',
   'Переход через полночь': 'Gecə yarısından keçid',
   'Перед удалением остаток товара должен быть 0.': 'Silməzdən əvvəl məhsul qalığı 0 olmalıdır.',
+  'Пересчитано товаров': 'Yenidən hesablanan məhsullar',
+  'Пересчитано товаров:': 'Yenidən hesablanan məhsullar:',
   'Периоды:': 'Dövrlər:',
   'Платежей нет.': 'Ödəniş yoxdur.',
   Платежи: 'Ödənişlər',
@@ -907,10 +918,18 @@ export const azTranslations: Record<string, string> = {
   'Требует внимания': 'Diqqət tələb edir',
   Убрать: 'Sil',
   Удалить: 'Sil',
+  'Удалено заказов': 'Silinən sifarişlər',
+  'Удалено заказов:': 'Silinən sifarişlər:',
+  'Удалено платежей': 'Silinən ödənişlər',
+  'Удалено платежей:': 'Silinən ödənişlər:',
+  'Удалено смен': 'Silinən növbələr',
+  'Удалено смен:': 'Silinən növbələr:',
   'Удалить можно только товар без заказов, складских документов, движений, резервов и комбо. Если история уже есть, используйте архив.':
     'Yalnız sifarişləri, anbar sənədləri, hərəkətləri, rezervləri və kombosu olmayan məhsulu silmək olar. Tarixçə artıq varsa, arxivdən istifadə edin.',
   'Удалить товар': 'Məhsulu sil',
   'Удалить товар навсегда?': 'Məhsulu birdəfəlik silmək istəyirsiniz?',
+  'Удаляет только тестовую операционную историю: заказы, платежи, смены, операционные дни, доходы от заказов и складские списания по заказам. Каталог, услуги, товары, складские документы и расходы остаются.':
+    'Yalnız test əməliyyat tarixçəsini silir: sifarişlər, ödənişlər, növbələr, əməliyyat günləri, sifariş gəlirləri və sifariş üzrə anbar silinmələri. Kataloq, xidmətlər, məhsullar, anbar sənədləri və xərclər qalır.',
   'Увеличить на 1': '1 vahid artır',
   'Укажите причину изменения остатка.': 'Qalıq dəyişikliyinin səbəbini göstərin.',
   'Уменьшить на 1': '1 vahid azalt',
@@ -931,6 +950,10 @@ export const azTranslations: Record<string, string> = {
   'Обновить остаток': 'Qalığı yenilə',
   'Остаток обновлен через складскую корректировку.':
     'Qalıq anbar düzəlişi ilə yeniləndi.',
+  'Очистить тестовые заказы': 'Test sifarişlərini təmizlə',
+  'Очистить тестовые заказы организации?': 'Təşkilatın test sifarişləri təmizlənsin?',
+  'Очистка...': 'Təmizlənir...',
+  'Очистка тестовых заказов': 'Test sifarişlərinin təmizlənməsi',
   'Ручная корректировка остатка': 'Qalığın əl ilə düzəlişi',
   'Черновики, проведенные и отмененные документы склада.':
     'Qaralamalar, keçirilmiş və ləğv edilmiş anbar sənədləri.',
@@ -972,7 +995,9 @@ export const azTranslations: Record<string, string> = {
   'изменил расход': 'xərci dəyişdi',
   'удалил расход': 'xərci sildi',
   'удалил товар': 'məhsulu sildi',
+  'очистил тестовые заказы': 'test sifarişlərini təmizlədi',
   товар: 'məhsul',
+  организация: 'təşkilat',
   'синхронизировал доход по заказу': 'sifariş gəlirini sinxronlaşdırdı',
   'синхронизировал закупку': 'satınalmanı sinxronlaşdırdı',
   'сообщил об оплате доли платформы': 'platforma payı ödənişi barədə bildirdi',

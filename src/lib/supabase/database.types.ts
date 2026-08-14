@@ -1391,6 +1391,13 @@ export type Database = {
         }
         Returns: OrganizationRow
       }
+      reset_organization_test_orders: {
+        Args: {
+          target_organization_id: string
+          target_confirmation: string
+        }
+        Returns: Record<string, unknown>
+      }
       assign_organization_admin: {
         Args: {
           target_organization_id: string

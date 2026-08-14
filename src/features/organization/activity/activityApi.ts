@@ -82,6 +82,7 @@ const actionLabels: Record<string, string> = {
   'finance.platform_share_payment_confirmed': 'подтвердил оплату доли платформы',
   'finance.platform_share_payment_rejected': 'отклонил оплату доли платформы',
   'catalog.product_deleted': 'удалил товар',
+  'maintenance.test_orders_reset': 'очистил тестовые заказы',
 }
 
 const entityLabels: Record<string, string> = {
@@ -98,6 +99,7 @@ const entityLabels: Record<string, string> = {
   organization_platform_share_rate: 'ставка доли платформы',
   platform_share_payment: 'платёж доли платформы',
   product: 'товар',
+  organization: 'организация',
 }
 
 function asRecord(value: unknown): RawMetadata {
@@ -134,6 +136,10 @@ function buildDetails(metadata: RawMetadata) {
   if (typeof metadata.comment === 'string') details.push(`Комментарий: ${metadata.comment}`)
   if (typeof metadata.name === 'string') details.push(`Название: ${metadata.name}`)
   if (typeof metadata.sku === 'string') details.push(`SKU: ${metadata.sku}`)
+  if (typeof metadata.orders_deleted === 'number') details.push(`Удалено заказов: ${metadata.orders_deleted}`)
+  if (typeof metadata.payments_deleted === 'number') details.push(`Удалено платежей: ${metadata.payments_deleted}`)
+  if (typeof metadata.shifts_deleted === 'number') details.push(`Удалено смен: ${metadata.shifts_deleted}`)
+  if (typeof metadata.affected_products === 'number') details.push(`Пересчитано товаров: ${metadata.affected_products}`)
 
   return details
 }
