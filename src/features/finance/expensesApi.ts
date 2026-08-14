@@ -12,7 +12,7 @@ export function useExpenseMutations(organizationId: string | null) {
 
   return {
     createExpense: useMutation({
-      mutationFn: async (input: MoneyInput & { categoryId: string }) => {
+      mutationFn: async (input: MoneyInput & { categoryId: string; idempotencyKey?: string | null }) => {
         if (!organizationId) throw new Error('Organization is required.')
         const { data, error } = await supabase.rpc('create_expense', {
           target_organization_id: organizationId,
@@ -26,7 +26,44 @@ export function useExpenseMutations(organizationId: string | null) {
           target_description: input.description ?? null,
           target_document_path: input.documentPath ?? null,
           target_source_type: 'manual',
-          target_source_id: null,
+          target_source_id: input.idempotencyKey ?? null,
+        })
+
+        if (error) throw new Error(error.message)
+        return data as FinanceTransactionRow
+      },
+      onSuccess: invalidate,
+    }),
+    updateExpense: useMutation({
+      mutationFn: async ({
+        transactionId,
+        input,
+      }: {
+        transactionId: string
+        input: MoneyInput & { categoryId: string }
+      }) => {
+        const { data, error } = await supabase.rpc('update_expense', {
+          target_transaction_id: transactionId,
+          target_title: input.title,
+          target_amount: input.amount,
+          target_category_id: input.categoryId,
+          target_payment_method: input.paymentMethod ?? null,
+          target_accrual_date: input.accrualDate ?? todayDate(),
+          target_paid_date: input.paidDate ?? null,
+          target_recipient_or_supplier: input.recipientOrSupplier ?? null,
+          target_description: input.description ?? null,
+        })
+
+        if (error) throw new Error(error.message)
+        return data as FinanceTransactionRow
+      },
+      onSuccess: invalidate,
+    }),
+    cancelExpense: useMutation({
+      mutationFn: async ({ transactionId, reason }: { transactionId: string; reason: string }) => {
+        const { data, error } = await supabase.rpc('cancel_expense', {
+          target_transaction_id: transactionId,
+          target_reason: reason,
         })
 
         if (error) throw new Error(error.message)

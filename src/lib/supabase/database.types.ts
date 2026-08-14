@@ -1777,6 +1777,27 @@ export type Database = {
         }
         Returns: FinanceTransactionRow
       }
+      update_expense: {
+        Args: {
+          target_transaction_id: string
+          target_title: string
+          target_amount: number
+          target_category_id: string
+          target_payment_method?: FinancePaymentMethod | null
+          target_accrual_date?: string
+          target_paid_date?: string | null
+          target_recipient_or_supplier?: string | null
+          target_description?: string | null
+        }
+        Returns: FinanceTransactionRow
+      }
+      cancel_expense: {
+        Args: {
+          target_transaction_id: string
+          target_reason: string
+        }
+        Returns: FinanceTransactionRow
+      }
       generate_due_recurring_expenses: {
         Args: {
           target_organization_id: string

@@ -69,6 +69,8 @@ const actionLabels: Record<string, string> = {
   'finance.purchase_synced': 'синхронизировал закупку',
   'finance.manual_income_created': 'создал ручной доход',
   'finance.expense_created': 'создал расход',
+  'finance.expense_updated': 'изменил расход',
+  'finance.expense_cancelled': 'удалил расход',
   'finance.expense_approved': 'одобрил расход',
   'finance.expense_rejected': 'отклонил расход',
   'finance.period_submitted': 'отправил финансовый период на проверку',

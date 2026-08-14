@@ -2,19 +2,26 @@ import {
   Banknote,
   Calculator,
   CalendarCheck,
+  Edit3,
+  Eye,
   Landmark,
   ListChecks,
+  Loader2,
   ReceiptText,
   Repeat,
+  Save,
   Settings,
+  Trash2,
   WalletCards,
+  X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import type { FormEvent, ReactNode } from 'react'
+import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { EmptyState } from '../../../components/common/EmptyState'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
+import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
 import type {
   FinancePaymentMethod,
@@ -132,7 +139,19 @@ function StatGrid({ summary }: { summary: FinancialPeriodSummary | null | undefi
   )
 }
 
-function TransactionTable({ rows }: { rows: FinanceTransactionRow[] | undefined }) {
+function TransactionTable({
+  onCancel,
+  onEdit,
+  onOpen,
+  rows,
+  type,
+}: {
+  onCancel?: (row: FinanceTransactionRow) => void
+  onEdit?: (row: FinanceTransactionRow) => void
+  onOpen?: (row: FinanceTransactionRow) => void
+  rows: FinanceTransactionRow[] | undefined
+  type: FinanceTransactionType | undefined
+}) {
   if (!rows?.length) {
     return (
       <EmptyState
@@ -154,6 +173,7 @@ function TransactionTable({ rows }: { rows: FinanceTransactionRow[] | undefined 
               <th className="px-4 py-3">Статус</th>
               <th className="px-4 py-3">Метод</th>
               <th className="px-4 py-3 text-right">Сумма</th>
+              {type === 'expense' ? <th className="px-4 py-3 text-right">Действия</th> : null}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -173,6 +193,25 @@ function TransactionTable({ rows }: { rows: FinanceTransactionRow[] | undefined 
                 <td className="whitespace-nowrap px-4 py-3 text-right font-medium">
                   {money(row.amount)}
                 </td>
+                {type === 'expense' ? (
+                  <td className="whitespace-nowrap px-4 py-3">
+                    <div className="flex justify-end gap-2">
+                      <Button className="min-h-9 px-2" onClick={() => onOpen?.(row)} type="button" variant="secondary">
+                        <Eye className="size-4" />
+                      </Button>
+                      {row.source_type === 'manual' && row.status !== 'cancelled' ? (
+                        <>
+                          <Button className="min-h-9 px-2" onClick={() => onEdit?.(row)} type="button" variant="secondary">
+                            <Edit3 className="size-4" />
+                          </Button>
+                          <Button className="min-h-9 px-2" onClick={() => onCancel?.(row)} type="button" variant="danger">
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </>
+                      ) : null}
+                    </div>
+                  </td>
+                ) : null}
               </tr>
             ))}
           </tbody>
@@ -194,10 +233,15 @@ function MoneyForm({
   const categories = useFinanceCategories(organizationId, type)
   const incomeMutations = useIncomeMutations(organizationId)
   const expenseMutations = useExpenseMutations(organizationId)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const expenseIdempotencyKey = useRef(crypto.randomUUID())
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const form = new FormData(event.currentTarget)
+    if (isSubmitting) return
+    setIsSubmitting(true)
+    const formElement = event.currentTarget
+    const form = new FormData(formElement)
     const categoryId = String(form.get('category_id') ?? '')
     const input = {
       title: String(form.get('title') ?? ''),
@@ -210,10 +254,20 @@ function MoneyForm({
       description: String(form.get('description') || '') || null,
     }
 
-    if (type === 'income') {
-      incomeMutations.createManualIncome.mutate(input)
-    } else if (categoryId) {
-      expenseMutations.createExpense.mutate({ ...input, categoryId })
+    try {
+      if (type === 'income') {
+        await incomeMutations.createManualIncome.mutateAsync(input)
+      } else if (categoryId) {
+        await expenseMutations.createExpense.mutateAsync({
+          ...input,
+          categoryId,
+          idempotencyKey: expenseIdempotencyKey.current,
+        })
+        expenseIdempotencyKey.current = crypto.randomUUID()
+      }
+      formElement.reset()
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -222,7 +276,7 @@ function MoneyForm({
   const isPending =
     type === 'income'
       ? incomeMutations.createManualIncome.isPending
-      : expenseMutations.createExpense.isPending
+      : expenseMutations.createExpense.isPending || isSubmitting
 
   return (
     <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4" onSubmit={handleSubmit}>
@@ -255,10 +309,108 @@ function MoneyForm({
         {type === 'expense' ? <Input label="Получатель / поставщик" name="recipient_or_supplier" /> : null}
       </div>
       <Button className="justify-self-start" disabled={isPending} type="submit">
-        <ReceiptText aria-hidden="true" className="size-4" />
+        {isPending ? <Loader2 aria-hidden="true" className="size-4 animate-spin" /> : <ReceiptText aria-hidden="true" className="size-4" />}
         Добавить
       </Button>
     </form>
+  )
+}
+
+type ExpenseModalMode = 'view' | 'edit'
+
+function ExpenseTransactionModal({
+  mode,
+  onClose,
+  organizationId,
+  row,
+}: {
+  mode: ExpenseModalMode
+  onClose: () => void
+  organizationId: string | null
+  row: FinanceTransactionRow
+}) {
+  const categories = useFinanceCategories(organizationId, 'expense')
+  const expenseMutations = useExpenseMutations(organizationId)
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const categoryId = String(form.get('category_id') ?? '')
+    if (!categoryId) return
+
+    await expenseMutations.updateExpense.mutateAsync({
+      transactionId: row.id,
+      input: {
+        title: String(form.get('title') ?? ''),
+        amount: Number(form.get('amount') ?? 0),
+        categoryId,
+        paymentMethod: String(form.get('payment_method') || 'cash') as FinancePaymentMethod,
+        accrualDate: String(form.get('accrual_date') || DEFAULT_END),
+        paidDate: String(form.get('paid_date') || '') || null,
+        recipientOrSupplier: String(form.get('recipient_or_supplier') || '') || null,
+        description: String(form.get('description') || '') || null,
+      },
+    })
+    onClose()
+  }
+
+  const isEdit = mode === 'edit'
+
+  return (
+    <Modal onClose={onClose}>
+      <form className="grid w-full max-w-2xl gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-xl" onSubmit={handleSubmit}>
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-lg font-semibold text-slate-950">{isEdit ? 'Редактировать расход' : 'Расход'}</h3>
+          <button aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={onClose} type="button">
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <Input defaultValue={row.title} disabled={!isEdit} label="Название" name="title" required />
+          <Input defaultValue={row.amount} disabled={!isEdit} label="Сумма" min="0.01" name="amount" required step="0.01" type="number" />
+          <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+            <span>Категория</span>
+            <select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm disabled:bg-slate-50" defaultValue={row.category_id ?? ''} disabled={!isEdit} name="category_id" required>
+              <option value="">Без категории</option>
+              {categories.data?.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+            <span>Метод оплаты</span>
+            <select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm disabled:bg-slate-50" defaultValue={row.payment_method ?? 'cash'} disabled={!isEdit} name="payment_method">
+              {methodOptions.map((method) => (
+                <option key={method.value} value={method.value}>
+                  {method.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Input defaultValue={row.accrual_date} disabled={!isEdit} label="Дата начисления" name="accrual_date" type="date" />
+          <Input defaultValue={row.paid_date ?? ''} disabled={!isEdit} label="Дата оплаты" name="paid_date" type="date" />
+          <Input defaultValue={row.recipient_or_supplier ?? ''} disabled={!isEdit} label="Получатель / поставщик" name="recipient_or_supplier" />
+          <Input defaultValue={row.status} disabled label="Статус" name="status_display" />
+        </div>
+        <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+          <span>Описание</span>
+          <textarea className="min-h-24 rounded-md border border-slate-200 px-3 py-2 text-sm outline-none disabled:bg-slate-50" defaultValue={row.description ?? ''} disabled={!isEdit} name="description" />
+        </label>
+
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button onClick={onClose} type="button" variant="secondary">Закрыть</Button>
+          {isEdit ? (
+            <Button disabled={expenseMutations.updateExpense.isPending} type="submit">
+              {expenseMutations.updateExpense.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+              Сохранить
+            </Button>
+          ) : null}
+        </div>
+      </form>
+    </Modal>
   )
 }
 
@@ -273,6 +425,25 @@ function AdminFinanceShell({
 }) {
   const { organizationId, user } = useAuth()
   const transactions = useFinanceTransactions(organizationId, type)
+  const expenseMutations = useExpenseMutations(organizationId)
+  const [selectedTransaction, setSelectedTransaction] = useState<FinanceTransactionRow | null>(null)
+  const [transactionModalMode, setTransactionModalMode] = useState<ExpenseModalMode>('view')
+
+  const openTransaction = (row: FinanceTransactionRow) => {
+    setSelectedTransaction(row)
+    setTransactionModalMode('view')
+  }
+
+  const editTransaction = (row: FinanceTransactionRow) => {
+    setSelectedTransaction(row)
+    setTransactionModalMode('edit')
+  }
+
+  const cancelTransaction = (row: FinanceTransactionRow) => {
+    const reason = window.prompt('Причина удаления')
+    if (!reason?.trim()) return
+    expenseMutations.cancelExpense.mutate({ transactionId: row.id, reason: reason.trim() })
+  }
 
   return (
     <section className="grid gap-5">
@@ -280,7 +451,21 @@ function AdminFinanceShell({
       {type === 'income' || type === 'expense' ? (
         <MoneyForm organizationId={organizationId} type={type} userId={user?.id} />
       ) : null}
-      <TransactionTable rows={transactions.data} />
+      <TransactionTable
+        onCancel={cancelTransaction}
+        onEdit={editTransaction}
+        onOpen={openTransaction}
+        rows={transactions.data}
+        type={type}
+      />
+      {selectedTransaction ? (
+        <ExpenseTransactionModal
+          mode={transactionModalMode}
+          onClose={() => setSelectedTransaction(null)}
+          organizationId={organizationId}
+          row={selectedTransaction}
+        />
+      ) : null}
     </section>
   )
 }
