@@ -13,6 +13,8 @@ const reverseAzTranslations = Object.fromEntries(
 const reverseTranslationEntries = Object.entries(reverseAzTranslations).sort(
   ([left], [right]) => right.length - left.length,
 )
+const safeTranslationEntries = translationEntries.filter(([source]) => source.trim().length > 1)
+const safeReverseTranslationEntries = reverseTranslationEntries.filter(([source]) => source.trim().length > 1)
 
 const cyrillicPattern = /[А-Яа-яЁё]/
 
@@ -56,7 +58,7 @@ function translateTrimmedToAz(value: string) {
 
   if (!cyrillicPattern.test(value)) return value
 
-  const translated = translationEntries.reduce((current, [source, translated]) => {
+  const translated = safeTranslationEntries.reduce((current, [source, translated]) => {
     if (!current.includes(source)) return current
     return current.replaceAll(source, translated)
   }, value)
@@ -68,7 +70,7 @@ function translateTrimmedToRu(value: string) {
   const exact = reverseAzTranslations[value]
   if (exact) return exact
 
-  const translated = reverseTranslationEntries.reduce((current, [source, translated]) => {
+  const translated = safeReverseTranslationEntries.reduce((current, [source, translated]) => {
     if (!current.includes(source)) return current
     return current.replaceAll(source, translated)
   }, value)

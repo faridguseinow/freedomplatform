@@ -11,6 +11,7 @@ import { ImageFileInput } from '../../../components/ui/ImageFileInput'
 import { Input } from '../../../components/ui/Input'
 import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
+import { useI18n } from '../../../lib/i18n/I18nContext'
 import type { CatalogItemStatus, ProductRow } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
 import {
@@ -68,6 +69,7 @@ const roundStockQuantity = (value: number) => Number(value.toFixed(3))
 
 export function AdminProductsPage() {
   const { organizationId, user } = useAuth()
+  const { t } = useI18n()
   const productsQuery = useProducts({ organizationId })
   const categoriesQuery = useCatalogCategories({ organizationId })
   const productMutations = useProductMutations(organizationId)
@@ -191,26 +193,26 @@ export function AdminProductsPage() {
 
   const updateProductStock = async () => {
     if (!organizationId || !user || !editingProduct) {
-      setStockAdjustmentError('Сначала сохраните товар, затем измените остаток.')
+      setStockAdjustmentError(t('Сначала сохраните товар, затем измените остаток.'))
       return
     }
 
     const nextQuantity = roundStockQuantity(parseStockInputValue(stockTargetQuantity))
     if (!Number.isFinite(nextQuantity) || nextQuantity < 0) {
-      setStockAdjustmentError('Введите корректное количество.')
+      setStockAdjustmentError(t('Введите корректное количество.'))
       return
     }
 
     const currentQuantity = roundStockQuantity(editingProduct.stock_quantity)
     const delta = roundStockQuantity(nextQuantity - currentQuantity)
     if (delta === 0) {
-      setStockAdjustmentError('Введите новое количество, отличающееся от текущего остатка.')
+      setStockAdjustmentError(t('Введите новое количество, отличающееся от текущего остатка.'))
       return
     }
 
     const comment = stockAdjustmentComment.trim()
     if (!comment) {
-      setStockAdjustmentError('Укажите причину изменения остатка.')
+      setStockAdjustmentError(t('Укажите причину изменения остатка.'))
       return
     }
 
@@ -247,9 +249,9 @@ export function AdminProductsPage() {
       setEditingProduct({ ...editingProduct, stock_quantity: nextQuantity })
       setStockTargetQuantity(formatStockInputValue(nextQuantity))
       setStockAdjustmentComment('')
-      setStockAdjustmentSuccess('Остаток обновлен через складскую корректировку.')
+      setStockAdjustmentSuccess(t('Остаток обновлен через складскую корректировку.'))
     } catch (error) {
-      setStockAdjustmentError(error instanceof Error ? error.message : 'Не удалось обновить остаток.')
+      setStockAdjustmentError(error instanceof Error ? error.message : t('Не удалось обновить остаток.'))
     }
   }
 
@@ -482,17 +484,17 @@ export function AdminProductsPage() {
                   {editingProduct ? (
                     <div className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-700 sm:col-span-2">
                       <div className="flex items-center justify-between gap-3">
-                        <span>Текущий остаток</span>
+                        <span>{t('Текущий остаток')}</span>
                         <strong className="text-base text-slate-950">
                           {formatStockValue(editingProduct.stock_quantity)} {editingProduct.unit_name}
                         </strong>
                       </div>
                       <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
                         <label className="grid gap-1.5">
-                          <span>Новое количество</span>
+                          <span>{t('Новое количество')}</span>
                           <span className="grid grid-cols-[44px_1fr_44px] rounded-md border border-slate-200 bg-white">
                             <button
-                              aria-label="Уменьшить на 1"
+                              aria-label={t('Уменьшить на 1')}
                               className="inline-flex min-h-11 items-center justify-center border-r border-slate-200 text-lg font-semibold text-slate-600 hover:bg-slate-50"
                               disabled={isStockAdjustmentPending}
                               onClick={() => shiftStockTarget(-1)}
@@ -511,7 +513,7 @@ export function AdminProductsPage() {
                               value={stockTargetQuantity}
                             />
                             <button
-                              aria-label="Увеличить на 1"
+                              aria-label={t('Увеличить на 1')}
                               className="inline-flex min-h-11 items-center justify-center border-l border-slate-200 text-lg font-semibold text-slate-600 hover:bg-slate-50"
                               disabled={isStockAdjustmentPending}
                               onClick={() => shiftStockTarget(1)}
@@ -527,11 +529,11 @@ export function AdminProductsPage() {
                           type="button"
                         >
                           {isStockAdjustmentPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                          Обновить остаток
+                          {t('Обновить остаток')}
                         </Button>
                       </div>
                       <label className="grid gap-1.5">
-                        <span>Причина корректировки</span>
+                        <span>{t('Причина корректировки')}</span>
                         <input
                           className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
                           onChange={(event) => {
@@ -539,7 +541,7 @@ export function AdminProductsPage() {
                             setStockAdjustmentError(null)
                             setStockAdjustmentSuccess(null)
                           }}
-                          placeholder="Например: пересчёт, ошибка ввода, поступление без документа."
+                          placeholder={t('Например: пересчёт, ошибка ввода, поступление без документа.')}
                           value={stockAdjustmentComment}
                         />
                       </label>
