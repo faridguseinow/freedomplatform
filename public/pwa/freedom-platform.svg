@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Freedom Platform">
+  <rect width="512" height="512" rx="112" fill="#047857"/>
+  <rect x="56" y="56" width="400" height="400" rx="88" fill="#ecfdf5"/>
+  <path fill="#047857" d="M158 136h224v70H238v72h118v68H238v102h-80V136z"/>
+  <path fill="#0891b2" d="M305 294h87l-123 118v-82h-65l101-36z"/>
+</svg>

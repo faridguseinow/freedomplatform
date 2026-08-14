@@ -90,6 +90,11 @@ const AdminAdjustmentRequestsPage = lazy(() =>
     default: module.AdminAdjustmentRequestsPage,
   })),
 )
+const AdminActivityPage = lazy(() =>
+  import('../../features/organization/pages/AdminActivityPage').then((module) => ({
+    default: module.AdminActivityPage,
+  })),
+)
 const AdminShiftsPage = lazy(() =>
   import('../../features/organization/pages/AdminShiftsPage').then((module) => ({
     default: module.AdminShiftsPage,
@@ -291,6 +296,7 @@ export function AppRouter() {
               <Route element={lazyPage(<AdminOrdersPage />)} path="orders" />
               <Route element={lazyPage(<AdminOrderDetailPage />)} path="orders/:orderId" />
               <Route element={lazyPage(<AdminAdjustmentRequestsPage />)} path="adjustment-requests" />
+              <Route element={lazyPage(<AdminActivityPage />)} path="activity" />
               <Route element={lazyPage(<AdminShiftsPage />)} path="shifts" />
               <Route element={lazyPage(<AdminShiftDetailPage />)} path="shifts/:shiftId" />
               <Route element={lazyPage(<AdminShiftTemplatesPage />)} path="shift-templates" />

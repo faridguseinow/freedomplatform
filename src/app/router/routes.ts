@@ -1,4 +1,5 @@
 import {
+  Activity,
   BriefcaseBusiness,
   Building2,
   Box,
@@ -113,6 +114,12 @@ export const adminNavItems: NavItem[] = [
     mobile: false,
   },
   {
+    label: 'Журнал',
+    path: '/admin/activity',
+    icon: Activity,
+    mobile: false,
+  },
+  {
     label: 'Смены',
     path: '/admin/shifts',
     icon: Clock3,
@@ -150,6 +157,7 @@ export const pageTitles = [
   { label: 'Шаблоны смен', path: '/admin/shift-templates', icon: Clock3 },
   { label: 'Операционные дни', path: '/admin/operational-days', icon: Clock3 },
   { label: 'Уведомления', path: '/admin/notification-settings', icon: Settings },
+  { label: 'Журнал действий', path: '/admin/activity', icon: Activity },
   { label: 'Доходы', path: '/admin/finance/income', icon: Landmark },
   { label: 'Расходы', path: '/admin/finance/expenses', icon: Landmark },
   { label: 'Регулярные расходы', path: '/admin/finance/recurring', icon: Landmark },

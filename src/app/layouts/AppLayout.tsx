@@ -4,6 +4,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '../../components/ui/Button'
 import { EmployeeLockScreen } from '../../features/employee/components/EmployeeLockScreen'
 import { useAuth } from '../../hooks/useAuth'
+import { useI18n } from '../../lib/i18n/I18nContext'
 import { ROLE_LABEL, USER_ROLES } from '../../types/roles'
 import { pageTitles, type NavItem } from '../router/routes'
 
@@ -26,6 +27,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
   const location = useLocation()
   const navigate = useNavigate()
   const { clearOrganizationView, currentOrganization, profile, role, signOut, user } = useAuth()
+  const { t } = useI18n()
   const sidebarProfileMenuRef = useRef<HTMLDivElement | null>(null)
   const headerProfileMenuRef = useRef<HTMLDivElement | null>(null)
   const sidebarStorageKey = `freedom.sidebarCollapsed.${productArea}`
@@ -41,6 +43,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
       : location.pathname
   const currentTitle =
     pageTitles.find((item) => item.path === normalizedPath)?.label ?? productArea
+  const productAreaLabel = t(productArea)
 
   const displayName = profile?.full_name || user?.email || 'Пользователь'
   const mobileNavItems = navItems.filter((item) => item.mobile !== false)
@@ -112,7 +115,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-950">Freedom Platform</p>
                   <p className="mt-1 truncate text-xs text-slate-500">
-                    {currentOrganization?.name ?? productArea}
+                    {currentOrganization?.name ?? productAreaLabel}
                   </p>
                 </div>
               )}
@@ -132,7 +135,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
             </div>
           </div>
 
-          <nav className={sidebarCollapsed ? 'grid gap-1 px-2 py-4' : 'grid gap-1 px-3 py-4'} aria-label={productArea}>
+          <nav className={sidebarCollapsed ? 'grid gap-1 px-2 py-4' : 'grid gap-1 px-3 py-4'} aria-label={productAreaLabel}>
             {navItems.map((item) => (
               <NavLink
                 className={({ isActive }) =>
@@ -145,12 +148,12 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                   ].join(' ')
                 }
                 key={item.path}
-                title={sidebarCollapsed ? item.label : undefined}
+                title={sidebarCollapsed ? t(item.label) : undefined}
                 to={item.path}
                 {...(item.end ? { end: true } : {})}
               >
                 <item.icon aria-hidden="true" className="size-4 shrink-0" />
-                {sidebarCollapsed ? null : <span className="truncate">{item.label}</span>}
+                {sidebarCollapsed ? null : <span className="truncate">{t(item.label)}</span>}
               </NavLink>
             ))}
           </nav>
@@ -240,10 +243,10 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 text-xs font-medium uppercase text-slate-500 md:hidden">
                     <Menu aria-hidden="true" className="size-4" />
-                    {productArea}
+                    {productAreaLabel}
                   </div>
                   <h1 className="truncate text-lg font-semibold text-slate-950 sm:text-xl">
-                    {currentTitle}
+                    {t(currentTitle)}
                   </h1>
                 </div>
 
@@ -358,7 +361,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
       <nav
         className="fixed inset-x-0 bottom-0 z-30 grid border-t border-slate-200 bg-white px-2 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] md:hidden"
         style={{ gridTemplateColumns: `repeat(${mobileNavItems.length}, minmax(0, 1fr))` }}
-        aria-label={`${productArea}: мобильная навигация`}
+        aria-label={`${productAreaLabel}: ${t('мобильная навигация')}`}
       >
         {mobileNavItems.map((item) => {
           const active = isActivePath(location.pathname, item)
@@ -374,7 +377,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
               {...(item.end ? { end: true } : {})}
             >
               <item.icon aria-hidden="true" className="size-5" />
-              <span className="max-w-full truncate">{item.label}</span>
+              <span className="max-w-full truncate">{t(item.label)}</span>
             </NavLink>
           )
         })}

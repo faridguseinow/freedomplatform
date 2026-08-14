@@ -1,0 +1,20 @@
+{
+  "name": "Freedom Platform",
+  "short_name": "Freedom",
+  "description": "Freedom Platform admin workspace",
+  "start_url": "/platform",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#047857",
+  "background_color": "#f8fafc",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/pwa/freedom-platform.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>План объяснения Freedom Platform администратору</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f8fafc;
+        --card: #ffffff;
+        --text: #0f172a;
+        --muted: #475569;
+        --line: #dbe3ee;
+        --accent: #047857;
+        --accent-soft: #dcfce7;
+        --danger: #b91c1c;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.55;
+      }
+
+      main {
+        width: min(1080px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 36px 0 64px;
+      }
+
+      header {
+        display: grid;
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(30px, 4vw, 48px);
+        line-height: 1.05;
+      }
+
+      h2 {
+        font-size: 22px;
+      }
+
+      h3 {
+        font-size: 17px;
+      }
+
+      .lead {
+        max-width: 820px;
+        color: var(--muted);
+        font-size: 17px;
+      }
+
+      .toolbar {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+        margin: 24px 0;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgb(255 255 255 / 92%);
+        backdrop-filter: blur(10px);
+      }
+
+      .progress {
+        min-width: 220px;
+        color: var(--muted);
+        font-weight: 600;
+      }
+
+      button {
+        min-height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: white;
+        color: var(--text);
+        cursor: pointer;
+        font: inherit;
+        font-weight: 600;
+        padding: 8px 12px;
+      }
+
+      button:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      .grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .section {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--card);
+        overflow: hidden;
+        box-shadow: 0 1px 2px rgb(15 23 42 / 5%);
+      }
+
+      .section-header {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 12px;
+        align-items: start;
+        padding: 18px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        margin-top: 3px;
+        accent-color: var(--accent);
+        cursor: pointer;
+      }
+
+      .section.completed .section-title,
+      .section.completed .section-summary,
+      .section.completed .check-list label {
+        color: #64748b;
+        text-decoration: line-through;
+      }
+
+      .section.completed {
+        background: #f8fafc;
+      }
+
+      .section-title {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: #065f46;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 2px 8px;
+      }
+
+      .section-summary {
+        margin-top: 4px;
+        color: var(--muted);
+      }
+
+      .section-body {
+        display: grid;
+        gap: 16px;
+        padding: 18px;
+      }
+
+      .route {
+        display: inline-flex;
+        width: fit-content;
+        border-radius: 7px;
+        background: #eef2ff;
+        color: #3730a3;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 13px;
+        padding: 5px 8px;
+      }
+
+      .talk {
+        border-left: 3px solid var(--accent);
+        background: #f0fdf4;
+        padding: 10px 12px;
+        color: #064e3b;
+      }
+
+      ul,
+      ol {
+        margin: 0;
+        padding-left: 22px;
+      }
+
+      li + li {
+        margin-top: 6px;
+      }
+
+      .check-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .check-list label {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 10px;
+        align-items: start;
+        color: var(--text);
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 86px;
+        resize: vertical;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: white;
+        color: var(--text);
+        font: inherit;
+        padding: 10px 12px;
+      }
+
+      textarea:focus {
+        border-color: var(--accent);
+        outline: 2px solid rgb(4 120 87 / 18%);
+      }
+
+      .warning {
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        background: #fff1f2;
+        color: var(--danger);
+        padding: 12px;
+      }
+
+      @media print {
+        body {
+          background: white;
+        }
+
+        main {
+          width: auto;
+          padding: 0;
+        }
+
+        .toolbar,
+        button,
+        textarea {
+          display: none;
+        }
+
+        .section {
+          break-inside: avoid;
+          box-shadow: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="badge">Freedom Platform</p>
+        <h1>План объяснения системы администратору организации</h1>
+        <p class="lead">
+          Идите сверху вниз. Когда раздел объяснили и показали в интерфейсе, отметьте галочку:
+          пункт зачеркнётся. Заметки по каждому разделу сохраняются в этом браузере.
+        </p>
+      </header>
+
+      <section class="toolbar" aria-label="Управление документом">
+        <div class="progress" id="progress">Пройдено: 0 из 0</div>
+        <div>
+          <button type="button" id="clearCompleted">Снять галочки</button>
+          <button type="button" id="clearNotes">Очистить заметки</button>
+          <button type="button" onclick="window.print()">Печать / PDF</button>
+        </div>
+      </section>
+
+      <div class="grid" id="checklist">
+        <article class="section" data-section="intro">
+          <div class="section-header">
+            <input type="checkbox" aria-label="Отметить раздел пройденным" />
+            <div>
+              <h2 class="section-title">1. Общая идея системы <span class="badge">старт</span></h2>
+              <p class="section-summary">
+                Объяснить, зачем нужна система и какие зоны есть у администратора и сотрудника.
+              </p>
+            </div>
+          </div>
+          <div class="section-body">
+            <p class="talk">
+              Freedom Platform управляет организацией: рабочие места, сотрудники, заказы,
+              смены, склад, финансы и контроль действий сотрудников.
+            </p>
+            <ul>
+              <li>Админка организации: настройка и контроль.</li>
+              <li>Рабочее место сотрудника: ежедневная работа с клиентами.</li>
+              <li>Администратор управляет правилами, сотрудник выполняет операции.</li>
+            </ul>
+            <textarea placeholder="Заметки по объяснению..."></textarea>
+          </div>
+        </article>
+
+        <article class="section" data-section="settings">
+          <div class="section-header">
+            <input type="checkbox" aria-label="Отметить раздел пройденным" />
+            <div>
+              <h2 class="section-title">2. Настройки организации</h2>
+              <p class="section-summary">Показать базовые параметры и локальный язык системы.</p>
+            </div>
+          </div>
+          <div class="section-body">
+            <p class="route">Админка -> Настройки</p>
+            <ul>
+              <li>Название, статус, язык, часовой пояс, валюта.</li>
+              <li>Переключатель “Язык системы”.</li>
+              <li>Язык сохраняется локально на устройстве через localStorage.</li>
+            </ul>
+            <p class="talk">
+              Если сотрудники работают на азербайджанском, откройте настройки на их рабочем
+              устройстве и выберите Azərbaycan dili.
+            </p>
+            <textarea placeholder="Что уточнить администратору..."></textarea>
+          </div>
+        </article>
+
+        <article class="section" data-section="dashboard">
+          <div class="section-header">
+            <input type="checkbox" aria-label="Отметить раздел пройденным" />
+            <div>
+              <h2 class="section-title">3. Обзор организации</h2>
+              <p class="section-summary">Главная панель контроля текущего состояния организации.</p>
+            </div>
+          </div>
+          <div class="section-body">
+            <p class="route">Админка -> Обзор</p>
+            <ul>
+              <li>Выручка сегодня, открытые заказы, ожидающие оплаты, открытые смены.</li>
+              <li>Количество мест, товаров, услуг и комбо.</li>
+              <li>Низкий остаток, отказы от оплаты, периоды на проверке.</li>
+              <li>Последние заказы и быстрые переходы.</li>
+            </ul>
+            <textarea placeholder="Заметки..."></textarea>
+          </div>
+        </article>
+
+        <article class="section" data-section="employees">
+          <div class="section-header">
+            <input type="checkbox" aria-label="Отметить раздел пройденным" />
+            <div>
+              <h2 class="section-title">4. Сотрудники и доступы</h2>
+              <p class="section-summary">Показать добавление сотрудника, статусы и PIN.</p>
+            </div>
+          </div>
+          <div class="section-body">
+            <p class="route">Админка -> Сотрудники</p>
+            <ul>
+              <li>Список сотрудников: активные и отключённые.</li>
+              <li>Добавление существующего пользователя Supabase Auth.</li>
+              <li>Карточка сотрудника: имя, должность, телефон, комментарий.</li>
+              <li>PIN блокировки рабочего экрана.</li>
+              <li>Запрос смены PIN: сотрудник отправляет, администратор подтверждает или отклоняет.</li>
+              <li>Отключение и восстановление доступа.</li>
+            </ul>
+            <textarea placeholder="Кого добавить первым, какие роли объяснить..."></textarea>
+          </div>
+        </article>
+
+        <article class="section" data-section="places">
+          <div class="section-header">
+            <input type="checkbox" aria-label="Отметить раздел пройденным" />
+            <div>
+              <h2 class="section-title">5. Места и рабочая схема</h2>
+              <p class="section-summary">Столы, кабинеты, зоны, таймеры и тарифы.</p>
+            </div>
+          </div>
+          <div class="section-body">
+            <p class="route">Админка -> Места</p>
+            <ul>
+              <li>Создание места: стол, кабинет, зона, бильярд и другое.</li>
+              <li>Рабочая схема и расположение мест.</li>
+              <li>Включение таймера.</li>
+              <li>Почасовой тариф, минимум минут, шаг расчёта.</li>
+              <li>Что видит сотрудник, когда место свободно или занято.</li>
+            </ul>
+            <textarea placeholder="Какие места показать на примере..."></textarea>
+          </div>
+        </article>
+
+        <article class="section" data-section="catalog">
+          <div class="section-header">
+            <input type="checkbox" aria-label="Отметить раздел пройденным" />
+            <div>
+              <h2 class="section-title">6. Каталог</h2>
+              <p class="section-summary">Общий смысл товаров, услуг, категорий и комбо.</p>
+            </div>
+          </div>
+          <div class="section-body">
+            <p class="route">Админка -> Каталог</p>
+            <ul>
+              <li>Каталог - это то, что сотрудник продаёт или добавляет в заказ.</li>
+              <li>Категории помогают фильтровать места, товары и услуги.</li>
+              <li>Товары могут быть связаны со складом.</li>
+              <li>Услуги бывают фиксированные и почасовые.</li>
+              <li>Комбо объединяет товары и услуги в набор.</li>
+            </ul>
+            <textarea placeholder="Заметки..."></textarea>
+          </div>
+        </article>
+
+        <article class="section" data-section="categories-products-services-combos">
+          <div class="section-header">
+            <input type="checkbox" aria-label="Отметить раздел пройденным" />
+            <div>
+              <h2 class="section-title">7. Категории, товары, услуги, комбо</h2>
+              <p class="section-summary">Показать создание и основные поля каждого элемента.</p>
+            </div>
+          </div>
+          <div class="section-body">
+            <p class="route">Админка -> Категории / Товары / Услуги / Комбо</p>
+            <div class="check-list">
+              <label><input type="checkbox" /><span>Категории: группы для порядка и фильтрации.</span></label>
+              <label><input type="checkbox" /><span>Товары: цена продажи, закупочная цена, SKU, фото, складской учёт.</span></label>
+              <label><input type="checkbox" /><span>Услуги: фиксированная цена или почасовой тариф.</span></label>
+              <label><input type="checkbox" /><span>Комбо: состав из товаров и услуг, цена комбо, проверка доступности.</span></label>
+            </div>
+            <textarea placeholder="Какие примеры создать во время демонстрации..."></textarea>
+          </div>
+        </article>
+
+        <article class="section" data-section="inventory">
+          <div class="section-header">
+            <input type="checkbox" aria-label="Отметить раздел пройденным" />
+            <div>
+              <h2 class="section-title">8. Склад и документы склада</h2>
+              <p class="section-summary">Остатки меняются через документы, чтобы была история.</p>
+            </div>
+          </div>
+          <div class="section-body">
+            <p class="route">Админка -> Склад / Документы склада</p>
+            <ul>
+              <li>Текущие остатки и низкий остаток.</li>
+              <li>История движения товара.</li>
+              <li>Закупка, списание, корректировка.</li>
+              <li>Черновик и проведение документа.</li>
+            </ul>
+            <p class="talk">
+              Остаток лучше менять документом, а не напрямую, потому что так сохраняется причина,
+              дата и история движения.
+            </p>
+            <textarea placeholder="Что показать на живом товаре..."></textarea>
+          </div>
+        </article>
+
+        <article class="section" data-section="orders">
+          <div class="section-header">
+            <input type="checkbox" aria-label="Отметить раздел пройденным" />
+            <div>
+              <h2 class="section-title">9. Заказы</h2>
+              <p class="section-summary">История заказов, статусы, оплаты и спорные ситуации.</p>
+            </div>
+          </div>
+          <div class="section-body">
+            <p class="route">Админка -> Заказы</p>
+            <ul>
+              <li>Список заказов и фильтры.</li>
+              <li>Детали заказа: место, позиции, сумма, статус.</li>
+              <li>Оплата, отмена, отказ от оплаты.</li>
+              <li>Что создаёт сотрудник, а что контролирует администратор.</li>
+            </ul>
+            <textarea placeholder="Пример заказа для показа..."></textarea>
+          </div>
+        </article>
+
+        <article class="section" data-section="adjustments">
+          <div class="section-header">
+            <input type="checkbox" aria-label="Отметить раздел пройденным" />
+            <div>
+              <h2 class="section-title">10. Исправления</h2>
+              <p class="section-summary">Контроль удаления и корректировок со стороны администратора.</p>
+            </div>
+          </div>
+          <div class="section-body">
+            <p class="route">Админка -> Исправления</p>
+            <ul>
+              <li>Сотрудник создаёт запрос на исправление.</li>
+              <li>Администратор подтверждает или отклоняет.</li>
+              <li>Причина и комментарий остаются в истории.</li>
+            </ul>
+            <textarea placeholder="Какие правила объяснить сотрудникам..."></textarea>
+          </div>
+        </article>
+
+        <article class="section" data-section="shifts">
+          <div class="section-header">
+            <input type="checkbox" aria-label="Отметить раздел пройденным" />
+            <div>
+              <h2 class="section-title">11. Смены, шаблоны и операционные дни</h2>
+              <p class="section-summary">Касса, закрытие смены, график и переход через полночь.</p>
+            </div>
+          </div>
+          <div class="section-body">
+            <p class="route">Админка -> Смены / Шаблоны смен / Операционные дни</p>
+            <ul>
+              <li>Открытые и закрытые смены.</li>
+              <li>Ожидаемая касса, фактическая касса, расхождения.</li>
+              <li>Передачи между сменами.</li>
+              <li>Шаблоны смен: утренняя, вечерняя и другие.</li>
+              <li>Операционные дни для контроля по датам.</li>
+            </ul>
+            <textarea placeholder="Какой график смен показать..."></textarea>
+          </div>
+        </article>
+
+        <article class="section" data-section="notifications">
+          <div class="section-header">
+            <input type="checkbox" aria-label="Отметить раздел пройденным" />
+            <div>
+              <h2 class="section-title">12. Уведомления</h2>
+              <p class="section-summary">Telegram и очередь важных событий.</p>
+            </div>
+          </div>
+          <div class="section-body">
+            <p class="route">Админка -> Уведомления</p>
+            <ul>
+              <li>Telegram Chat ID в настройках организации.</li>
+              <li>Bot token хранится только в Edge Function secret.</li>
+              <li>Очередь уведомлений.</li>
+              <li>События: смены, заявки, оплаты, проблемы.</li>
+            </ul>
+            <textarea placeholder="Куда должны приходить уведомления..."></textarea>
+          </div>
+        </article>
+
+        <article class="section" data-section="finance">
+          <div class="section-header">
+            <input type="checkbox" aria-label="Отметить раздел пройденным" />
+            <div>
+              <h2 class="section-title">13. Финансы</h2>
+              <p class="section-summary">Доходы, расходы, закупки, cash flow, P&L и доля платформы.</p>
+            </div>
+          </div>
+          <div class="section-body">
+            <p class="route">Админка -> Финансы</p>
+            <ul>
+              <li>Доходы из оплаченных заказов и ручной доход.</li>
+              <li>Расходы и approval крупных расходов.</li>
+              <li>Закупки из складских документов.</li>
+              <li>Cash flow: движение денег.</li>
+              <li>P&L: прибыльность по начислению.</li>
+              <li>Финансовые периоды: закрытие и отправка на проверку.</li>
+              <li>Доля платформы и платежи платформе.</li>
+            </ul>
+            <textarea placeholder="Финансовые вопросы администратора..."></textarea>
+          </div>
+        </article>
+
+        <article class="section" data-section="employee-workspace">
+          <div class="section-header">
+            <input type="checkbox" aria-label="Отметить раздел пройденным" />
+            <div>
+              <h2 class="section-title">14. Рабочее место сотрудника</h2>
+              <p class="section-summary">Экран ежедневной работы: места, заказы, корзина и оплата.</p>
+            </div>
+          </div>
+          <div class="section-body">
+            <p class="route">/the-liga/employee</p>
+            <ul>
+              <li>Рабочие места: свободно или занято.</li>
+              <li>Заказ без места.</li>
+              <li>Создание и открытие заказа.</li>
+              <li>Добавление товаров, услуг и комбо.</li>
+              <li>Запуск и завершение сессии на месте с таймером.</li>
+              <li>Сумма к оплате и закрытие заказа.</li>
+            </ul>
+            <textarea placeholder="Что сотрудник должен делать каждый день..."></textarea>
+          </div>
+        </article>
+
+        <article class="section" data-section="employee-shift">
+          <div class="section-header">
+            <input type="checkbox" aria-label="Отметить раздел пройденным" />
+            <div>
+              <h2 class="section-title">15. Смена сотрудника</h2>
+              <p class="section-summary">Открытие смены, показатели, касса и закрытие.</p>
+            </div>
+          </div>
+          <div class="section-body">
+            <p class="route">Рабочее место -> Смена</p>
+            <ul>
+              <li>Открыть смену перед началом работы.</li>
+              <li>Длительность смены.</li>
+              <li>Ожидаемая касса, наличные, переводы.</li>
+              <li>Открытые заказы и активные сессии.</li>
+              <li>Фактическая наличность при закрытии.</li>
+              <li>Комментарий при расхождении.</li>
+              <li>Закрытие смены.</li>
+            </ul>
+            <textarea placeholder="Что проверить в конце смены..."></textarea>
+          </div>
+        </article>
+
+        <article class="section" data-section="employee-scenario">
+          <div class="section-header">
+            <input type="checkbox" aria-label="Отметить раздел пройденным" />
+            <div>
+              <h2 class="section-title">16. Живой сценарий работы сотрудника <span class="badge">демо</span></h2>
+              <p class="section-summary">Пройти полный цикл от смены до оплаты.</p>
+            </div>
+          </div>
+          <div class="section-body">
+            <ol>
+              <li>Сотрудник открывает смену.</li>
+              <li>Выбирает место: стол, кабинет или зону.</li>
+              <li>Создаёт заказ.</li>
+              <li>Добавляет товар, услугу или комбо.</li>
+              <li>Если место с таймером, запускает сессию.</li>
+              <li>Завершает сессию.</li>
+              <li>Переводит заказ к оплате.</li>
+              <li>Принимает оплату наличными, картой или переводом.</li>
+              <li>Закрывает заказ.</li>
+              <li>В конце дня закрывает смену.</li>
+            </ol>
+            <textarea placeholder="Что не забыть показать в живом сценарии..."></textarea>
+          </div>
+        </article>
+
+        <article class="section" data-section="summary">
+          <div class="section-header">
+            <input type="checkbox" aria-label="Отметить раздел пройденным" />
+            <div>
+              <h2 class="section-title">17. Финальное резюме</h2>
+              <p class="section-summary">Закрепить зоны ответственности администратора и сотрудника.</p>
+            </div>
+          </div>
+          <div class="section-body">
+            <p class="talk">
+              Администратор отвечает за настройку и контроль: сотрудники, каталог, места, склад,
+              финансы и права доступа. Сотрудник отвечает за операционную работу: смена, заказы,
+              товары, услуги, оплата и закрытие смены.
+            </p>
+            <div class="warning">
+              Главная последовательность: настроить организацию -> добавить сотрудников -> создать
+              места -> заполнить каталог -> настроить склад -> открыть смену -> принимать заказы ->
+              контролировать финансы.
+            </div>
+            <textarea placeholder="Итоговые вопросы администратора..."></textarea>
+          </div>
+        </article>
+      </div>
+    </main>
+
+    <script>
+      const storagePrefix = "freedom-platform-admin-demo-checklist:";
+      const sections = Array.from(document.querySelectorAll(".section"));
+      const progress = document.getElementById("progress");
+
+      function updateProgress() {
+        const completed = sections.filter((section) => section.classList.contains("completed")).length;
+        progress.textContent = `Пройдено: ${completed} из ${sections.length}`;
+      }
+
+      sections.forEach((section) => {
+        const id = section.dataset.section;
+        const mainCheckbox = section.querySelector(".section-header input[type='checkbox']");
+        const nestedCheckboxes = Array.from(section.querySelectorAll(".check-list input[type='checkbox']"));
+        const textarea = section.querySelector("textarea");
+
+        const completed = localStorage.getItem(`${storagePrefix}${id}:completed`) === "1";
+        section.classList.toggle("completed", completed);
+        mainCheckbox.checked = completed;
+
+        nestedCheckboxes.forEach((checkbox, index) => {
+          checkbox.checked = localStorage.getItem(`${storagePrefix}${id}:nested:${index}`) === "1";
+          checkbox.addEventListener("change", () => {
+            localStorage.setItem(`${storagePrefix}${id}:nested:${index}`, checkbox.checked ? "1" : "0");
+          });
+        });
+
+        if (textarea) {
+          textarea.value = localStorage.getItem(`${storagePrefix}${id}:notes`) || "";
+          textarea.addEventListener("input", () => {
+            localStorage.setItem(`${storagePrefix}${id}:notes`, textarea.value);
+          });
+        }
+
+        mainCheckbox.addEventListener("change", () => {
+          section.classList.toggle("completed", mainCheckbox.checked);
+          localStorage.setItem(`${storagePrefix}${id}:completed`, mainCheckbox.checked ? "1" : "0");
+          updateProgress();
+        });
+      });
+
+      document.getElementById("clearCompleted").addEventListener("click", () => {
+        sections.forEach((section) => {
+          const id = section.dataset.section;
+          const mainCheckbox = section.querySelector(".section-header input[type='checkbox']");
+          section.classList.remove("completed");
+          mainCheckbox.checked = false;
+          localStorage.removeItem(`${storagePrefix}${id}:completed`);
+        });
+        updateProgress();
+      });
+
+      document.getElementById("clearNotes").addEventListener("click", () => {
+        sections.forEach((section) => {
+          const id = section.dataset.section;
+          const textarea = section.querySelector("textarea");
+          if (textarea) textarea.value = "";
+          localStorage.removeItem(`${storagePrefix}${id}:notes`);
+        });
+      });
+
+      updateProgress();
+    </script>
+  </body>
+</html>

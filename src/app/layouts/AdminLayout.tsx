@@ -1,5 +1,6 @@
 import { AppLayout } from './AppLayout'
 import { adminNavItems } from '../router/routes'
+import { AdminActivityTracker } from '../../features/organization/activity/AdminActivityTracker'
 import { useAuth } from '../../hooks/useAuth'
 
 export function AdminLayout() {
@@ -9,5 +10,10 @@ export function AdminLayout() {
     ? adminNavItems.map((item) => ({ ...item, path: `/${organizationSlug}${item.path}` }))
     : adminNavItems
 
-  return <AppLayout hideHeader navItems={navItems} productArea="Организация" />
+  return (
+    <>
+      <AdminActivityTracker />
+      <AppLayout hideHeader navItems={navItems} productArea="Организация" />
+    </>
+  )
 }

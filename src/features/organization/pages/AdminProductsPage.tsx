@@ -21,6 +21,7 @@ import {
 } from '../catalog/catalogApi'
 import { uploadCatalogImage } from '../catalog/imageUpload'
 import { useInventoryMutations } from '../catalog/inventoryApi'
+import { translateByCurrentLanguage } from '../../../lib/i18n/translator'
 
 const productSchema = z.object({
   category_id: z.string().uuid().optional().or(z.literal('')),
@@ -57,6 +58,14 @@ const statusClass: Record<CatalogItemStatus, string> = {
 const formatMoney = (value: number | null) =>
   value === null ? '-' : new Intl.NumberFormat('ru', { maximumFractionDigits: 2 }).format(value)
 
+const formatStockValue = (value: number) => new Intl.NumberFormat('ru', { maximumFractionDigits: 3 }).format(value)
+
+const formatStockInputValue = (value: number) => String(Number(value.toFixed(3)))
+
+const parseStockInputValue = (value: string) => Number(value.trim().replace(',', '.'))
+
+const roundStockQuantity = (value: number) => Number(value.toFixed(3))
+
 export function AdminProductsPage() {
   const { organizationId, user } = useAuth()
   const productsQuery = useProducts({ organizationId })
@@ -68,6 +77,10 @@ export function AdminProductsPage() {
   const [editingProduct, setEditingProduct] = useState<ProductRow | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [stockTargetQuantity, setStockTargetQuantity] = useState('')
+  const [stockAdjustmentComment, setStockAdjustmentComment] = useState('')
+  const [stockAdjustmentError, setStockAdjustmentError] = useState<string | null>(null)
+  const [stockAdjustmentSuccess, setStockAdjustmentSuccess] = useState<string | null>(null)
 
   const {
     formState: { errors, isSubmitting },
@@ -95,6 +108,10 @@ export function AdminProductsPage() {
   })
 
   const trackStock = useWatch({ control, name: 'track_stock' })
+  const isStockAdjustmentPending =
+    inventoryMutations.createDocument.isPending ||
+    inventoryMutations.addItems.isPending ||
+    inventoryMutations.postDocument.isPending
   const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data])
   const productCategories = useMemo(
     () => (categoriesQuery.data ?? []).filter((item) => item.type === 'product' && item.status !== 'archived'),
@@ -117,6 +134,10 @@ export function AdminProductsPage() {
   const openCreate = () => {
     setEditingProduct(null)
     setFormError(null)
+    setStockTargetQuantity('')
+    setStockAdjustmentComment('')
+    setStockAdjustmentError(null)
+    setStockAdjustmentSuccess(null)
     reset({
       category_id: '',
       sku: '',
@@ -138,6 +159,10 @@ export function AdminProductsPage() {
   const openEdit = (product: ProductRow) => {
     setEditingProduct(product)
     setFormError(null)
+    setStockTargetQuantity(formatStockInputValue(product.stock_quantity))
+    setStockAdjustmentComment('')
+    setStockAdjustmentError(null)
+    setStockAdjustmentSuccess(null)
     reset({
       category_id: product.category_id ?? '',
       sku: product.sku ?? '',
@@ -154,6 +179,78 @@ export function AdminProductsPage() {
       status: product.status,
     })
     setIsModalOpen(true)
+  }
+
+  const shiftStockTarget = (delta: number) => {
+    const parsed = parseStockInputValue(stockTargetQuantity)
+    const base = Number.isFinite(parsed) ? parsed : editingProduct?.stock_quantity ?? 0
+    setStockTargetQuantity(formatStockInputValue(Math.max(0, roundStockQuantity(base + delta))))
+    setStockAdjustmentError(null)
+    setStockAdjustmentSuccess(null)
+  }
+
+  const updateProductStock = async () => {
+    if (!organizationId || !user || !editingProduct) {
+      setStockAdjustmentError('Сначала сохраните товар, затем измените остаток.')
+      return
+    }
+
+    const nextQuantity = roundStockQuantity(parseStockInputValue(stockTargetQuantity))
+    if (!Number.isFinite(nextQuantity) || nextQuantity < 0) {
+      setStockAdjustmentError('Введите корректное количество.')
+      return
+    }
+
+    const currentQuantity = roundStockQuantity(editingProduct.stock_quantity)
+    const delta = roundStockQuantity(nextQuantity - currentQuantity)
+    if (delta === 0) {
+      setStockAdjustmentError('Введите новое количество, отличающееся от текущего остатка.')
+      return
+    }
+
+    const comment = stockAdjustmentComment.trim()
+    if (!comment) {
+      setStockAdjustmentError('Укажите причину изменения остатка.')
+      return
+    }
+
+    setStockAdjustmentError(null)
+    setStockAdjustmentSuccess(null)
+
+    try {
+      const quantity = Math.abs(delta)
+      const unitCost = editingProduct.purchase_price ?? editingProduct.average_purchase_cost ?? null
+      const lineTotal = quantity * (unitCost ?? 0)
+      const documentComment = `${translateByCurrentLanguage('Ручная корректировка остатка')}: ${formatStockValue(currentQuantity)} ${editingProduct.unit_name} -> ${formatStockValue(nextQuantity)} ${editingProduct.unit_name}. ${comment}`
+      const document = await inventoryMutations.createDocument.mutateAsync({
+        organization_id: organizationId,
+        type: delta > 0 ? 'adjustment_in' : 'adjustment_out',
+        document_date: new Date().toISOString(),
+        comment: documentComment,
+        total_amount: lineTotal,
+        created_by: user.id,
+      })
+
+      await inventoryMutations.addItems.mutateAsync([
+        {
+          organization_id: organizationId,
+          document_id: document.id,
+          product_id: editingProduct.id,
+          quantity,
+          unit_cost: unitCost,
+          line_total: lineTotal,
+          comment: documentComment,
+        },
+      ])
+
+      await inventoryMutations.postDocument.mutateAsync(document.id)
+      setEditingProduct({ ...editingProduct, stock_quantity: nextQuantity })
+      setStockTargetQuantity(formatStockInputValue(nextQuantity))
+      setStockAdjustmentComment('')
+      setStockAdjustmentSuccess('Остаток обновлен через складскую корректировку.')
+    } catch (error) {
+      setStockAdjustmentError(error instanceof Error ? error.message : 'Не удалось обновить остаток.')
+    }
   }
 
   const onSubmit = handleSubmit(async (values) => {
@@ -383,14 +480,71 @@ export function AdminProductsPage() {
               {trackStock ? (
                 <>
                   {editingProduct ? (
-                    <div className="grid gap-1.5 text-sm font-medium text-slate-700">
-                      <span>Текущий остаток</span>
-                      <div className="flex min-h-11 items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm">
-                        <span>{editingProduct.stock_quantity} {editingProduct.unit_name}</span>
-                        <Link className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900" to={`/admin/inventory/products/${editingProduct.id}`}>
-                          <History className="size-4" /> История
-                        </Link>
+                    <div className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-700 sm:col-span-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <span>Текущий остаток</span>
+                        <strong className="text-base text-slate-950">
+                          {formatStockValue(editingProduct.stock_quantity)} {editingProduct.unit_name}
+                        </strong>
                       </div>
+                      <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
+                        <label className="grid gap-1.5">
+                          <span>Новое количество</span>
+                          <span className="grid grid-cols-[44px_1fr_44px] rounded-md border border-slate-200 bg-white">
+                            <button
+                              aria-label="Уменьшить на 1"
+                              className="inline-flex min-h-11 items-center justify-center border-r border-slate-200 text-lg font-semibold text-slate-600 hover:bg-slate-50"
+                              disabled={isStockAdjustmentPending}
+                              onClick={() => shiftStockTarget(-1)}
+                              type="button"
+                            >
+                              -
+                            </button>
+                            <input
+                              className="min-h-11 min-w-0 bg-transparent px-3 text-center text-sm text-slate-950 outline-none"
+                              inputMode="decimal"
+                              onChange={(event) => {
+                                setStockTargetQuantity(event.target.value)
+                                setStockAdjustmentError(null)
+                                setStockAdjustmentSuccess(null)
+                              }}
+                              value={stockTargetQuantity}
+                            />
+                            <button
+                              aria-label="Увеличить на 1"
+                              className="inline-flex min-h-11 items-center justify-center border-l border-slate-200 text-lg font-semibold text-slate-600 hover:bg-slate-50"
+                              disabled={isStockAdjustmentPending}
+                              onClick={() => shiftStockTarget(1)}
+                              type="button"
+                            >
+                              +
+                            </button>
+                          </span>
+                        </label>
+                        <Button
+                          disabled={isStockAdjustmentPending}
+                          onClick={updateProductStock}
+                          type="button"
+                        >
+                          {isStockAdjustmentPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                          Обновить остаток
+                        </Button>
+                      </div>
+                      <label className="grid gap-1.5">
+                        <span>Причина корректировки</span>
+                        <input
+                          className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                          onChange={(event) => {
+                            setStockAdjustmentComment(event.target.value)
+                            setStockAdjustmentError(null)
+                            setStockAdjustmentSuccess(null)
+                          }}
+                          placeholder="Например: пересчёт, ошибка ввода, поступление без документа."
+                          value={stockAdjustmentComment}
+                        />
+                      </label>
+                      {stockAdjustmentError ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-normal text-red-800">{stockAdjustmentError}</div> : null}
+                      {stockAdjustmentSuccess ? <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-normal text-emerald-800">{stockAdjustmentSuccess}</div> : null}
                     </div>
                   ) : (
                     <Input error={errors.stock_quantity?.message} id="stock" label="Начальный остаток" min={0} step="0.001" type="number" {...register('stock_quantity', { valueAsNumber: true })} />
@@ -425,8 +579,8 @@ export function AdminProductsPage() {
             {formError ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{formError}</div> : null}
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button onClick={() => setIsModalOpen(false)} type="button" variant="secondary">Отмена</Button>
-              <Button disabled={isSubmitting || productMutations.upsert.isPending || inventoryMutations.createOpeningStock.isPending} type="submit">
-                {isSubmitting || productMutations.upsert.isPending || inventoryMutations.createOpeningStock.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+              <Button disabled={isSubmitting || productMutations.upsert.isPending || inventoryMutations.createOpeningStock.isPending || isStockAdjustmentPending} type="submit">
+                {isSubmitting || productMutations.upsert.isPending || inventoryMutations.createOpeningStock.isPending || isStockAdjustmentPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
                 Сохранить
               </Button>
             </div>
