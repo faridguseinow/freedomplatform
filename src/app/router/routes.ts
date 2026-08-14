@@ -57,6 +57,11 @@ export const adminNavItems: NavItem[] = [
     end: true,
   },
   {
+    label: 'Рабочее место',
+    path: '/employee',
+    icon: BriefcaseBusiness,
+  },
+  {
     label: 'Сотрудники',
     path: '/admin/employees',
     icon: Users,

@@ -103,6 +103,7 @@ export function AdminEmployeesPage() {
   const [pinError, setPinError] = useState<string | null>(null)
   const [selectedEmployee, setSelectedEmployee] =
     useState<OrganizationMembershipWithProfile | null>(null)
+  const selectedUserIsOrganizationAdmin = selectedUser?.membership_role === 'organization_admin'
 
   const addForm = useForm<AddEmployeeValues>({
     resolver: zodResolver(addEmployeeSchema),
@@ -447,6 +448,11 @@ export function AdminEmployeesPage() {
   })
 
   const handleAddEmployee = addForm.handleSubmit(async (values) => {
+    if (selectedUserIsOrganizationAdmin) {
+      setSearchError('Администратор уже может работать через раздел "Рабочее место".')
+      return
+    }
+
     await addEmployeeMutation.mutateAsync(values)
   })
 
@@ -777,16 +783,30 @@ export function AdminEmployeesPage() {
                     </p>
                     <p className="truncate text-sm text-slate-600">{selectedUser.email}</p>
                     <p className="mt-1 text-xs text-slate-500">
-                      {selectedUser.membership_id
-                        ? selectedUser.membership_is_active
-                          ? 'У пользователя уже есть активный доступ.'
-                          : 'Доступ найден, но отключен. Можно восстановить.'
-                        : 'Доступа к этой организации пока нет.'}
+                      {selectedUserIsOrganizationAdmin
+                        ? 'Это администратор организации.'
+                        : selectedUser.membership_id
+                          ? selectedUser.membership_is_active
+                            ? 'У пользователя уже есть активный доступ.'
+                            : 'Доступ найден, но отключен. Можно восстановить.'
+                          : 'Доступа к этой организации пока нет.'}
                     </p>
                   </div>
                 </div>
 
-                <form className="grid gap-4" noValidate onSubmit={handleAddEmployee}>
+                {selectedUserIsOrganizationAdmin ? (
+                  <div className="grid gap-4">
+                    <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm leading-6 text-emerald-900">
+                      Администратор уже имеет доступ к рабочему месту. Откройте раздел "Рабочее место" в левом меню: там он сможет открыть смену, создавать заказы и принимать оплату.
+                    </div>
+                    <div className="flex justify-end">
+                      <Button onClick={() => setIsAddOpen(false)} type="button" variant="secondary">
+                        Отмена
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <form className="grid gap-4" noValidate onSubmit={handleAddEmployee}>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Input
                       id="employee_full_name"
@@ -826,7 +846,8 @@ export function AdminEmployeesPage() {
                       {selectedUser.membership_id ? 'Восстановить доступ' : 'Добавить сотрудника'}
                     </Button>
                   </div>
-                </form>
+                  </form>
+                )}
               </div>
             ) : null}
           </section>

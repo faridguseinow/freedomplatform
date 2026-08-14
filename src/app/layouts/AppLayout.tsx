@@ -50,6 +50,10 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
   const isSettingsPage = normalizedPath === '/platform/settings' || normalizedPath.endsWith('/settings')
   const isPlatformOwnerOrganizationView =
     role === USER_ROLES.platformOwner && Boolean(currentOrganization)
+  const isOrganizationAdminEmployeeView =
+    role === USER_ROLES.organizationAdmin &&
+    productArea === 'Рабочее место' &&
+    Boolean(currentOrganization)
 
   useEffect(() => {
     window.localStorage.setItem(sidebarStorageKey, sidebarCollapsed ? '1' : '0')
@@ -98,6 +102,11 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
     clearOrganizationView()
     setIsUserMenuOpen(false)
     navigate('/platform', { replace: true })
+  }
+
+  const handleBackToAdmin = () => {
+    setIsUserMenuOpen(false)
+    navigate(currentOrganization?.slug ? `/${currentOrganization.slug}/admin` : '/admin', { replace: true })
   }
 
   return (
@@ -220,6 +229,17 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                         Вернуться в платформу
                       </Button>
                     ) : null}
+                    {isOrganizationAdminEmployeeView ? (
+                      <Button
+                        className="mt-2 w-full justify-start px-2"
+                        onClick={handleBackToAdmin}
+                        type="button"
+                        variant="secondary"
+                      >
+                        <ArrowLeft aria-hidden="true" className="size-4" />
+                        В админку
+                      </Button>
+                    ) : null}
                     <Button
                       className="mt-2 w-full justify-start px-2"
                       onClick={handleSignOut}
@@ -291,6 +311,17 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                         >
                           <ArrowLeft aria-hidden="true" className="size-4" />
                           Вернуться в платформу
+                        </Button>
+                      ) : null}
+                      {isOrganizationAdminEmployeeView ? (
+                        <Button
+                          className="mt-2 w-full justify-start px-2"
+                          onClick={handleBackToAdmin}
+                          type="button"
+                          variant="secondary"
+                        >
+                          <ArrowLeft aria-hidden="true" className="size-4" />
+                          В админку
                         </Button>
                       ) : null}
                       <Button

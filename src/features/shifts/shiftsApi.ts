@@ -6,15 +6,31 @@ import type {
   ShiftStatus,
 } from '../../lib/supabase/database.types'
 
+type EmployeeShiftSummary = {
+  active_sessions_count?: number
+  card_transfer_sales_total?: number
+  cash_sales_total?: number
+  expected_cash_amount?: number
+  open_orders_count?: number
+  payment_refused_count?: number
+}
+
+export type CurrentEmployeeShiftPayload = {
+  shift: EmployeeShiftRow
+  summary: EmployeeShiftSummary
+}
+
 export function useCurrentEmployeeShift(organizationId: string | null) {
   return useQuery({
     enabled: Boolean(organizationId),
     queryKey: ['employee', 'current-shift', organizationId],
     staleTime: 30_000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_current_employee_shift')
+      const { data, error } = await supabase.rpc('get_current_employee_shift_for_organization', {
+        target_organization_id: organizationId!,
+      })
       if (error) throw new Error(error.message)
-      return data
+      return data as CurrentEmployeeShiftPayload | null
     },
   })
 }
@@ -37,7 +53,12 @@ export function useEmployeeShiftMutations(organizationId: string | null) {
         shiftTemplateId?: string | null
         openingCashAmount: number
       }) => {
-        const { data, error } = await supabase.rpc('open_employee_shift', {
+        if (!organizationId) {
+          throw new Error('Организация не выбрана.')
+        }
+
+        const { data, error } = await supabase.rpc('open_employee_shift_for_organization', {
+          target_organization_id: organizationId,
           target_shift_template_id: shiftTemplateId ?? null,
           target_opening_cash_amount: openingCashAmount,
         })
@@ -56,7 +77,12 @@ export function useEmployeeShiftMutations(organizationId: string | null) {
         comment?: string | null
         handoverCashAmount?: number | null
       }) => {
-        const { data, error } = await supabase.rpc('close_employee_shift', {
+        if (!organizationId) {
+          throw new Error('Организация не выбрана.')
+        }
+
+        const { data, error } = await supabase.rpc('close_employee_shift_for_organization', {
+          target_organization_id: organizationId,
           target_actual_cash_amount: actualCashAmount,
           target_comment: comment ?? null,
           target_handover_cash_amount: handoverCashAmount ?? null,

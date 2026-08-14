@@ -42,6 +42,10 @@ export const azTranslations: Record<string, string> = {
   'Автоматические доходы из оплаченных заказов и ручной доход организации.':
     'Ödənilmiş sifarişlərdən avtomatik gəlirlər və təşkilatın əl ilə daxil edilən gəliri.',
   Администратор: 'Administrator',
+  'Администратор уже имеет доступ к рабочему месту. Откройте раздел "Рабочее место" в левом меню: там он сможет открыть смену, создавать заказы и принимать оплату.':
+    'Administratorun artıq iş yerinə girişi var. Sol menyudan "İş yeri" bölməsini açın: orada növbə aça, sifariş yarada və ödəniş qəbul edə bilər.',
+  'Администратор уже может работать через раздел "Рабочее место".':
+    'Administrator artıq "İş yeri" bölməsi vasitəsilə işləyə bilər.',
   'Администратор организации': 'Təşkilat administratoru',
   'Аккаунт отключен. Обратитесь к владельцу Freedom Platform.':
     'Hesab deaktiv edilib. Freedom Platform sahibinə müraciət edin.',
@@ -92,6 +96,7 @@ export const azTranslations: Record<string, string> = {
     'Son təmizləmə üçün RESET_TEST_ORDERS daxil edin.',
   Включено: 'Aktivdir',
   Включить: 'Aktiv et',
+  'В админку': 'Admin panelə',
   'Владелец платформы': 'Platforma sahibi',
   Вместимость: 'Tutum',
   'Вместимость должна быть больше 0.': 'Tutum 0-dan böyük olmalıdır.',
@@ -611,6 +616,7 @@ export const azTranslations: Record<string, string> = {
   'Ширина от 1 до 12.': 'En 1-dən 12-yə qədər olmalıdır.',
   Широкий: 'Geniş',
   'Этот заказ уже оплачен.': 'Bu sifariş artıq ödənilib.',
+  'Это администратор организации.': 'Bu təşkilat administratorudur.',
   'Chat ID хранится в настройках организации. Bot token должен быть только в Edge Function secret `TELEGRAM_BOT_TOKEN`.':
     'Chat ID təşkilat ayarlarında saxlanılır. Bot token yalnız Edge Function secret `TELEGRAM_BOT_TOKEN` daxilində olmalıdır.',
   'PIN блокировки сайта': 'Sayt kilidi PIN-i',

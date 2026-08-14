@@ -1447,6 +1447,29 @@ export type Database = {
         }
         Returns: EmployeeLockStateRow[]
       }
+      get_current_employee_shift_for_organization: {
+        Args: {
+          target_organization_id: string
+        }
+        Returns: Record<string, unknown> | null
+      }
+      open_employee_shift_for_organization: {
+        Args: {
+          target_organization_id: string
+          target_shift_template_id?: string | null
+          target_opening_cash_amount?: number
+        }
+        Returns: Record<string, unknown>
+      }
+      close_employee_shift_for_organization: {
+        Args: {
+          target_organization_id: string
+          target_actual_cash_amount: number
+          target_comment?: string | null
+          target_handover_cash_amount?: number | null
+        }
+        Returns: Record<string, unknown>
+      }
       get_organization_employee_lock_states: {
         Args: {
           target_organization_id: string

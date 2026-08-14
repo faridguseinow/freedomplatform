@@ -318,12 +318,12 @@ export function AppRouter() {
             </Route>
           </Route>
 
-          <Route element={<RoleRoute allowedRoles={[USER_ROLES.employee]} />}>
+          <Route element={<RoleRoute allowedRoles={[USER_ROLES.organizationAdmin, USER_ROLES.employee]} />}>
             <Route element={<LegacyOrganizationRedirect area="employee" />} path="/employee/*" />
           </Route>
 
           <Route element={<OrganizationSlugRoute />}>
-            <Route element={<RoleRoute allowedRoles={[USER_ROLES.platformOwner, USER_ROLES.employee]} />}>
+            <Route element={<RoleRoute allowedRoles={[USER_ROLES.platformOwner, USER_ROLES.organizationAdmin, USER_ROLES.employee]} />}>
               <Route element={<EmployeeLayout />} path="/:organizationSlug/employee">
               <Route element={lazyPage(<EmployeeWorkspacePage />)} index />
               <Route element={lazyPage(<EmployeeWorkspacePage />)} path="workspace" />
