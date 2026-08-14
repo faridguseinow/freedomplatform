@@ -1500,6 +1500,13 @@ export type Database = {
         }
         Returns: ProductRow
       }
+      delete_unused_product: {
+        Args: {
+          target_product_id: string
+          target_reason?: string | null
+        }
+        Returns: ProductRow
+      }
       set_service_status: {
         Args: {
           target_id: string

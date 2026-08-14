@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Archive, Loader2, Plus, Save, Search, X } from 'lucide-react'
+import { Archive, Loader2, Plus, Save, Search, Trash2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { Link } from 'react-router-dom'
@@ -9,8 +9,9 @@ import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
 import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
+import { useI18n } from '../../../lib/i18n/I18nContext'
 import type { StockMovementType } from '../../../lib/supabase/database.types'
-import { useProducts } from '../catalog/catalogApi'
+import { useProductMutations, useProducts } from '../catalog/catalogApi'
 import {
   stockDocumentTypeLabel,
   useInventoryBalances,
@@ -43,10 +44,12 @@ const formatNumber = (value: number | null | undefined) =>
 
 export function AdminInventoryPage() {
   const { organizationId, user } = useAuth()
+  const { t } = useI18n()
   const balancesQuery = useInventoryBalances(organizationId)
   const documentsQuery = useStockDocuments(organizationId)
   const productsQuery = useProducts({ organizationId })
   const inventoryMutations = useInventoryMutations(organizationId)
+  const productMutations = useProductMutations(organizationId)
   const [search, setSearch] = useState('')
   const [lowOnly, setLowOnly] = useState(false)
   const [outOnly, setOutOnly] = useState(false)
@@ -133,6 +136,39 @@ export function AdminInventoryPage() {
     }
   })
 
+  const getProductDeleteError = (error: unknown) => {
+    const message = error instanceof Error ? error.message : ''
+    if (message.includes('Product has already been used')) {
+      return t('Товар уже использовался в заказах, складе или комбо. Удаление невозможно, архивируйте товар.')
+    }
+    if (message.includes('Product stock must be zero')) {
+      return t('Перед удалением остаток товара должен быть 0.')
+    }
+    return message || t('Не удалось удалить товар.')
+  }
+
+  const deleteProduct = async (product: { id: string; name: string }) => {
+    const confirmed = window.confirm(
+      `${t('Удалить товар навсегда?')}\n\n${t(
+        'Удалить можно только товар без заказов, складских документов, движений, резервов и комбо. Если история уже есть, используйте архив.',
+      )}`,
+    )
+
+    if (!confirmed) return
+
+    const reason = window.prompt(t('Причина удаления товара'))
+    if (reason === null) return
+
+    try {
+      await productMutations.deleteUnused.mutateAsync({
+        id: product.id,
+        reason: reason.trim() || null,
+      })
+    } catch (error) {
+      window.alert(getProductDeleteError(error))
+    }
+  }
+
   return (
     <section className="grid gap-5">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -218,6 +254,15 @@ export function AdminInventoryPage() {
                   </Link>
                   <Button onClick={() => inventoryMutations.reconcileProduct.mutate(product.id)} type="button" variant="secondary">
                     Сверить
+                  </Button>
+                  <Button
+                    disabled={productMutations.deleteUnused.isPending}
+                    onClick={() => deleteProduct(product)}
+                    type="button"
+                    variant="danger"
+                  >
+                    <Trash2 className="size-4" />
+                    Удалить
                   </Button>
                 </div>
               </article>

@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Archive, Edit3, History, Loader2, Plus, RotateCcw, Save, Search, X } from 'lucide-react'
+import { Archive, Edit3, History, Loader2, Plus, RotateCcw, Save, Search, Trash2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Link } from 'react-router-dom'
@@ -255,6 +255,43 @@ export function AdminProductsPage() {
     }
   }
 
+  const getProductDeleteError = (error: unknown) => {
+    const message = error instanceof Error ? error.message : ''
+    if (message.includes('Product has already been used')) {
+      return t('Товар уже использовался в заказах, складе или комбо. Удаление невозможно, архивируйте товар.')
+    }
+    if (message.includes('Product stock must be zero')) {
+      return t('Перед удалением остаток товара должен быть 0.')
+    }
+    return message || t('Не удалось удалить товар.')
+  }
+
+  const deleteProduct = async (product: ProductRow) => {
+    const confirmed = window.confirm(
+      `${t('Удалить товар навсегда?')}\n\n${t(
+        'Удалить можно только товар без заказов, складских документов, движений, резервов и комбо. Если история уже есть, используйте архив.',
+      )}`,
+    )
+
+    if (!confirmed) return
+
+    const reason = window.prompt(t('Причина удаления товара'))
+    if (reason === null) return
+
+    try {
+      await productMutations.deleteUnused.mutateAsync({
+        id: product.id,
+        reason: reason.trim() || null,
+      })
+      if (editingProduct?.id === product.id) {
+        setIsModalOpen(false)
+        setEditingProduct(null)
+      }
+    } catch (error) {
+      window.alert(getProductDeleteError(error))
+    }
+  }
+
   const onSubmit = handleSubmit(async (values) => {
     if (!organizationId || !user) {
       setFormError('Организация или пользователь не определены.')
@@ -429,6 +466,15 @@ export function AdminProductsPage() {
                 >
                   <History className="size-4" /> История
                 </Link>
+                <Button
+                  className="min-h-9 w-full px-2 text-xs sm:min-h-10 sm:w-auto sm:px-4 sm:text-sm"
+                  disabled={productMutations.deleteUnused.isPending}
+                  onClick={() => deleteProduct(product)}
+                  type="button"
+                  variant="danger"
+                >
+                  <Trash2 className="size-4" /> Удалить
+                </Button>
                 <Button
                   className="hidden sm:inline-flex"
                   onClick={() =>

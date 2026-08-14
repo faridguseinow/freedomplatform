@@ -312,6 +312,7 @@ export const azTranslations: Record<string, string> = {
   'Не удалось сохранить организацию.': 'Təşkilatı saxlamaq mümkün olmadı.',
   'Не удалось сохранить схему.': 'Sxemi saxlamaq mümkün olmadı.',
   'Не удалось сохранить товар.': 'Məhsulu saxlamaq mümkün olmadı.',
+  'Не удалось удалить товар.': 'Məhsulu silmək mümkün olmadı.',
   'Не удалось сохранить услугу.': 'Xidməti saxlamaq mümkün olmadı.',
   'Не удалось сохранить шаблон.': 'Şablonu saxlamaq mümkün olmadı.',
   'Не удалось обновить остаток.': 'Qalığı yeniləmək mümkün olmadı.',
@@ -798,6 +799,7 @@ export const azTranslations: Record<string, string> = {
   'Перетащите карточку мышкой на нужную клетку. Размер меняется кнопками W/H или через форму места.':
     'Kartı siçanla lazımi xanaya sürükləyin. Ölçü W/H düymələri və ya yer forması ilə dəyişir.',
   'Переход через полночь': 'Gecə yarısından keçid',
+  'Перед удалением остаток товара должен быть 0.': 'Silməzdən əvvəl məhsul qalığı 0 olmalıdır.',
   'Периоды:': 'Dövrlər:',
   'Платежей нет.': 'Ödəniş yoxdur.',
   Платежи: 'Ödənişlər',
@@ -823,6 +825,7 @@ export const azTranslations: Record<string, string> = {
   'Причина отмены': 'Ləğv səbəbi',
   'Причина корректировки': 'Düzəliş səbəbi',
   'Причина удаления': 'Silinmə səbəbi',
+  'Причина удаления товара': 'Məhsulun silinmə səbəbi',
   'Причина:': 'Səbəb:',
   'Например: пересчёт, ошибка ввода, поступление без документа.':
     'Məsələn: yenidən sayım, daxiletmə səhvi, sənədsiz daxilolma.',
@@ -895,9 +898,19 @@ export const azTranslations: Record<string, string> = {
   Товар: 'Məhsul',
   'Товары и услуги': 'Məhsullar və xidmətlər',
   'Товары, услуги, комбо': 'Məhsullar, xidmətlər, kombo',
+  'Товар уже использовался в заказах, складе или комбо. Удаление невозможно, архивируйте товар.':
+    'Məhsul artıq sifarişlərdə, anbarda və ya komboda istifadə olunub. Silmək mümkün deyil, məhsulu arxivləşdirin.',
+  'Товар удален.': 'Məhsul silindi.',
+  'Product has already been used and cannot be deleted. Archive it instead.':
+    'Məhsul artıq istifadə olunub və silinə bilməz. Əvəzinə arxivləşdirin.',
   'Требовать approval крупных расходов': 'Böyük xərclər üçün təsdiq tələb et',
   'Требует внимания': 'Diqqət tələb edir',
   Убрать: 'Sil',
+  Удалить: 'Sil',
+  'Удалить можно только товар без заказов, складских документов, движений, резервов и комбо. Если история уже есть, используйте архив.':
+    'Yalnız sifarişləri, anbar sənədləri, hərəkətləri, rezervləri və kombosu olmayan məhsulu silmək olar. Tarixçə artıq varsa, arxivdən istifadə edin.',
+  'Удалить товар': 'Məhsulu sil',
+  'Удалить товар навсегда?': 'Məhsulu birdəfəlik silmək istəyirsiniz?',
   'Увеличить на 1': '1 vahid artır',
   'Укажите причину изменения остатка.': 'Qalıq dəyişikliyinin səbəbini göstərin.',
   'Уменьшить на 1': '1 vahid azalt',
@@ -958,6 +971,8 @@ export const azTranslations: Record<string, string> = {
   'создал запрос на исправление': 'düzəliş sorğusu yaratdı',
   'изменил расход': 'xərci dəyişdi',
   'удалил расход': 'xərci sildi',
+  'удалил товар': 'məhsulu sildi',
+  товар: 'məhsul',
   'синхронизировал доход по заказу': 'sifariş gəlirini sinxronlaşdırdı',
   'синхронизировал закупку': 'satınalmanı sinxronlaşdırdı',
   'сообщил об оплате доли платформы': 'platforma payı ödənişi barədə bildirdi',

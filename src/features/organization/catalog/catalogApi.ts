@@ -287,6 +287,7 @@ export function useProductMutations(_organizationId: string | null) {
   const queryClient = useQueryClient()
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: ['admin', 'catalog'] })
+    await queryClient.invalidateQueries({ queryKey: ['admin', 'inventory'] })
     await queryClient.invalidateQueries({ queryKey: ['employee', 'catalog', 'products', _organizationId] })
   }
 
@@ -311,6 +312,21 @@ export function useProductMutations(_organizationId: string | null) {
         const { data, error } = await supabase.rpc('set_product_status', {
           target_id: id,
           target_status: status,
+        })
+
+        if (error) {
+          throw new Error(error.message)
+        }
+
+        return data
+      },
+      onSuccess: invalidate,
+    }),
+    deleteUnused: useMutation({
+      mutationFn: async ({ id, reason }: { id: string; reason?: string | null }) => {
+        const { data, error } = await supabase.rpc('delete_unused_product', {
+          target_product_id: id,
+          target_reason: reason ?? null,
         })
 
         if (error) {

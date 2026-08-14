@@ -81,6 +81,7 @@ const actionLabels: Record<string, string> = {
   'finance.platform_share_payment_reported': 'сообщил об оплате доли платформы',
   'finance.platform_share_payment_confirmed': 'подтвердил оплату доли платформы',
   'finance.platform_share_payment_rejected': 'отклонил оплату доли платформы',
+  'catalog.product_deleted': 'удалил товар',
 }
 
 const entityLabels: Record<string, string> = {
@@ -96,6 +97,7 @@ const entityLabels: Record<string, string> = {
   financial_period: 'финансовый период',
   organization_platform_share_rate: 'ставка доли платформы',
   platform_share_payment: 'платёж доли платформы',
+  product: 'товар',
 }
 
 function asRecord(value: unknown): RawMetadata {
@@ -130,6 +132,8 @@ function buildDetails(metadata: RawMetadata) {
   if (typeof metadata.billable_minutes === 'number') details.push(`Минуты: ${metadata.billable_minutes}`)
   if (typeof metadata.reason === 'string') details.push(`Причина: ${metadata.reason}`)
   if (typeof metadata.comment === 'string') details.push(`Комментарий: ${metadata.comment}`)
+  if (typeof metadata.name === 'string') details.push(`Название: ${metadata.name}`)
+  if (typeof metadata.sku === 'string') details.push(`SKU: ${metadata.sku}`)
 
   return details
 }
