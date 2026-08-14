@@ -53,7 +53,7 @@ const metricToneClassName: Record<NonNullable<ShiftMetricProps['tone']>, string>
 
 function ShiftMetric({ icon: Icon, label, tone = 'default', value }: ShiftMetricProps) {
   return (
-    <div className={`grid gap-2 rounded-lg px-3 py-3 ring-1 ${metricToneClassName[tone]}`}>
+    <div className={`grid gap-1.5 rounded-lg px-3 py-2 ring-1 ${metricToneClassName[tone]}`}>
       <div className="flex items-center gap-2 text-xs font-medium uppercase text-slate-500">
         <Icon className="size-3.5" />
         {label}
@@ -111,18 +111,11 @@ export function EmployeeShiftPage() {
 
   if (!shift) {
     return (
-      <section className="grid gap-5">
-        <header className="grid gap-2">
-          <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">Открыть смену</h2>
-          <p className="max-w-3xl text-sm leading-6 text-slate-600">
-            {currentOrganization?.name ?? 'Организация'} · {new Date().toLocaleString('ru')}
-          </p>
-        </header>
-
+      <section className="grid content-start gap-3">
         {error ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
 
         <form
-          className="grid max-w-2xl gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
+          className="grid gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm lg:grid-cols-[minmax(220px,1fr)_minmax(220px,280px)_minmax(180px,240px)_auto] lg:items-end"
           onSubmit={(event) => {
             event.preventDefault()
             void runAction(() =>
@@ -133,6 +126,12 @@ export function EmployeeShiftPage() {
             )
           }}
         >
+          <header className="min-w-0 self-center lg:pb-1">
+            <h2 className="text-xl font-semibold text-slate-950">Открыть смену</h2>
+            <p className="mt-1 truncate text-sm leading-5 text-slate-600">
+              {currentOrganization?.name ?? 'Организация'} · {new Date().toLocaleString('ru')}
+            </p>
+          </header>
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             <span>Шаблон смены</span>
             <select
@@ -143,7 +142,7 @@ export function EmployeeShiftPage() {
               <option value="">Без шаблона</option>
               {templates.map((template) => (
                 <option key={template.id} value={template.id}>
-                  {template.name} · {template.start_time.slice(0, 5)}-{template.end_time.slice(0, 5)}
+                  {template.name}
                 </option>
               ))}
             </select>
@@ -157,7 +156,7 @@ export function EmployeeShiftPage() {
             type="number"
             value={openingCash}
           />
-          <Button disabled={mutations.open.isPending} type="submit">
+          <Button className="whitespace-nowrap lg:min-h-11" disabled={mutations.open.isPending} type="submit">
             {mutations.open.isPending ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
             Открыть смену
           </Button>
@@ -167,8 +166,8 @@ export function EmployeeShiftPage() {
   }
 
   return (
-    <section className="grid content-start gap-4 self-start">
-      <header className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+    <section className="grid content-start gap-3 self-start">
+      <header className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-xl font-semibold text-slate-950 sm:text-2xl">Моя смена</h2>
@@ -198,9 +197,9 @@ export function EmployeeShiftPage() {
 
       {error ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
 
-      <section className="grid items-start gap-4 xl:grid-cols-[1fr_420px]">
+      <section className="grid items-start gap-3 xl:grid-cols-[1fr_400px]">
         <div className="grid content-start gap-3">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             <ShiftMetric
               icon={Banknote}
               label="Наличные"
@@ -246,7 +245,7 @@ export function EmployeeShiftPage() {
         </div>
 
         <form
-          className="grid content-start gap-3 self-start rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+          className="grid content-start gap-3 self-start rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
           onSubmit={(event) => {
             event.preventDefault()
             if (closeDisabled) {

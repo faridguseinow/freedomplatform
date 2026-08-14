@@ -192,17 +192,17 @@ export function EmployeeWorkspacePage() {
 
   if (!currentShiftQuery.isLoading && !currentShiftQuery.data?.shift) {
     return (
-      <section className="grid gap-5">
-        <header className="grid gap-2">
-          <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">Рабочая панель</h2>
-          <p className="max-w-3xl text-sm leading-6 text-slate-600">
-            Для продаж, сессий и оплат нужна открытая смена.
-          </p>
-        </header>
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
-          Смена не открыта. Откройте смену, чтобы начать работу с заказами.
-        </div>
-        <div>
+      <section className="grid content-start gap-3">
+        <div className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+          <header className="min-w-0">
+            <h2 className="text-xl font-semibold text-slate-950">Рабочая панель</h2>
+            <p className="mt-1 text-sm leading-5 text-amber-900">
+              Для продаж, сессий и оплат нужна открытая смена.
+            </p>
+            <p className="mt-1 text-xs leading-5 text-amber-800">
+              Смена не открыта. Откройте смену, чтобы начать работу с заказами.
+            </p>
+          </header>
           <Button type="button">
             <Link className="inline-flex items-center gap-2" to="/employee/shift">
               <Clock3 className="size-4" /> Открыть смену

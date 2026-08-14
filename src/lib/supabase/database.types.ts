@@ -658,8 +658,8 @@ export type ShiftTemplateRow = {
   id: string
   organization_id: string
   name: string
-  start_time: string
-  end_time: string
+  start_time: string | null
+  end_time: string | null
   crosses_midnight: boolean
   sort_order: number
   is_active: boolean
@@ -1284,7 +1284,7 @@ export type Database = {
       shift_templates: TableDefinition<
         ShiftTemplateRow,
         Partial<ShiftTemplateRow> &
-          Pick<ShiftTemplateRow, 'organization_id' | 'name' | 'start_time' | 'end_time' | 'created_by'>,
+          Pick<ShiftTemplateRow, 'organization_id' | 'name' | 'created_by'>,
         Partial<Omit<ShiftTemplateRow, 'id' | 'organization_id' | 'created_by' | 'created_at'>>
       >
       operational_days: TableDefinition<OperationalDayRow, OperationalDayRow, Partial<OperationalDayRow>>

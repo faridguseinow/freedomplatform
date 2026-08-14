@@ -61,6 +61,7 @@ export const azTranslations: Record<string, string> = {
   Баланс: 'Balans',
   Банк: 'Bank',
   'Без reference': 'Referencesiz',
+  'Без фиксированного времени': 'Sabit vaxt yoxdur',
   'Без имени': 'Adsız',
   'Без комментария': 'Şərhsiz',
   'Без места': 'Yersiz',
@@ -782,6 +783,8 @@ export const azTranslations: Record<string, string> = {
   'Настройки платформы': 'Platforma ayarları',
   'Настройте одну, две или больше смен. Данные The Liga создаются вручную, не миграцией.':
     'Bir, iki və ya daha çox növbə qurun. The Liga məlumatları miqrasiya ilə yox, əl ilə yaradılır.',
+  'Настройте названия смен без фиксированного времени. Итоги считаются по фактическому открытию и закрытию смены.':
+    'Növbə adlarını sabit vaxt olmadan qurun. Yekunlar növbənin faktiki açılması və bağlanmasına görə hesablanır.',
   Начать: 'Başla',
   'Начать сессию': 'Sessiyanı başlat',
   'Не настроено окружение': 'Mühit qurulmayıb',
