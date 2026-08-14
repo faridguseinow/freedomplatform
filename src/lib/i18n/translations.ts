@@ -206,6 +206,8 @@ export const azTranslations: Record<string, string> = {
   'Измените фильтр или поиск.': 'Filtri və ya axtarışı dəyişin.',
   'Изменение количества': 'Miqdar dəyişikliyi',
   'Изменение метода оплаты': 'Ödəniş metodunun dəyişdirilməsi',
+  'Изменения заказа': 'Sifariş dəyişiklikləri',
+  'Изменений по фильтру нет': 'Filtrə uyğun dəyişiklik yoxdur',
   Изображение: 'Şəkil',
   Имя: 'Ad',
   'Имя пользователя': 'İstifadəçi adı',
@@ -327,6 +329,7 @@ export const azTranslations: Record<string, string> = {
   'Низкий остаток': 'Aşağı qalıq',
   'Ничего не найдено': 'Heç nə tapılmadı',
   'Новое количество': 'Yeni miqdar',
+  'Причина изменения количества': 'Miqdar dəyişikliyinin səbəbi',
   'Введите корректное количество.': 'Düzgün miqdar daxil edin.',
   'Введите новое количество, отличающееся от текущего остатка.':
     'Cari qalıqdan fərqli yeni miqdar daxil edin.',
@@ -343,6 +346,7 @@ export const azTranslations: Record<string, string> = {
   Одобрен: 'Təsdiqlənib',
   Одобрено: 'Təsdiqlənib',
   Ожидает: 'Gözləyir',
+  'Ожидало подтверждения': 'Təsdiq gözləyirdi',
   'Ожидает оплату': 'Ödəniş gözləyir',
   'Ожидает оплаты': 'Ödəniş gözləyir',
   'Ожидает подтверждения': 'Təsdiq gözləyir',
@@ -436,7 +440,6 @@ export const azTranslations: Record<string, string> = {
   'Принять оплату': 'Ödənişi qəbul et',
   Приостановлена: 'Dayandırılıb',
   'Причина force close': 'Məcburi bağlama səbəbi',
-  'Причина изменения количества': 'Miqdar dəyişmə səbəbi',
   'Причина отклонения': 'Rədd səbəbi',
   'Причина отмены документа': 'Sənədin ləğv səbəbi',
   Проведен: 'Keçirilib',
@@ -677,6 +680,7 @@ export const azTranslations: Record<string, string> = {
   Журнал: 'Jurnal',
   'Журнал действий': 'Əməliyyat jurnalı',
   'Журнал действий недоступен': 'Əməliyyat jurnalı əlçatan deyil',
+  'Журнал изменений заказа': 'Sifariş dəyişiklikləri jurnalı',
   'Здесь не записывается каждый клик. Логируются значимые переходы по админ-разделам и операции, которые меняют данные или деньги.':
     'Burada hər klik yazılmır. Yalnız admin bölmələri üzrə vacib keçidlər və məlumatları və ya pulu dəyişən əməliyyatlar qeyd olunur.',
   'Завершить заказ': 'Sifarişi tamamla',
@@ -864,6 +868,8 @@ export const azTranslations: Record<string, string> = {
   'Состав заказа': 'Sifariş tərkibi',
   'Сотрудник создает запрос, администратор подтверждает или отклоняет действие.':
     'Əməkdaş sorğu yaradır, administrator əməliyyatı təsdiqləyir və ya rədd edir.',
+  'Сотрудник меняет заказ сразу, а здесь администратор видит, что именно было изменено.':
+    'Əməkdaş sifarişi dərhal dəyişir, administrator isə burada nəyin dəyişdiyini görür.',
   Сохранить: 'Saxla',
   'Сначала сохраните товар, затем измените остаток.':
     'Əvvəlcə məhsulu saxlayın, sonra qalığı dəyişin.',
@@ -927,6 +933,7 @@ export const azTranslations: Record<string, string> = {
     'İnterfeys dili bu cihazda lokal saxlanılır və bu brauzerdə administratora və əməkdaşın iş yerinə tətbiq olunur.',
   'Язык, часовой пояс и региональные значения для новых организаций.':
     'Yeni təşkilatlar üçün dil, saat qurşağı və regional dəyərlər.',
+  Выполнено: 'İcra olunub',
   авто: 'avto',
   'без SKU': 'SKU yoxdur',
   'без reference': 'reference yoxdur',
@@ -940,6 +947,7 @@ export const azTranslations: Record<string, string> = {
   'зафиксировал излишек': 'artıqlığı qeydə aldı',
   'зафиксировал недостачу': 'çatışmazlığı qeydə aldı',
   'завершил сессию': 'sessiyanı tamamladı',
+  'изменил заказ': 'sifarişi dəyişdi',
   'запросил уточнение по периоду': 'dövr üzrə dəqiqləşdirmə istədi',
   'создал заказ': 'sifariş yaratdı',
   'создал передачу смены': 'növbə təhvilini yaratdı',

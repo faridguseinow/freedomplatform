@@ -19,6 +19,7 @@ import { CatalogImage } from '../../../components/common/CatalogImage'
 import { Button } from '../../../components/ui/Button'
 import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
+import { useI18n } from '../../../lib/i18n/I18nContext'
 import type {
   EmployeeOrderItemRow,
   EmployeeWorkspacePlaceRow,
@@ -109,6 +110,7 @@ const getSlotClassName = (place: EmployeeWorkspacePlaceRow, shape: string) =>
 
 export function EmployeeWorkspacePage() {
   const { organizationId } = useAuth()
+  const { t } = useI18n()
   const workspaceQuery = useEmployeeWorkspaceData(organizationId)
   const productsQuery = useEmployeeProducts({ organizationId })
   const servicesQuery = useEmployeeServices({ organizationId })
@@ -296,11 +298,11 @@ export function EmployeeWorkspacePage() {
 
   const requestQuantity = (item: EmployeeOrderItemRow) => {
     if (!selectedOrderId) return
-    const quantityText = window.prompt('Новое количество', String(item.quantity))
+    const quantityText = window.prompt(t('Новое количество'), String(item.quantity))
     if (!quantityText) return
     const quantity = Number(quantityText)
     if (!Number.isFinite(quantity) || quantity <= 0) return
-    const reason = window.prompt('Причина изменения количества')
+    const reason = window.prompt(t('Причина изменения количества'))
     if (!reason) return
     void runAction(() =>
       orderMutations.requestAdjustment.mutateAsync({

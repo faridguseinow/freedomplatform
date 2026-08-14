@@ -1,6 +1,5 @@
-import { Check, Loader2, X } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
-import { Button } from '../../../components/ui/Button'
 import { useAuth } from '../../../hooks/useAuth'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import type {
@@ -8,16 +7,13 @@ import type {
   AdjustmentRequestType,
 } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
-import {
-  useAdjustmentRequestMutations,
-  useAdminAdjustmentRequests,
-} from '../../orders/adjustmentRequestsApi'
+import { useAdminAdjustmentRequests } from '../../orders/adjustmentRequestsApi'
 
 type StatusFilter = AdjustmentRequestStatus | 'all'
 
 const statusLabel: Record<AdjustmentRequestStatus, string> = {
-  pending: 'Ожидает',
-  approved: 'Одобрено',
+  pending: 'Ожидало подтверждения',
+  approved: 'Выполнено',
   rejected: 'Отклонено',
   expired: 'Истекло',
   cancelled: 'Отменено',
@@ -35,22 +31,16 @@ const requestTypeLabel: Record<AdjustmentRequestType, string> = {
 export function AdminAdjustmentRequestsPage() {
   const { organizationId } = useAuth()
   const { t } = useI18n()
-  const [status, setStatus] = useState<StatusFilter>('pending')
+  const [status, setStatus] = useState<StatusFilter>('all')
   const requestsQuery = useAdminAdjustmentRequests(organizationId, status)
-  const mutations = useAdjustmentRequestMutations(organizationId)
   const requests = requestsQuery.data ?? []
-
-  const review = (requestId: string, decision: 'approved' | 'rejected') => {
-    const comment = window.prompt(t(decision === 'approved' ? 'Комментарий к одобрению' : 'Причина отклонения'))
-    mutations.review.mutate({ requestId, decision, comment })
-  }
 
   return (
     <section className="grid gap-5">
       <header className="grid gap-2">
-        <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">{t('Запросы исправлений')}</h2>
+        <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">{t('Журнал изменений заказа')}</h2>
         <p className="max-w-3xl text-sm leading-6 text-slate-600">
-          {t('Сотрудник создает запрос, администратор подтверждает или отклоняет действие.')}
+          {t('Сотрудник меняет заказ сразу, а здесь администратор видит, что именно было изменено.')}
         </p>
       </header>
 
@@ -80,7 +70,7 @@ export function AdminAdjustmentRequestsPage() {
 
       <div className="grid gap-3">
         {requests.map((request) => (
-          <article className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_auto]" key={request.id}>
+          <article className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm" key={request.id}>
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="font-semibold text-slate-950">{t(requestTypeLabel[request.request_type])}</h3>
@@ -91,23 +81,13 @@ export function AdminAdjustmentRequestsPage() {
                 {t('Заказ:')} {request.order_id} · {t('Количество:')} {request.requested_quantity ?? '-'}
               </p>
             </div>
-            {request.status === 'pending' ? (
-              <div className="flex flex-wrap gap-2 lg:justify-end">
-                <Button onClick={() => review(request.id, 'approved')} type="button">
-                  <Check className="size-4" /> {t('Одобрить')}
-                </Button>
-                <Button onClick={() => review(request.id, 'rejected')} type="button" variant="danger">
-                  <X className="size-4" /> {t('Отклонить')}
-                </Button>
-              </div>
-            ) : null}
           </article>
         ))}
       </div>
 
       {!requestsQuery.isLoading && !requests.length ? (
         <div className="grid min-h-32 place-items-center rounded-lg border border-dashed border-slate-300 bg-white text-sm text-slate-600">
-          {t('Запросов по фильтру нет')}
+          {t('Изменений по фильтру нет')}
         </div>
       ) : null}
     </section>

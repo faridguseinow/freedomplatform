@@ -50,6 +50,7 @@ const actionLabels: Record<string, string> = {
   'order.created': 'создал заказ',
   'order.item_added': 'добавил позицию в заказ',
   'order.moved': 'переместил заказ',
+  'adjustment.applied': 'изменил заказ',
   'adjustment.requested': 'создал запрос на исправление',
   'adjustment.approved': 'одобрил исправление',
   'adjustment.rejected': 'отклонил исправление',
