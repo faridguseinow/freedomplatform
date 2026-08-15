@@ -147,7 +147,13 @@ export function PwaManager() {
   useEffect(() => {
     if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return
 
-    navigator.serviceWorker.register('/sw.js').catch(() => undefined)
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((registration) => {
+        void registration.update()
+        registration.waiting?.postMessage({ type: 'SKIP_WAITING' })
+      })
+      .catch(() => undefined)
   }, [])
 
   return null

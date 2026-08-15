@@ -1,4 +1,4 @@
-const CACHE_NAME = 'freedom-platform-shell-v3'
+const CACHE_NAME = 'freedom-platform-shell-v4'
 const APP_SHELL = [
   '/',
   '/platform',
@@ -10,6 +10,16 @@ const APP_SHELL = [
   '/pwa/freedom-platform-512.png',
   '/pwa/the-league.svg',
 ]
+const STATIC_PATH_PREFIXES = ['/assets/', '/pwa/']
+
+const isStaticSameOriginRequest = (request) => {
+  const url = new URL(request.url)
+
+  if (url.origin !== self.location.origin) return false
+  if (url.pathname === '/manifest.webmanifest') return true
+
+  return STATIC_PATH_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -29,6 +39,10 @@ self.addEventListener('activate', (event) => {
   self.clients.claim()
 })
 
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
+})
+
 self.addEventListener('fetch', (event) => {
   const request = event.request
 
@@ -45,6 +59,8 @@ self.addEventListener('fetch', (event) => {
     )
     return
   }
+
+  if (!isStaticSameOriginRequest(request)) return
 
   event.respondWith(
     caches.match(request).then((cached) => {
