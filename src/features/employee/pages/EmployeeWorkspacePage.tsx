@@ -37,7 +37,7 @@ import {
   useEmployeeOrderMutations,
   useEmployeeWorkspaceData,
 } from '../../orders/employeeOrdersApi'
-import { useCurrentEmployeeShift } from '../../shifts/shiftsApi'
+import { isOpeningDayShiftName, useCurrentEmployeeShift } from '../../shifts/shiftsApi'
 import {
   buildWorkspaceLayout,
   getPlaceDisplayLabel,
@@ -52,6 +52,7 @@ const formatMoney = (value: number | null | undefined) =>
   new Intl.NumberFormat('ru', { maximumFractionDigits: 2 }).format(value ?? 0)
 
 const formatAzn = (value: number | null | undefined) => `${formatMoney(value)} AZN`
+const parseMoneyInput = (value: string) => Number(value.replace(',', '.'))
 
 const formatElapsed = (startedAt: string | null, nowMs: number) => {
   if (!startedAt) return '00:00'
@@ -126,6 +127,7 @@ export function EmployeeWorkspacePage() {
   const [cancelReason, setCancelReason] = useState('')
   const [removeRequestItem, setRemoveRequestItem] = useState<EmployeeOrderItemRow | null>(null)
   const [removeRequestReason, setRemoveRequestReason] = useState('')
+  const [openingDayPaymentAmount, setOpeningDayPaymentAmount] = useState('')
   const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
   const orderItemsQuery = useEmployeeOrderItems(selectedOrderId)
@@ -147,6 +149,12 @@ export function EmployeeWorkspacePage() {
     [places, selectedPlaceId],
   )
   const paymentChoiceOpen = Boolean(selectedOrderId && selectedOrderId === paymentChoiceOrderId)
+  const isOpeningDayShift = isOpeningDayShiftName(currentShiftQuery.data?.template?.name)
+  const openingDayPaymentValue = parseMoneyInput(openingDayPaymentAmount)
+  const hasOpeningDayPaymentAmount =
+    openingDayPaymentAmount.trim().length > 0 &&
+    Number.isFinite(openingDayPaymentValue) &&
+    openingDayPaymentValue >= 0
   const orderItems = orderItemsQuery.data ?? []
   const placesById = useMemo(() => new Map(places.map((place) => [place.id, place])), [places])
   const ordersWithoutPlace = orders.filter((order) => !order.place_id && order.status !== 'paid')
@@ -174,6 +182,7 @@ export function EmployeeWorkspacePage() {
 
   const selectOrder = (orderId: string) => {
     setPaymentChoiceOrderId(null)
+    setOpeningDayPaymentAmount('')
     setSelectedOrderId(orderId)
   }
 
@@ -181,6 +190,7 @@ export function EmployeeWorkspacePage() {
     setPaymentChoiceOrderId(null)
     setOrderCloseAction(null)
     setCancelReason('')
+    setOpeningDayPaymentAmount('')
     setRemoveRequestItem(null)
     setRemoveRequestReason('')
     setSelectedOrderId(null)
@@ -318,7 +328,19 @@ export function EmployeeWorkspacePage() {
   const completePayment = (method: PaymentMethod) => {
     if (!selectedOrderId) return
     void runAction(async () => {
-      await orderMutations.completePayment.mutateAsync({ orderId: selectedOrderId, method })
+      if (isOpeningDayShift) {
+        if (!hasOpeningDayPaymentAmount) {
+          throw new Error('Укажите сумму, которую клиент реально оставил.')
+        }
+
+        await orderMutations.completeOpeningDayPayment.mutateAsync({
+          orderId: selectedOrderId,
+          method,
+          amount: openingDayPaymentValue,
+        })
+      } else {
+        await orderMutations.completePayment.mutateAsync({ orderId: selectedOrderId, method })
+      }
       closeOrder()
     })
   }
@@ -330,6 +352,9 @@ export function EmployeeWorkspacePage() {
         await orderMutations.waitPayment.mutateAsync(selectedOrder.id)
       }
       setPaymentChoiceOrderId(selectedOrder.id)
+      if (isOpeningDayShift && !openingDayPaymentAmount) {
+        setOpeningDayPaymentAmount(String(selectedOrder.total_amount || 0))
+      }
     })
   }
 
@@ -383,6 +408,7 @@ export function EmployeeWorkspacePage() {
     orderMutations.completeEmptyOrder.isPending ||
     orderMutations.cancelOrder.isPending ||
     orderMutations.completePayment.isPending ||
+    orderMutations.completeOpeningDayPayment.isPending ||
     orderMutations.refusePayment.isPending
 
   return (
@@ -456,7 +482,7 @@ export function EmployeeWorkspacePage() {
                         : 'Заказ не открыт'}
                     </span>
                     <span className="font-semibold text-slate-950">
-                      {formatMoney((place.active_order_total ?? 0) + sessionAmount)}
+                      {isOpeningDayShift ? 'Ручной итог' : formatMoney((place.active_order_total ?? 0) + sessionAmount)}
                     </span>
                   </div>
                 </div>
@@ -557,7 +583,7 @@ export function EmployeeWorkspacePage() {
                 </div>
               </div>
               <div className="flex shrink-0 items-start gap-3">
-                {selectedPlace.has_timer ? (
+                {selectedPlace.has_timer && !isOpeningDayShift ? (
                   <div className="rounded-lg bg-emerald-50 px-3 py-2 text-right">
                     <p className="text-xs font-medium text-emerald-700">Цена за час</p>
                     <p className="text-2xl font-semibold text-emerald-900">
@@ -591,7 +617,9 @@ export function EmployeeWorkspacePage() {
                         <Timer className="size-4" /> {formatElapsed(selectedPlace.active_session_started_at, nowMs)}
                       </div>
                       <div className="mt-1">
-                        Сейчас: {formatMoney(calculateCurrentSessionAmount(selectedPlace, nowMs))}
+                        {isOpeningDayShift
+                          ? 'Цена будет указана вручную при оплате.'
+                          : `Сейчас: ${formatMoney(calculateCurrentSessionAmount(selectedPlace, nowMs))}`}
                       </div>
                     </div>
                   ) : null}
@@ -668,7 +696,12 @@ export function EmployeeWorkspacePage() {
                               type="button"
                             >
                               <CatalogImage alt={product.name} className="size-12" imagePath={product.image_path} />
-                              <span className="grid gap-1"><span className="font-medium text-slate-950">{product.name}</span><span className="text-sm text-slate-600">{formatMoney(product.sale_price)}</span></span>
+                              <span className="grid gap-1">
+                                <span className="font-medium text-slate-950">{product.name}</span>
+                                {!isOpeningDayShift ? (
+                                  <span className="text-sm text-slate-600">{formatMoney(product.sale_price)}</span>
+                                ) : null}
+                              </span>
                             </button>
                           ))
                         : null}
@@ -681,7 +714,12 @@ export function EmployeeWorkspacePage() {
                               type="button"
                             >
                               <CatalogImage alt={service.name} className="size-12" imagePath={service.image_path} />
-                              <span className="grid gap-1"><span className="font-medium text-slate-950">{service.name}</span><span className="text-sm text-slate-600">{formatMoney(service.fixed_price)}</span></span>
+                              <span className="grid gap-1">
+                                <span className="font-medium text-slate-950">{service.name}</span>
+                                {!isOpeningDayShift ? (
+                                  <span className="text-sm text-slate-600">{formatMoney(service.fixed_price)}</span>
+                                ) : null}
+                              </span>
                             </button>
                           ))
                         : null}
@@ -694,7 +732,12 @@ export function EmployeeWorkspacePage() {
                               type="button"
                             >
                               <CatalogImage alt={combo.name} className="size-12" imagePath={combo.image_path} />
-                              <span className="grid gap-1"><span className="font-medium text-slate-950">{combo.name}</span><span className="text-sm text-slate-600">{formatMoney(combo.sale_price)}</span></span>
+                              <span className="grid gap-1">
+                                <span className="font-medium text-slate-950">{combo.name}</span>
+                                {!isOpeningDayShift ? (
+                                  <span className="text-sm text-slate-600">{formatMoney(combo.sale_price)}</span>
+                                ) : null}
+                              </span>
                             </button>
                           ))
                         : null}
@@ -756,7 +799,12 @@ export function EmployeeWorkspacePage() {
                             type="button"
                           >
                             <CatalogImage alt={product.name} className="size-12" imagePath={product.image_path} />
-                            <span className="grid gap-1"><span className="font-medium text-slate-950">{product.name}</span><span className="text-sm text-slate-600">{formatMoney(product.sale_price)}</span></span>
+                            <span className="grid gap-1">
+                              <span className="font-medium text-slate-950">{product.name}</span>
+                              {!isOpeningDayShift ? (
+                                <span className="text-sm text-slate-600">{formatMoney(product.sale_price)}</span>
+                              ) : null}
+                            </span>
                           </button>
                         ))
                       : null}
@@ -769,7 +817,12 @@ export function EmployeeWorkspacePage() {
                             type="button"
                           >
                             <CatalogImage alt={service.name} className="size-12" imagePath={service.image_path} />
-                            <span className="grid gap-1"><span className="font-medium text-slate-950">{service.name}</span><span className="text-sm text-slate-600">{formatMoney(service.fixed_price)}</span></span>
+                            <span className="grid gap-1">
+                              <span className="font-medium text-slate-950">{service.name}</span>
+                              {!isOpeningDayShift ? (
+                                <span className="text-sm text-slate-600">{formatMoney(service.fixed_price)}</span>
+                              ) : null}
+                            </span>
                           </button>
                         ))
                       : null}
@@ -782,7 +835,12 @@ export function EmployeeWorkspacePage() {
                             type="button"
                           >
                             <CatalogImage alt={combo.name} className="size-12" imagePath={combo.image_path} />
-                            <span className="grid gap-1"><span className="font-medium text-slate-950">{combo.name}</span><span className="text-sm text-slate-600">{formatMoney(combo.sale_price)}</span></span>
+                            <span className="grid gap-1">
+                              <span className="font-medium text-slate-950">{combo.name}</span>
+                              {!isOpeningDayShift ? (
+                                <span className="text-sm text-slate-600">{formatMoney(combo.sale_price)}</span>
+                              ) : null}
+                            </span>
                           </button>
                         ))
                       : null}
@@ -818,7 +876,9 @@ export function EmployeeWorkspacePage() {
                   <span className="font-semibold text-slate-950">#{order.order_number}</span>
                   <span className="text-sm text-slate-600">{orderStatusLabel[order.status]}</span>
                 </div>
-                <div className="mt-2 text-sm text-slate-600">Итого: {formatMoney(order.total_amount)}</div>
+                <div className="mt-2 text-sm text-slate-600">
+                  {isOpeningDayShift ? 'Итог будет введён вручную' : `Итого: ${formatMoney(order.total_amount)}`}
+                </div>
               </button>
             ))}
           </div>
@@ -878,11 +938,17 @@ export function EmployeeWorkspacePage() {
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <div className="font-medium text-slate-950">{item.name_snapshot}</div>
-                          <div className="text-sm text-slate-600">
-                            {item.quantity} × {formatMoney(item.unit_price)}
-                          </div>
+                          {!isOpeningDayShift ? (
+                            <div className="text-sm text-slate-600">
+                              {item.quantity} × {formatMoney(item.unit_price)}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-slate-600">Учёт без цены</div>
+                          )}
                         </div>
-                        <div className="text-right font-semibold text-slate-950">{formatMoney(item.total_price)}</div>
+                        {!isOpeningDayShift ? (
+                          <div className="text-right font-semibold text-slate-950">{formatMoney(item.total_price)}</div>
+                        ) : null}
                       </div>
                       {item.status === 'active' && selectedOrder.status === 'open' ? (
                         <div className="flex flex-wrap gap-2">
@@ -913,10 +979,11 @@ export function EmployeeWorkspacePage() {
                   const canPreparePayment =
                     (selectedOrder.status === 'open' || selectedOrder.status === 'waiting_payment') &&
                     !hasActiveSession &&
-                    selectedOrder.total_amount > 0
+                    (isOpeningDayShift || selectedOrder.total_amount > 0)
                   const canFinishEmptyOrder =
                     (selectedOrder.status === 'open' || selectedOrder.status === 'waiting_payment') &&
                     !hasActiveSession &&
+                    !isOpeningDayShift &&
                     selectedOrder.total_amount <= 0
                   const canCancelOrder =
                     (selectedOrder.status === 'open' || selectedOrder.status === 'waiting_payment') && !hasActiveSession
@@ -930,7 +997,11 @@ export function EmployeeWorkspacePage() {
                         <div>
                           <h4 className="text-sm font-semibold text-slate-950">Сессия и статус</h4>
                           <p className="mt-1 text-sm text-slate-600">
-                            {hasActiveSession
+                            {isOpeningDayShift
+                              ? hasActiveSession
+                                ? 'Время идёт. Завершите сессию, затем укажите сумму, которую клиент оставил.'
+                                : 'Укажите фактическую сумму клиента в конце заказа.'
+                              : hasActiveSession
                               ? 'Сначала завершите сессию, затем переводите заказ к оплате.'
                               : selectedOrder.status === 'waiting_payment'
                                 ? 'Заказ готов к оплате.'
@@ -947,7 +1018,9 @@ export function EmployeeWorkspacePage() {
                               {formatElapsed(selectedPlace?.active_session_started_at ?? null, nowMs)}
                             </div>
                             <div className="mt-1">
-                              Сейчас: {formatMoney(selectedPlace ? calculateCurrentSessionAmount(selectedPlace, nowMs) : 0)}
+                              {isOpeningDayShift
+                                ? 'Цена будет указана вручную при оплате.'
+                                : `Сейчас: ${formatMoney(selectedPlace ? calculateCurrentSessionAmount(selectedPlace, nowMs) : 0)}`}
                             </div>
                           </div>
                         ) : null}
@@ -983,11 +1056,35 @@ export function EmployeeWorkspacePage() {
 
                       <div className="grid gap-3 rounded-lg border border-slate-200 p-3">
                         <div className="flex items-center justify-between gap-3">
-                          <span className="text-sm text-slate-600">Итого к оплате</span>
+                          <span className="text-sm text-slate-600">
+                            {isOpeningDayShift ? 'Фактическая сумма' : 'Итого к оплате'}
+                          </span>
                           <span className="text-2xl font-semibold text-slate-950">
-                            {formatMoney(selectedOrder.total_amount)}
+                            {isOpeningDayShift
+                              ? hasOpeningDayPaymentAmount
+                                ? formatMoney(openingDayPaymentValue)
+                                : '—'
+                              : formatMoney(selectedOrder.total_amount)}
                           </span>
                         </div>
+
+                        {isOpeningDayShift ? (
+                          <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                            <span>Сколько клиент оставил</span>
+                            <input
+                              className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                              inputMode="decimal"
+                              min={0}
+                              onChange={(event) => setOpeningDayPaymentAmount(event.target.value)}
+                              placeholder="Например: 50"
+                              type="number"
+                              value={openingDayPaymentAmount}
+                            />
+                            <span className="text-xs font-normal text-slate-500">
+                              Можно указать 0, если сегодня денег не взяли.
+                            </span>
+                          </label>
+                        ) : null}
 
                         {selectedOrder.status === 'payment_refused' ? (
                           <div className="rounded-md border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -995,10 +1092,14 @@ export function EmployeeWorkspacePage() {
                           </div>
                         ) : (
                           <>
-                            {selectedOrder.total_amount > 0 ? (
+                            {isOpeningDayShift || selectedOrder.total_amount > 0 ? (
                               <Button disabled={!canPreparePayment || isClosingOrder} onClick={openPaymentChoice} type="button">
                                 <Hourglass className="size-4" />
-                                {selectedOrder.status === 'waiting_payment' ? 'Принять оплату' : 'К оплате'}
+                                {isOpeningDayShift
+                                  ? 'Записать сумму'
+                                  : selectedOrder.status === 'waiting_payment'
+                                    ? 'Принять оплату'
+                                    : 'К оплате'}
                               </Button>
                             ) : (
                               <Button
@@ -1013,11 +1114,15 @@ export function EmployeeWorkspacePage() {
 
                             {paymentChoiceOpen ? (
                               <div className="grid grid-cols-2 gap-2">
-                                <Button disabled={isClosingOrder} onClick={() => completePayment('cash')} type="button">
+                                <Button
+                                  disabled={isClosingOrder || (isOpeningDayShift && !hasOpeningDayPaymentAmount)}
+                                  onClick={() => completePayment('cash')}
+                                  type="button"
+                                >
                                   <Banknote className="size-4" /> Наличными
                                 </Button>
                                 <Button
-                                  disabled={isClosingOrder}
+                                  disabled={isClosingOrder || (isOpeningDayShift && !hasOpeningDayPaymentAmount)}
                                   onClick={() => completePayment('card_transfer')}
                                   type="button"
                                   variant="secondary"
@@ -1027,7 +1132,7 @@ export function EmployeeWorkspacePage() {
                               </div>
                             ) : null}
 
-                            {selectedOrder.total_amount > 0 ? (
+                            {!isOpeningDayShift && selectedOrder.total_amount > 0 ? (
                               <Button
                                 disabled={hasActiveSession || isClosingOrder}
                                 onClick={refusePayment}
@@ -1096,7 +1201,12 @@ export function EmployeeWorkspacePage() {
                                     type="button"
                                   >
                                     <CatalogImage alt={product.name} className="size-12" imagePath={product.image_path} />
-                                    <span className="grid gap-1"><span className="font-medium text-slate-950">{product.name}</span><span className="text-sm text-slate-600">{formatMoney(product.sale_price)}</span></span>
+                                    <span className="grid gap-1">
+                                      <span className="font-medium text-slate-950">{product.name}</span>
+                                      {!isOpeningDayShift ? (
+                                        <span className="text-sm text-slate-600">{formatMoney(product.sale_price)}</span>
+                                      ) : null}
+                                    </span>
                                   </button>
                                 ))
                               : null}
@@ -1109,7 +1219,12 @@ export function EmployeeWorkspacePage() {
                                     type="button"
                                   >
                                     <CatalogImage alt={service.name} className="size-12" imagePath={service.image_path} />
-                                    <span className="grid gap-1"><span className="font-medium text-slate-950">{service.name}</span><span className="text-sm text-slate-600">{formatMoney(service.fixed_price)}</span></span>
+                                    <span className="grid gap-1">
+                                      <span className="font-medium text-slate-950">{service.name}</span>
+                                      {!isOpeningDayShift ? (
+                                        <span className="text-sm text-slate-600">{formatMoney(service.fixed_price)}</span>
+                                      ) : null}
+                                    </span>
                                   </button>
                                 ))
                               : null}
@@ -1122,7 +1237,12 @@ export function EmployeeWorkspacePage() {
                                     type="button"
                                   >
                                     <CatalogImage alt={combo.name} className="size-12" imagePath={combo.image_path} />
-                                    <span className="grid gap-1"><span className="font-medium text-slate-950">{combo.name}</span><span className="text-sm text-slate-600">{formatMoney(combo.sale_price)}</span></span>
+                                    <span className="grid gap-1">
+                                      <span className="font-medium text-slate-950">{combo.name}</span>
+                                      {!isOpeningDayShift ? (
+                                        <span className="text-sm text-slate-600">{formatMoney(combo.sale_price)}</span>
+                                      ) : null}
+                                    </span>
                                   </button>
                                 ))
                               : null}

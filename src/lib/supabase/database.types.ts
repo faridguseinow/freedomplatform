@@ -1679,6 +1679,14 @@ export type Database = {
         }
         Returns: OrderRow
       }
+      complete_opening_day_order_payment: {
+        Args: {
+          target_order_id: string
+          target_method: PaymentMethod
+          target_amount: number
+        }
+        Returns: OrderRow
+      }
       mark_order_payment_refused: {
         Args: {
           target_order_id: string

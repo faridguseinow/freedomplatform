@@ -119,6 +119,8 @@ export const azTranslations: Record<string, string> = {
   'Выручка сегодня': 'Bugünkü gəlir',
   Высота: 'Hündürlük',
   'Высота должна быть больше 0.': 'Hündürlük 0-dan böyük olmalıdır.',
+  'Время идёт. Завершите сессию, затем укажите сумму, которую клиент оставил.':
+    'Vaxt gedir. Sessiyanı tamamlayın, sonra müştərinin qoyduğu məbləği göstərin.',
   'Глобальный контроль финансов организаций, периодов и задолженности по доле платформы.':
     'Təşkilat maliyyəsi, dövrlər və platforma payı borcları üzrə ümumi nəzarət.',
   Готово: 'Hazırdır',
@@ -133,6 +135,7 @@ export const azTranslations: Record<string, string> = {
     'Cari ay üçün ödəniş tarixlərinə görə pul hərəkəti.',
   'Действует с': 'Başlama tarixi',
   'День закрытия месяца': 'Ayın bağlanma günü',
+  'День открытия': 'Açılış günü',
   'Детальный финансовый период и расчёт доли Freedom Platform.':
     'Detallı maliyyə dövrü və Freedom Platform payının hesablanması.',
   'Длина PIN сотрудника': 'Əməkdaş PIN uzunluğu',
@@ -267,6 +270,8 @@ export const azTranslations: Record<string, string> = {
   'Минимум не может быть отрицательным.': 'Minimum mənfi ola bilməz.',
   'Можно добавить позиции или завершить пустой заказ без оплаты.':
     'Mövqelər əlavə edə və ya boş sifarişi ödənişsiz tamamlaya bilərsiniz.',
+  'Можно указать 0, если сегодня денег не взяли.':
+    'Bu gün pul alınmayıbsa, 0 göstərmək olar.',
   'На проверке': 'Yoxlamadadır',
   'На этом месте уже запущена активная сессия.': 'Bu yerdə artıq aktiv sessiya başladılıb.',
   Название: 'Ad',
@@ -511,6 +516,7 @@ export const azTranslations: Record<string, string> = {
   'Сначала завершите сессию, затем переводите заказ к оплате.':
     'Əvvəlcə sessiyanı tamamlayın, sonra sifarişi ödənişə keçirin.',
   'Сначала найдите существующего пользователя.': 'Əvvəlcə mövcud istifadəçini tapın.',
+  'Сколько клиент оставил': 'Müştəri nə qədər qoydu',
   'Снятие резерва заказа': 'Sifariş rezervinin silinməsi',
   'Снятие резерва комбо': 'Kombo rezervinin silinməsi',
   'Собрать комбо': 'Kombo yığ',
@@ -569,10 +575,17 @@ export const azTranslations: Record<string, string> = {
   'Укажите единицу.': 'Vahidi göstərin.',
   'Укажите пользовательский тип.': 'Fərdi növü göstərin.',
   'Укажите причину отмены заказа.': 'Sifarişin ləğv səbəbini göstərin.',
+  'Укажите сумму, которую клиент реально оставил.':
+    'Müştərinin real qoyduğu məbləği göstərin.',
+  'Укажите фактическую сумму клиента в конце заказа.':
+    'Sifarişin sonunda müştərinin faktiki məbləğini göstərin.',
   'Укажите фиксированную цену.': 'Sabit qiyməti göstərin.',
   'Укажите часовой пояс.': 'Saat qurşağını göstərin.',
   'Услуг пока нет': 'Xidmətlər hələ yoxdur',
   Услуги: 'Xidmətlər',
+  'Учёт без цены': 'Qiymətsiz uçot',
+  'Фактическая сумма': 'Faktiki məbləğ',
+  'Фактическая сумма от клиента': 'Müştəridən faktiki məbləğ',
   'Фактическая наличность': 'Faktiki nağd pul',
   Фиксированная: 'Sabit',
   'Фиксированная цена': 'Sabit qiymət',
@@ -602,6 +615,8 @@ export const azTranslations: Record<string, string> = {
   'Хранение audit logs, дней': 'Audit log saxlama müddəti, gün',
   'Хранилище на организацию, GB': 'Təşkilat üzrə saxlama yeri, GB',
   Цена: 'Qiymət',
+  'Цена будет указана вручную при оплате.':
+    'Qiymət ödəniş zamanı əl ilə göstəriləcək.',
   'Цена комбо': 'Kombo qiyməti',
   'Цена не может быть отрицательной.': 'Qiymət mənfi ola bilməz.',
   'Часовой пояс': 'Saat qurşağı',
@@ -731,6 +746,7 @@ export const azTranslations: Record<string, string> = {
   'Заказов по фильтру нет': 'Filtr üzrə sifariş yoxdur',
   'Заказы без места': 'Yersiz sifarişlər',
   'Закрыть сессию': 'Sessiyanı bağla',
+  'Записать сумму': 'Məbləği yaz',
   'Запросить удаление': 'Silinmə sorğusu göndər',
   'Запросить удаление?': 'Silinmə sorğusu göndərmək?',
   'Запросить уточнение': 'Dəqiqləşdirmə istə',
@@ -742,6 +758,7 @@ export const azTranslations: Record<string, string> = {
     'Satış tarixçəsi, ödənilməmiş sifarişlər, ödənişdən imtinalar və ödənişlər.',
   'Итоги дня по всем сменам без расчёта чистой прибыли.':
     'Xalis mənfəət hesablanmadan bütün növbələr üzrə gün yekunları.',
+  'Итог будет введён вручную': 'Yekun əl ilə daxil ediləcək',
   Итого: 'Cəmi',
   'Итого к оплате': 'Ödəniləcək cəmi',
   Картой: 'Kartla',
@@ -849,6 +866,7 @@ export const azTranslations: Record<string, string> = {
   'Причина:': 'Səbəb:',
   'Например: пересчёт, ошибка ввода, поступление без документа.':
     'Məsələn: yenidən sayım, daxiletmə səhvi, sənədsiz daxilolma.',
+  'Например: 50': 'Məsələn: 50',
   Провести: 'Keçir',
   'Провести сразу': 'Dərhal keçir',
   'Рабочая схема': 'İş sxemi',
@@ -865,6 +883,9 @@ export const azTranslations: Record<string, string> = {
   'Редактировать пользователя': 'İstifadəçini redaktə et',
   'Режим выбора: fixed. Choice будет добавлен позже.':
     'Seçim rejimi: fixed. Choice sonra əlavə ediləcək.',
+  'Режим открытия: цены скрыты, итог заказа вводится вручную.':
+    'Açılış rejimi: qiymətlər gizlidir, sifariş yekunu əl ilə daxil edilir.',
+  'Ручной итог': 'Əl ilə yekun',
   'Резервов нет.': 'Rezerv yoxdur.',
   Резервы: 'Rezervlər',
   Роль: 'Rol',

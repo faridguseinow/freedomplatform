@@ -16,7 +16,11 @@ import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
 import { useAuth } from '../../../hooks/useAuth'
 import { useShiftTemplates } from '../../shifts/shiftTemplatesApi'
-import { useCurrentEmployeeShift, useEmployeeShiftMutations } from '../../shifts/shiftsApi'
+import {
+  isOpeningDayShiftName,
+  useCurrentEmployeeShift,
+  useEmployeeShiftMutations,
+} from '../../shifts/shiftsApi'
 
 const formatMoney = (value: number | null | undefined) =>
   new Intl.NumberFormat('ru', { maximumFractionDigits: 2 }).format(value ?? 0)
@@ -89,8 +93,16 @@ export function EmployeeShiftPage() {
   const hasVariance = Math.abs(variance) > 0.009
   const closeCommentRequired = hasVariance && !comment.trim()
   const closeDisabled = mutations.close.isPending || closeCommentRequired
-  const defaultTemplateId = useMemo(() => templates.find((template) => template.is_active)?.id ?? '', [templates])
+  const defaultTemplateId = useMemo(
+    () =>
+      templates.find((template) => isOpeningDayShiftName(template.name) && template.is_active)?.id ??
+      templates.find((template) => template.is_active)?.id ??
+      '',
+    [templates],
+  )
   const selectedTemplateId = templateId || defaultTemplateId
+  const selectedTemplate = templates.find((template) => template.id === selectedTemplateId) ?? null
+  const selectedOpeningDay = isOpeningDayShiftName(selectedTemplate?.name)
 
   const runAction = async (action: () => Promise<unknown>) => {
     setError(null)
@@ -131,6 +143,11 @@ export function EmployeeShiftPage() {
             <p className="mt-1 truncate text-sm leading-5 text-slate-600">
               {currentOrganization?.name ?? 'Организация'} · {new Date().toLocaleString('ru')}
             </p>
+            {selectedOpeningDay ? (
+              <p className="mt-1 text-xs font-medium text-emerald-700">
+                Режим открытия: цены скрыты, итог заказа вводится вручную.
+              </p>
+            ) : null}
           </header>
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             <span>Шаблон смены</span>
