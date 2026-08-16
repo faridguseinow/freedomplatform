@@ -1604,6 +1604,13 @@ export type Database = {
         }
         Returns: OrderRow
       }
+      update_order_customer_label: {
+        Args: {
+          target_order_id: string
+          target_customer_label?: string | null
+        }
+        Returns: OrderRow
+      }
       add_product_to_order: {
         Args: {
           target_order_id: string

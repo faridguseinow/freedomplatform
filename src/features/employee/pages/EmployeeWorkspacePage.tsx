@@ -49,6 +49,8 @@ import {
 type PickerTab = 'products' | 'services' | 'combos'
 type OrderCloseAction = 'finish-empty' | 'cancel'
 
+const BILLING_GRACE_MINUTES = 10
+
 const formatMoney = (value: number | null | undefined) =>
   new Intl.NumberFormat('ru', { maximumFractionDigits: 2 }).format(value ?? 0)
 
@@ -75,8 +77,29 @@ const calculateCurrentSessionAmount = (place: EmployeeWorkspacePlaceRow, nowMs: 
   const minimum = place.active_session_minimum_minutes ?? 60
   const step = place.active_session_billing_step_minutes ?? 30
   const billable =
-    actualMinutes <= minimum ? minimum : minimum + Math.ceil((actualMinutes - minimum) / step) * step
+    actualMinutes <= minimum + BILLING_GRACE_MINUTES
+      ? minimum
+      : minimum + Math.ceil((actualMinutes - minimum - BILLING_GRACE_MINUTES) / step) * step
   return (place.active_session_hourly_rate * billable) / 60
+}
+
+const getSessionGraceNotice = (place: EmployeeWorkspacePlaceRow, nowMs: number) => {
+  if (!place.active_session_started_at || !place.active_session_hourly_rate) return null
+  const actualMinutes = Math.max(
+    1,
+    Math.ceil((nowMs - new Date(place.active_session_started_at).getTime()) / 60_000),
+  )
+  const minimum = place.active_session_minimum_minutes ?? 60
+  const step = place.active_session_billing_step_minutes ?? 30
+
+  if (actualMinutes <= minimum) return null
+
+  const minutesAfterMinimum = actualMinutes - minimum
+  const minutesAfterLastBoundary = ((minutesAfterMinimum - 1) % step) + 1
+
+  return minutesAfterLastBoundary <= BILLING_GRACE_MINUTES
+    ? `Льготные ${BILLING_GRACE_MINUTES} мин: тариф пока не вырос`
+    : null
 }
 
 const placeStatus = (place: EmployeeWorkspacePlaceRow) => {
@@ -177,6 +200,7 @@ export function EmployeeWorkspacePage() {
   const [openingDayPaymentAmount, setOpeningDayPaymentAmount] = useState('')
   const [tipAmount, setTipAmount] = useState('')
   const [orderComment, setOrderComment] = useState('')
+  const [orderCustomerLabel, setOrderCustomerLabel] = useState('')
   const [isOrderCommentOpen, setIsOrderCommentOpen] = useState(false)
   const [pressedCatalogItemKey, setPressedCatalogItemKey] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -246,6 +270,7 @@ export function EmployeeWorkspacePage() {
     setOpeningDayPaymentAmount('')
     setTipAmount('')
     setOrderComment(order?.comment ?? '')
+    setOrderCustomerLabel(order?.customer_label ?? '')
     setIsOrderCommentOpen(Boolean(order?.comment?.trim()))
     setSelectedOrderId(orderId)
   }
@@ -257,6 +282,7 @@ export function EmployeeWorkspacePage() {
     setOpeningDayPaymentAmount('')
     setTipAmount('')
     setOrderComment('')
+    setOrderCustomerLabel('')
     setIsOrderCommentOpen(false)
     setRemoveRequestItem(null)
     setRemoveRequestReason('')
@@ -475,6 +501,21 @@ export function EmployeeWorkspacePage() {
       const order = await orderMutations.createOrder.mutateAsync({})
       selectOrder(order.id)
     })
+
+  const saveOrderCustomerLabel = () => {
+    if (!selectedOrder || selectedOrder.place_id) return
+    const nextLabel = orderCustomerLabel.trim()
+    const currentLabel = selectedOrder.customer_label?.trim() ?? ''
+    if (nextLabel === currentLabel || orderMutations.updateCustomerLabel.isPending) return
+
+    void runAction(() =>
+      orderMutations.updateCustomerLabel.mutateAsync({
+        orderId: selectedOrder.id,
+        customerLabel: nextLabel || null,
+      }),
+    )
+  }
+
   const isOrderCloseActionPending =
     orderMutations.completeEmptyOrder.isPending ||
     orderMutations.cancelOrder.isPending ||
@@ -513,6 +554,7 @@ export function EmployeeWorkspacePage() {
                   ? place.active_order_opened_at
                   : null
             const sessionAmount = calculateCurrentSessionAmount(place, nowMs)
+            const sessionGraceNotice = getSessionGraceNotice(place, nowMs)
 
             return (
               <article
@@ -562,6 +604,9 @@ export function EmployeeWorkspacePage() {
                     <span className="font-semibold text-slate-950">
                       {isOpeningDayShift ? 'Ручной итог' : formatAzn((place.active_order_total ?? 0) + sessionAmount)}
                     </span>
+                    {sessionGraceNotice ? (
+                      <span className="font-medium text-orange-700">{sessionGraceNotice}</span>
+                    ) : null}
                   </div>
                 </div>
 
@@ -657,7 +702,9 @@ export function EmployeeWorkspacePage() {
                 type="button"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <span className="font-semibold text-slate-950">#{order.order_number}</span>
+                  <span className="min-w-0 font-semibold text-slate-950">
+                    #{order.order_number}{order.customer_label ? ` · ${order.customer_label}` : ''}
+                  </span>
                   <span className="text-sm text-slate-600">{orderStatusLabel[order.status]}</span>
                 </div>
                 <div className="mt-2 text-sm text-slate-600">
@@ -686,6 +733,7 @@ export function EmployeeWorkspacePage() {
               <div>
                 <h3 className="text-lg font-semibold text-slate-950">Заказ #{selectedOrder.order_number}</h3>
                 <p className="text-sm text-slate-600">
+                  {selectedOrder.customer_label ? `${selectedOrder.customer_label} · ` : ''}
                   {selectedOrder.current_place_name_snapshot ?? 'Без места'} · {orderStatusLabel[selectedOrder.status]}
                 </p>
               </div>
@@ -704,6 +752,7 @@ export function EmployeeWorkspacePage() {
                 {(() => {
                   const selectedPlace = placesById.get(selectedOrder.place_id ?? '') ?? null
                   const hasActiveSession = Boolean(selectedPlace?.active_session_id)
+                  const isOrderWithoutPlace = !selectedOrder.place_id
                   const hasNormalPaymentAmount = selectedOrderTotalWithTip > 0
                   const canPreparePayment =
                     (selectedOrder.status === 'open' || selectedOrder.status === 'waiting_payment') &&
@@ -734,6 +783,36 @@ export function EmployeeWorkspacePage() {
                             : formatAzn(selectedOrder.total_amount)}
                         </span>
                       </div>
+
+                      {isOrderWithoutPlace ? (
+                        <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-end">
+                          <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                            <span>Имя клиента</span>
+                            <input
+                              className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                              onBlur={saveOrderCustomerLabel}
+                              onChange={(event) => setOrderCustomerLabel(event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  event.currentTarget.blur()
+                                }
+                              }}
+                              placeholder="Например: Эльвин"
+                              value={orderCustomerLabel}
+                            />
+                          </label>
+                          <Button
+                            className="min-h-10"
+                            disabled={orderMutations.updateCustomerLabel.isPending}
+                            onClick={saveOrderCustomerLabel}
+                            onMouseDown={(event) => event.preventDefault()}
+                            type="button"
+                            variant="secondary"
+                          >
+                            Сохранить
+                          </Button>
+                        </div>
+                      ) : null}
 
                       {isOpeningDayShift ? (
                         <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-end">
@@ -992,6 +1071,9 @@ export function EmployeeWorkspacePage() {
                 {(() => {
                   const selectedPlace = placesById.get(selectedOrder.place_id ?? '') ?? null
                   const hasActiveSession = Boolean(selectedPlace?.active_session_id)
+                  const selectedSessionGraceNotice = selectedPlace
+                    ? getSessionGraceNotice(selectedPlace, nowMs)
+                    : null
                   const isSelectedTable = Boolean(selectedPlace && isTablePlace(selectedPlace))
                   const tableOpenedAt =
                     isSelectedTable && selectedOrder.status !== 'paid'
@@ -1118,6 +1200,11 @@ export function EmployeeWorkspacePage() {
                                   ? 'Цена вручную'
                                   : `Сейчас: ${formatAzn(selectedPlace ? calculateCurrentSessionAmount(selectedPlace, nowMs) : 0)}`}
                               </div>
+                              {selectedSessionGraceNotice ? (
+                                <div className="mt-0.5 text-xs font-semibold text-orange-700">
+                                  {selectedSessionGraceNotice}
+                                </div>
+                              ) : null}
                             </div>
                           ) : tableOpenedAt ? (
                             <div className="shrink-0 rounded-md border border-cyan-100 bg-cyan-50 px-2.5 py-1.5 text-right text-sm text-cyan-900">

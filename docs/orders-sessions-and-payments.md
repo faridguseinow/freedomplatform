@@ -99,12 +99,14 @@ Stored server fields:
 Formula:
 
 ```text
-if actual_minutes <= minimum_minutes:
+grace_minutes = 10
+
+if actual_minutes <= minimum_minutes + grace_minutes:
   billable_minutes = minimum_minutes
 else:
   billable_minutes =
     minimum_minutes +
-    ceil((actual_minutes - minimum_minutes) / billing_step_minutes)
+    ceil((actual_minutes - minimum_minutes - grace_minutes) / billing_step_minutes)
     * billing_step_minutes
 ```
 
@@ -117,7 +119,8 @@ hourly_rate * billable_minutes / 60
 For The Liga this supports:
 
 - minimum 60 minutes;
-- after first hour, round up by 30 minutes.
+- 10 grace minutes after each billing boundary;
+- after the grace period, round up by 30 minutes.
 
 ## Places
 

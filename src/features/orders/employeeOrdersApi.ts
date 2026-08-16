@@ -215,6 +215,17 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
       },
       onSuccess: (order) => invalidate(order.id),
     }),
+    updateCustomerLabel: useMutation({
+      mutationFn: async ({ orderId, customerLabel }: { orderId: string; customerLabel?: string | null }) => {
+        const { data, error } = await supabase.rpc('update_order_customer_label', {
+          target_order_id: orderId,
+          target_customer_label: customerLabel ?? null,
+        })
+        if (error) throw new Error(error.message)
+        return data
+      },
+      onSuccess: (order) => invalidate(order.id),
+    }),
     addProduct: useMutation({
       mutationFn: async ({
         orderId,
