@@ -62,6 +62,9 @@ const toWorkspacePlace = (
     active_session_minimum_minutes: (activeSession?.minimum_minutes_snapshot as number | undefined) ?? null,
     active_session_billing_step_minutes:
       (activeSession?.billing_step_minutes_snapshot as number | undefined) ?? null,
+    vip_equipment_name: place.vip_equipment_name ?? null,
+    vip_equipment_time: place.vip_equipment_time ?? null,
+    vip_equipment_price: place.vip_equipment_price ?? null,
   }
 }
 
@@ -225,6 +228,29 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
         return data
       },
       onSuccess: (order) => invalidate(order.id),
+    }),
+    updateVipEquipment: useMutation({
+      mutationFn: async ({
+        placeId,
+        equipmentName,
+        equipmentTime,
+        equipmentPrice,
+      }: {
+        placeId: string
+        equipmentName?: string | null
+        equipmentTime?: string | null
+        equipmentPrice?: string | null
+      }) => {
+        const { data, error } = await supabase.rpc('update_place_vip_equipment', {
+          target_place_id: placeId,
+          target_equipment_name: equipmentName ?? null,
+          target_equipment_time: equipmentTime ?? null,
+          target_equipment_price: equipmentPrice ?? null,
+        })
+        if (error) throw new Error(error.message)
+        return data
+      },
+      onSuccess: () => invalidate(),
     }),
     addProduct: useMutation({
       mutationFn: async ({

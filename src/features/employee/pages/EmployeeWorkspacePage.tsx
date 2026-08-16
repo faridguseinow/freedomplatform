@@ -43,6 +43,7 @@ import { isOpeningDayShiftName, useCurrentEmployeeShift } from '../../shifts/shi
 import {
   buildWorkspaceLayout,
   isTablePlace,
+  normalizePlaceName,
   WORKSPACE_COLUMNS,
 } from '../../places/workspaceLayout'
 
@@ -102,6 +103,17 @@ const getSessionGraceNotice = (place: EmployeeWorkspacePlaceRow, nowMs: number) 
     : null
 }
 
+const isVipEquipmentPlace = (place: EmployeeWorkspacePlaceRow | null) => {
+  if (!place) return false
+  const name = normalizePlaceName(place.name)
+  return place.type === 'vip_room' || place.type === 'private_room' || name.includes('vip')
+}
+
+const formatVipEquipmentSummary = (place: EmployeeWorkspacePlaceRow | null) => {
+  if (!place?.vip_equipment_name && !place?.vip_equipment_time && !place?.vip_equipment_price) return null
+  return [place.vip_equipment_name, place.vip_equipment_time, place.vip_equipment_price].filter(Boolean).join(' · ')
+}
+
 const placeStatus = (place: EmployeeWorkspacePlaceRow) => {
   if (place.status !== 'active') return 'Недоступно'
   if (place.active_order_status === 'waiting_payment') return 'Ожидает оплаты'
@@ -153,24 +165,24 @@ function CatalogAddButton({
   return (
     <button
       className={cn(
-        'grid grid-cols-[44px_1fr_auto] items-center gap-3 rounded-md border border-slate-200 p-2.5 text-left transition active:scale-[0.98]',
+        'grid grid-cols-[36px_1fr_auto] items-center gap-2 rounded-md border border-slate-200 p-1.5 text-left transition active:scale-[0.98]',
         'hover:border-emerald-200 hover:bg-emerald-50/40',
         isPressed && 'border-emerald-300 bg-emerald-50 ring-2 ring-emerald-600/20',
       )}
       onClick={onClick}
       type="button"
     >
-      <CatalogImage alt={name} className="size-11" imagePath={imagePath} />
-      <span className="grid min-w-0 gap-1">
-        <span className="truncate font-medium text-slate-950">{name}</span>
+      <CatalogImage alt={name} className="size-9" imagePath={imagePath} />
+      <span className="grid min-w-0 gap-0.5">
+        <span className="truncate text-sm font-medium text-slate-950">{name}</span>
         {!isOpeningDayShift ? (
-          <span className="text-sm text-slate-600">{formatAzn(price)}</span>
+          <span className="text-xs text-slate-600">{formatAzn(price)}</span>
         ) : null}
       </span>
       <span
         aria-hidden="true"
         className={cn(
-          'inline-flex size-9 items-center justify-center rounded-md bg-emerald-700 text-white transition',
+          'inline-flex size-8 items-center justify-center rounded-md bg-emerald-700 text-white transition',
           isPressed && 'scale-110 bg-emerald-800',
         )}
       >
@@ -201,6 +213,7 @@ export function EmployeeWorkspacePage() {
   const [tipAmount, setTipAmount] = useState('')
   const [orderComment, setOrderComment] = useState('')
   const [orderCustomerLabel, setOrderCustomerLabel] = useState('')
+  const [vipEquipmentText, setVipEquipmentText] = useState('')
   const [isOrderCommentOpen, setIsOrderCommentOpen] = useState(false)
   const [pressedCatalogItemKey, setPressedCatalogItemKey] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -234,6 +247,7 @@ export function EmployeeWorkspacePage() {
   const selectedOrderTotalWithTip = (selectedOrder?.total_amount ?? 0) + normalizedTipAmount
   const orderItems = orderItemsQuery.data ?? []
   const placesById = useMemo(() => new Map(places.map((place) => [place.id, place])), [places])
+  const selectedOrderPlace = selectedOrder?.place_id ? placesById.get(selectedOrder.place_id) ?? null : null
   const ordersWithoutPlace = orders.filter((order) => !order.place_id && order.status !== 'paid')
 
   const filteredProducts = (productsQuery.data ?? []).filter((item) =>
@@ -266,11 +280,13 @@ export function EmployeeWorkspacePage() {
 
   const selectOrder = (orderId: string) => {
     const order = orders.find((currentOrder) => currentOrder.id === orderId)
+    const place = order?.place_id ? placesById.get(order.place_id) ?? null : null
     setPaymentChoiceOrderId(null)
     setOpeningDayPaymentAmount('')
     setTipAmount('')
     setOrderComment(order?.comment ?? '')
     setOrderCustomerLabel(order?.customer_label ?? '')
+    setVipEquipmentText(formatVipEquipmentSummary(place) ?? '')
     setIsOrderCommentOpen(Boolean(order?.comment?.trim()))
     setSelectedOrderId(orderId)
   }
@@ -283,6 +299,7 @@ export function EmployeeWorkspacePage() {
     setTipAmount('')
     setOrderComment('')
     setOrderCustomerLabel('')
+    setVipEquipmentText('')
     setIsOrderCommentOpen(false)
     setRemoveRequestItem(null)
     setRemoveRequestReason('')
@@ -516,6 +533,25 @@ export function EmployeeWorkspacePage() {
     )
   }
 
+  const saveVipEquipment = () => {
+    if (!selectedOrder?.place_id) return
+    const place = placesById.get(selectedOrder.place_id) ?? null
+    if (!place || !isVipEquipmentPlace(place) || orderMutations.updateVipEquipment.isPending) return
+
+    const nextEquipmentText = vipEquipmentText.trim()
+    const currentEquipmentText = formatVipEquipmentSummary(place) ?? ''
+    if (nextEquipmentText === currentEquipmentText) return
+
+    void runAction(() =>
+      orderMutations.updateVipEquipment.mutateAsync({
+        placeId: place.id,
+        equipmentName: nextEquipmentText || null,
+        equipmentTime: null,
+        equipmentPrice: null,
+      }),
+    )
+  }
+
   const isOrderCloseActionPending =
     orderMutations.completeEmptyOrder.isPending ||
     orderMutations.cancelOrder.isPending ||
@@ -555,6 +591,7 @@ export function EmployeeWorkspacePage() {
                   : null
             const sessionAmount = calculateCurrentSessionAmount(place, nowMs)
             const sessionGraceNotice = getSessionGraceNotice(place, nowMs)
+            const vipEquipmentSummary = isVipEquipmentPlace(place) ? formatVipEquipmentSummary(place) : null
 
             return (
               <article
@@ -588,6 +625,9 @@ export function EmployeeWorkspacePage() {
                   </div>
 
                   <div className="grid gap-1 text-xs text-slate-600">
+                    {vipEquipmentSummary ? (
+                      <span className="font-semibold text-emerald-800">{vipEquipmentSummary}</span>
+                    ) : null}
                     {occupancyStartedAt ? (
                       <span className="inline-flex items-center gap-1 font-semibold text-red-900">
                         <Timer className="size-3.5" />
@@ -639,16 +679,6 @@ export function EmployeeWorkspacePage() {
                           <Play className="size-3.5" /> Начать сессию
                         </button>
                       )}
-                      <button
-                        className="inline-flex min-h-8 items-center justify-center gap-1 rounded-md bg-white px-2 text-xs font-semibold text-slate-800 ring-1 ring-slate-200 hover:bg-slate-50"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          openPlaceOrder(place)
-                        }}
-                        type="button"
-                      >
-                        <Plus className="size-3.5" /> Товары и услуги
-                      </button>
                     </>
                   ) : (
                     <button
@@ -728,10 +758,23 @@ export function EmployeeWorkspacePage() {
           padding="none"
           panelClassName="h-full lg:flex lg:justify-end"
         >
-          <aside className="grid h-full w-full max-w-6xl grid-rows-[auto_1fr_auto] overflow-hidden bg-white shadow-xl lg:w-[1040px]">
-            <header className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
-              <div>
-                <h3 className="text-lg font-semibold text-slate-950">Заказ #{selectedOrder.order_number}</h3>
+          <aside className="grid h-full w-full max-w-6xl grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-white shadow-xl lg:w-[1040px]">
+            <header className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
+              <div className="grid min-w-0 flex-1 gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <h3 className="shrink-0 text-lg font-semibold text-slate-950">Заказ #{selectedOrder.order_number}</h3>
+                  {isVipEquipmentPlace(selectedOrderPlace) ? (
+                    <input
+                      className="min-h-8 min-w-40 flex-1 rounded-md border border-slate-200 bg-white px-2.5 text-sm text-slate-950 outline-none transition-colors focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                      onBlur={saveVipEquipment}
+                      onChange={(event) => setVipEquipmentText(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') event.currentTarget.blur()
+                      }}
+                      value={vipEquipmentText}
+                    />
+                  ) : null}
+                </div>
                 <p className="text-sm text-slate-600">
                   {selectedOrder.customer_label ? `${selectedOrder.customer_label} · ` : ''}
                   {selectedOrder.current_place_name_snapshot ?? 'Без места'} · {orderStatusLabel[selectedOrder.status]}
@@ -747,8 +790,8 @@ export function EmployeeWorkspacePage() {
               </button>
             </header>
 
-            <div className="grid min-h-0 gap-3 overflow-y-auto p-3 lg:grid-cols-[minmax(0,1fr)_400px]">
-              <section className="grid content-start gap-3">
+            <div className="grid min-h-0 gap-3 overflow-hidden p-3 lg:grid-cols-[minmax(0,1fr)_380px]">
+              <section className="grid min-h-0 content-start gap-3 overflow-y-auto pr-1">
                 {(() => {
                   const selectedPlace = placesById.get(selectedOrder.place_id ?? '') ?? null
                   const hasActiveSession = Boolean(selectedPlace?.active_session_id)
@@ -975,7 +1018,6 @@ export function EmployeeWorkspacePage() {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <h4 className="text-base font-semibold text-slate-950">Состав заказа</h4>
-                      <p className="text-sm text-slate-600">Позиции, сессия и корректировки.</p>
                     </div>
                     <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800">
                       {orderItems.length} поз.
@@ -1067,7 +1109,7 @@ export function EmployeeWorkspacePage() {
                 </div>
               </section>
 
-              <section className="grid content-start gap-2 lg:sticky lg:top-0">
+              <section className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-2">
                 {(() => {
                   const selectedPlace = placesById.get(selectedOrder.place_id ?? '') ?? null
                   const hasActiveSession = Boolean(selectedPlace?.active_session_id)
@@ -1087,16 +1129,12 @@ export function EmployeeWorkspacePage() {
                   return (
                     <>
                       {canAddItems ? (
-                        <div className="grid gap-2 rounded-lg border border-slate-200 p-2.5">
-                          <div className="flex items-center justify-between gap-3">
-                            <h4 className="text-sm font-semibold text-slate-950">Добавить</h4>
-                            <span className="text-xs text-slate-500">Товары, услуги, комбо</span>
-                          </div>
-                          <div className="grid grid-cols-3 gap-2">
+                        <div className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-2 rounded-lg border border-slate-200 p-2">
+                          <div className="grid grid-cols-3 gap-1.5">
                             {(['products', 'services', 'combos'] as const).map((tab) => (
                               <button
                                 className={cn(
-                                  'min-h-10 rounded-md border px-2 text-sm font-medium',
+                                  'min-h-9 rounded-md border px-2 text-sm font-medium',
                                   pickerTab === tab
                                     ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
                                     : 'border-slate-200 bg-white text-slate-600',
@@ -1113,7 +1151,7 @@ export function EmployeeWorkspacePage() {
                             <span className="sr-only">Поиск</span>
                             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                             <input
-                              className="min-h-11 w-full rounded-md border border-slate-200 bg-white px-3 pl-10 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                              className="min-h-9 w-full rounded-md border border-slate-200 bg-white px-3 pl-10 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
                               id="employee_catalog_search"
                               onChange={(event) => setSearch(event.target.value)}
                               placeholder="Поиск"
@@ -1121,7 +1159,7 @@ export function EmployeeWorkspacePage() {
                               value={search}
                             />
                           </label>
-                          <div className="grid max-h-[62svh] gap-2 overflow-y-auto">
+                          <div className="grid min-h-0 content-start gap-1.5 overflow-y-auto pr-1">
                             {pickerTab === 'products'
                               ? filteredProducts.map((product) => (
                                   <CatalogAddButton

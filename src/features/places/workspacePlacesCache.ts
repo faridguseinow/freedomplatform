@@ -86,5 +86,8 @@ export function toEmptyEmployeeWorkspacePlace(place: CachedWorkspacePlace): Empl
     active_session_id: null,
     active_session_minimum_minutes: null,
     active_session_started_at: null,
+    vip_equipment_name: null,
+    vip_equipment_time: null,
+    vip_equipment_price: null,
   }
 }

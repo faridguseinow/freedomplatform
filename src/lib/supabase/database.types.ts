@@ -640,6 +640,9 @@ export type AuditLogRow = {
 }
 
 export type EmployeeWorkspacePlaceRow = EmployeePlaceRow & {
+  vip_equipment_name: string | null
+  vip_equipment_time: string | null
+  vip_equipment_price: string | null
   active_order_id: string | null
   active_order_number: number | null
   active_order_opened_at: string | null
@@ -1610,6 +1613,15 @@ export type Database = {
           target_customer_label?: string | null
         }
         Returns: OrderRow
+      }
+      update_place_vip_equipment: {
+        Args: {
+          target_place_id: string
+          target_equipment_name?: string | null
+          target_equipment_time?: string | null
+          target_equipment_price?: string | null
+        }
+        Returns: EmployeeWorkspacePlaceRow
       }
       add_product_to_order: {
         Args: {

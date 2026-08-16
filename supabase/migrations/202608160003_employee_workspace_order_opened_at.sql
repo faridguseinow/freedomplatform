@@ -1,4 +1,6 @@
-create or replace view public.employee_workspace_places
+drop view if exists public.employee_workspace_places;
+
+create view public.employee_workspace_places
 with (security_invoker = false, security_barrier = true)
 as
 select
