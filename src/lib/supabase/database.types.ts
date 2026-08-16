@@ -642,6 +642,7 @@ export type AuditLogRow = {
 export type EmployeeWorkspacePlaceRow = EmployeePlaceRow & {
   active_order_id: string | null
   active_order_number: number | null
+  active_order_opened_at: string | null
   active_order_status: OrderStatus | null
   active_order_total: number | null
   active_session_id: string | null

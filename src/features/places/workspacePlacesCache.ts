@@ -78,6 +78,7 @@ export function toEmptyEmployeeWorkspacePlace(place: CachedWorkspacePlace): Empl
     active_order_id: null,
     active_order_item_count: 0,
     active_order_number: null,
+    active_order_opened_at: null,
     active_order_status: null,
     active_order_total: null,
     active_session_billing_step_minutes: null,

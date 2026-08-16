@@ -52,6 +52,7 @@ const toWorkspacePlace = (
     workspace_h: place.workspace_h ?? null,
     active_order_id: activeOrder?.id ?? null,
     active_order_number: activeOrder?.order_number ?? null,
+    active_order_opened_at: activeOrder?.opened_at ?? null,
     active_order_status: activeOrder?.status ?? null,
     active_order_total: activeOrder?.total_amount ?? null,
     active_order_item_count: 0,
@@ -95,6 +96,16 @@ export function useEmployeeWorkspaceData(organizationId: string | null) {
       const orders = ordersResult.data as EmployeeOrderRow[]
       const sessions = sessionsResult.data ?? []
       let places = placesResult.error ? [] : (placesResult.data as EmployeeWorkspacePlaceRow[])
+      const activeOrderOpenedAtByPlaceId = new Map(
+        orders
+          .filter((order) => order.place_id)
+          .map((order) => [order.place_id!, order.opened_at]),
+      )
+
+      places = places.map((place) => ({
+        ...place,
+        active_order_opened_at: activeOrderOpenedAtByPlaceId.get(place.id) ?? null,
+      }))
 
       if (!places.length) {
         const directPlacesResult = await supabase

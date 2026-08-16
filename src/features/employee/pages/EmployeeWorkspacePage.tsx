@@ -1,5 +1,6 @@
 import {
   Banknote,
+  ChevronDown,
   CheckCircle2,
   Clock3,
   CreditCard,
@@ -41,7 +42,6 @@ import {
 import { isOpeningDayShiftName, useCurrentEmployeeShift } from '../../shifts/shiftsApi'
 import {
   buildWorkspaceLayout,
-  getPlaceDisplayLabel,
   isTablePlace,
   WORKSPACE_COLUMNS,
 } from '../../places/workspaceLayout'
@@ -177,6 +177,7 @@ export function EmployeeWorkspacePage() {
   const [openingDayPaymentAmount, setOpeningDayPaymentAmount] = useState('')
   const [tipAmount, setTipAmount] = useState('')
   const [orderComment, setOrderComment] = useState('')
+  const [isOrderCommentOpen, setIsOrderCommentOpen] = useState(false)
   const [pressedCatalogItemKey, setPressedCatalogItemKey] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -245,6 +246,7 @@ export function EmployeeWorkspacePage() {
     setOpeningDayPaymentAmount('')
     setTipAmount('')
     setOrderComment(order?.comment ?? '')
+    setIsOrderCommentOpen(Boolean(order?.comment?.trim()))
     setSelectedOrderId(orderId)
   }
 
@@ -255,6 +257,7 @@ export function EmployeeWorkspacePage() {
     setOpeningDayPaymentAmount('')
     setTipAmount('')
     setOrderComment('')
+    setIsOrderCommentOpen(false)
     setRemoveRequestItem(null)
     setRemoveRequestReason('')
     setSelectedOrderId(null)
@@ -503,6 +506,12 @@ export function EmployeeWorkspacePage() {
             const isTable = isTablePlace(place)
             const hasActiveSession = Boolean(place.active_session_id)
             const hasActiveOrder = Boolean(place.active_order_id)
+            const occupancyStartedAt =
+              hasActiveSession
+                ? place.active_session_started_at
+                : isTable && hasActiveOrder
+                  ? place.active_order_opened_at
+                  : null
             const sessionAmount = calculateCurrentSessionAmount(place, nowMs)
 
             return (
@@ -525,7 +534,7 @@ export function EmployeeWorkspacePage() {
                     <div className="flex min-w-0 items-center gap-2">
                       <CatalogImage alt={place.name} className="size-10 rounded-full" imagePath={place.image_path} />
                       <h3 className="min-w-0 break-words text-base font-semibold leading-tight text-slate-950">
-                        {getPlaceDisplayLabel(place, slot.label)}
+                        {place.name}
                       </h3>
                     </div>
                     <span
@@ -537,10 +546,10 @@ export function EmployeeWorkspacePage() {
                   </div>
 
                   <div className="grid gap-1 text-xs text-slate-600">
-                    {hasActiveSession ? (
+                    {occupancyStartedAt ? (
                       <span className="inline-flex items-center gap-1 font-semibold text-red-900">
                         <Timer className="size-3.5" />
-                        {formatElapsed(place.active_session_started_at, nowMs)}
+                        {formatElapsed(occupancyStartedAt, nowMs)}
                       </span>
                     ) : (
                       <span>{isTable ? 'Стол' : place.has_timer ? 'Сессия не начата' : 'Без таймера'}</span>
@@ -715,14 +724,14 @@ export function EmployeeWorkspacePage() {
                     <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-sm font-semibold text-slate-950">
-                          {isOpeningDayShift ? 'Фактическая сумма' : 'Итого к оплате'}
+                          {isOpeningDayShift ? 'Фактическая сумма' : 'Сумма заказа'}
                         </span>
                         <span className="text-2xl font-semibold text-slate-950">
                           {isOpeningDayShift
                             ? hasOpeningDayPaymentAmount
                               ? formatAzn(openingDayPaymentValue)
                               : '—'
-                            : formatAzn(selectedOrderTotalWithTip)}
+                            : formatAzn(selectedOrder.total_amount)}
                         </span>
                       </div>
 
@@ -745,17 +754,7 @@ export function EmployeeWorkspacePage() {
                           </label>
                         </div>
                       ) : (
-                        <div className="grid gap-2 xl:grid-cols-[1fr_1.1fr] xl:items-end">
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div className="rounded-md bg-white px-3 py-2">
-                              <div className="text-xs text-slate-500">Сумма заказа</div>
-                              <div className="font-semibold text-slate-950">{formatAzn(selectedOrder.total_amount)}</div>
-                            </div>
-                            <div className="rounded-md bg-emerald-50 px-3 py-2">
-                              <div className="text-xs text-emerald-700">Чаевые</div>
-                              <div className="font-semibold text-emerald-900">{formatAzn(normalizedTipAmount)}</div>
-                            </div>
-                          </div>
+                        <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-end">
                           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
                             <span>Чаевые</span>
                             <input
@@ -776,25 +775,42 @@ export function EmployeeWorkspacePage() {
                                 : 'Чаевые не могут быть отрицательными.'}
                             </span>
                           </label>
-                          <div className="flex items-center justify-between rounded-md bg-slate-950 px-3 py-2 text-sm text-white xl:col-span-2">
-                            <span>Итого с чаевыми</span>
-                            <span className="font-semibold">{formatAzn(selectedOrderTotalWithTip)}</span>
+                          <div className="grid min-h-10 content-center rounded-md bg-slate-950 px-3 py-2 text-sm text-white">
+                            <span className="text-xs text-slate-300">Итого с чаевыми</span>
+                            <span className="text-base font-semibold">{formatAzn(selectedOrderTotalWithTip)}</span>
                           </div>
                         </div>
                       )}
 
-                      <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                        <span>Комментарий к заказу</span>
-                        <textarea
-                          className="min-h-20 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
-                          onChange={(event) => setOrderComment(event.target.value)}
-                          placeholder="Например: клиент оставил больше, оплата от друга, особые условия."
-                          value={orderComment}
-                        />
-                        <span className="text-xs font-normal text-slate-500">
-                          Этот комментарий сохранится в заказе после оплаты или завершения.
-                        </span>
-                      </label>
+                      <div className="rounded-md border border-slate-200 bg-white">
+                        <button
+                          className="flex min-h-10 w-full items-center justify-between gap-3 px-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
+                          onClick={() => setIsOrderCommentOpen((isOpen) => !isOpen)}
+                          type="button"
+                        >
+                          <span>Комментарий к заказу</span>
+                          <span className="inline-flex items-center gap-2 text-xs font-normal text-slate-500">
+                            {orderComment.trim() ? 'Заполнен' : 'Пусто'}
+                            <ChevronDown
+                              className={cn('size-4 transition-transform', isOrderCommentOpen && 'rotate-180')}
+                            />
+                          </span>
+                        </button>
+                        {isOrderCommentOpen ? (
+                          <label className="grid gap-1.5 border-t border-slate-200 p-3 text-sm font-medium text-slate-700">
+                            <span className="sr-only">Комментарий к заказу</span>
+                            <textarea
+                              className="min-h-20 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                              onChange={(event) => setOrderComment(event.target.value)}
+                              placeholder="Например: клиент оставил больше, оплата от друга, особые условия."
+                              value={orderComment}
+                            />
+                            <span className="text-xs font-normal text-slate-500">
+                              Этот комментарий сохранится в заказе после оплаты или завершения.
+                            </span>
+                          </label>
+                        ) : null}
+                      </div>
 
                       {selectedOrder.status === 'payment_refused' ? (
                         <div className="rounded-md border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -976,6 +992,11 @@ export function EmployeeWorkspacePage() {
                 {(() => {
                   const selectedPlace = placesById.get(selectedOrder.place_id ?? '') ?? null
                   const hasActiveSession = Boolean(selectedPlace?.active_session_id)
+                  const isSelectedTable = Boolean(selectedPlace && isTablePlace(selectedPlace))
+                  const tableOpenedAt =
+                    isSelectedTable && selectedOrder.status !== 'paid'
+                      ? selectedPlace?.active_order_opened_at ?? selectedOrder.opened_at
+                      : null
                   const canAddItems = selectedOrder.status === 'open'
                   const hasNormalPaymentAmount = selectedOrderTotalWithTip > 0
                   const canStartSession =
@@ -1065,9 +1086,15 @@ export function EmployeeWorkspacePage() {
                       <div className="grid gap-2 rounded-lg border border-slate-200 p-2.5">
                         <div className="flex items-center justify-between gap-2">
                           <div>
-                            <h4 className="text-sm font-semibold text-slate-950">Сессия</h4>
+                            <h4 className="text-sm font-semibold text-slate-950">
+                              {isSelectedTable ? 'Занятость' : 'Сессия'}
+                            </h4>
                             <p className="mt-0.5 text-xs leading-5 text-slate-600">
-                              {isOpeningDayShift
+                              {isSelectedTable
+                                ? tableOpenedAt
+                                  ? 'Время занятости стола считается от открытия заказа.'
+                                  : 'Создайте заказ, чтобы видеть время занятости стола.'
+                                : isOpeningDayShift
                                 ? hasActiveSession
                                   ? 'Время идёт. Завершите сессию, затем укажите сумму, которую клиент оставил.'
                                   : 'Укажите фактическую сумму клиента в конце заказа.'
@@ -1092,37 +1119,47 @@ export function EmployeeWorkspacePage() {
                                   : `Сейчас: ${formatAzn(selectedPlace ? calculateCurrentSessionAmount(selectedPlace, nowMs) : 0)}`}
                               </div>
                             </div>
+                          ) : tableOpenedAt ? (
+                            <div className="shrink-0 rounded-md border border-cyan-100 bg-cyan-50 px-2.5 py-1.5 text-right text-sm text-cyan-900">
+                              <div className="flex items-center justify-end gap-1.5 font-semibold">
+                                <Timer className="size-4" />
+                                {formatElapsed(tableOpenedAt, nowMs)}
+                              </div>
+                              <div className="mt-0.5 text-xs">Стол открыт</div>
+                            </div>
                           ) : null}
                         </div>
 
-                        <div className="grid grid-cols-3 gap-2">
-                          <Button
-                            className="min-h-9"
-                            disabled={!canStartSession}
-                            onClick={() => selectedPlace && startSessionForOrder(selectedPlace, selectedOrder.id)}
-                            title="Начать сессию"
-                            type="button"
-                            variant="secondary"
-                          >
-                            <Play className="size-4" /> Старт
-                          </Button>
-                          <Button
-                            className="min-h-9"
-                            disabled={!hasActiveSession}
-                            onClick={() =>
-                              selectedPlace?.active_session_id &&
-                              runAction(() => orderMutations.completeSession.mutateAsync(selectedPlace.active_session_id!))
-                            }
-                            title="Остановить сессию"
-                            type="button"
-                            variant="secondary"
-                          >
-                            <Square className="size-4" /> Стоп
-                          </Button>
-                          <Button className="min-h-9" disabled title="Пауза сессии пока не поддержана сервером" type="button" variant="secondary">
-                            <Pause className="size-4" /> Пауза
-                          </Button>
-                        </div>
+                        {!isSelectedTable ? (
+                          <div className="grid grid-cols-3 gap-2">
+                            <Button
+                              className="min-h-9"
+                              disabled={!canStartSession}
+                              onClick={() => selectedPlace && startSessionForOrder(selectedPlace, selectedOrder.id)}
+                              title="Начать сессию"
+                              type="button"
+                              variant="secondary"
+                            >
+                              <Play className="size-4" /> Старт
+                            </Button>
+                            <Button
+                              className="min-h-9"
+                              disabled={!hasActiveSession}
+                              onClick={() =>
+                                selectedPlace?.active_session_id &&
+                                runAction(() => orderMutations.completeSession.mutateAsync(selectedPlace.active_session_id!))
+                              }
+                              title="Остановить сессию"
+                              type="button"
+                              variant="secondary"
+                            >
+                              <Square className="size-4" /> Стоп
+                            </Button>
+                            <Button className="min-h-9" disabled title="Пауза сессии пока не поддержана сервером" type="button" variant="secondary">
+                              <Pause className="size-4" /> Пауза
+                            </Button>
+                          </div>
+                        ) : null}
                       </div>
                     </>
                   )
