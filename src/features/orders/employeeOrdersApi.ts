@@ -296,10 +296,42 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
       onSuccess: (order) => invalidate(order.id),
     }),
     completePayment: useMutation({
-      mutationFn: async ({ orderId, method }: { orderId: string; method: PaymentMethod }) => {
+      mutationFn: async ({
+        orderId,
+        method,
+        comment,
+      }: {
+        orderId: string
+        method: PaymentMethod
+        comment?: string | null
+      }) => {
         const { data, error } = await supabase.rpc('complete_order_payment', {
           target_order_id: orderId,
           target_method: method,
+          target_comment: comment ?? null,
+        })
+        if (error) throw new Error(error.message)
+        return data
+      },
+      onSuccess: (order) => invalidate(order.id),
+    }),
+    completePaymentWithTip: useMutation({
+      mutationFn: async ({
+        orderId,
+        method,
+        tipAmount,
+        comment,
+      }: {
+        orderId: string
+        method: PaymentMethod
+        tipAmount: number
+        comment?: string | null
+      }) => {
+        const { data, error } = await supabase.rpc('complete_order_payment_with_tip', {
+          target_order_id: orderId,
+          target_method: method,
+          target_tip_amount: tipAmount,
+          target_comment: comment ?? null,
         })
         if (error) throw new Error(error.message)
         return data
@@ -311,15 +343,18 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
         orderId,
         method,
         amount,
+        comment,
       }: {
         orderId: string
         method: PaymentMethod
         amount: number
+        comment?: string | null
       }) => {
         const { data, error } = await supabase.rpc('complete_opening_day_order_payment', {
           target_order_id: orderId,
           target_method: method,
           target_amount: amount,
+          target_comment: comment ?? null,
         })
         if (error) throw new Error(error.message)
         return data
@@ -338,9 +373,10 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
       onSuccess: (order) => invalidate(order.id),
     }),
     completeEmptyOrder: useMutation({
-      mutationFn: async (orderId: string) => {
+      mutationFn: async ({ orderId, comment }: { orderId: string; comment?: string | null }) => {
         const { data, error } = await supabase.rpc('complete_empty_order', {
           target_order_id: orderId,
+          target_comment: comment ?? null,
         })
         if (error) throw new Error(error.message)
         return data

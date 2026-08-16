@@ -83,6 +83,8 @@ export const azTranslations: Record<string, string> = {
   Войти: 'Daxil ol',
   'Будут удалены заказы, платежи, смены, операционные дни, доходы от заказов и складские списания по заказам. Товары, услуги, комбо, складские документы и расходы останутся.':
     'Sifarişlər, ödənişlər, növbələr, əməliyyat günləri, sifariş gəlirləri və sifariş üzrə anbar silinmələri silinəcək. Məhsullar, xidmətlər, kombo, anbar sənədləri və xərclər qalacaq.',
+  'Быстрое изменение количества сотрудником.':
+    'Əməkdaş tərəfindən sürətli miqdar dəyişikliyi.',
   'Ваш аккаунт создан, но доступ к организации еще не настроен.':
     'Hesabınız yaradılıb, amma təşkilata giriş hələ qurulmayıb.',
   'Ваш аккаунт создан, но доступ к организации еще не настроен. Обратитесь к владельцу Freedom Platform.':
@@ -168,6 +170,7 @@ export const azTranslations: Record<string, string> = {
   'Доступ найден, но отключен. Можно восстановить.':
     'Giriş tapıldı, amma deaktivdir. Bərpa etmək olar.',
   'Доступа к этой организации пока нет.': 'Bu təşkilata giriş hələ yoxdur.',
+  'Дополнительная сумма от клиента': 'Müştəridən əlavə məbləğ',
   Доход: 'Gəlir',
   Доходы: 'Gəlirlər',
   'Доходы, расходы, периоды и доля платформы.':
@@ -176,6 +179,8 @@ export const azTranslations: Record<string, string> = {
   'Единица учета': 'Uçot vahidi',
   'Есть хотя бы одно место с почасовой тарификацией.':
     'Saatlıq tariflə işləyən ən azı bir yer var.',
+  'Если чаевых нет, оставьте 0 или пусто.':
+    'Çaypulu yoxdursa, 0 yazın və ya boş saxlayın.',
   Заблокировать: 'Kilidlə',
   'Заблокировать рабочий экран': 'İş ekranını kilidlə',
   'Заблокировать экран': 'Ekranı kilidlə',
@@ -231,6 +236,7 @@ export const azTranslations: Record<string, string> = {
   'История пуста': 'Tarixçə boşdur',
   'История смен и закрытия кассы.': 'Növbələr və kassanın bağlanması tarixçəsi.',
   'История товара': 'Məhsul tarixçəsi',
+  'Итого с чаевыми': 'Çaypulu ilə cəmi',
   'К оплате': 'Ödənişə',
   Кабинет: 'Kabinet',
   Касса: 'Kassa',
@@ -249,6 +255,7 @@ export const azTranslations: Record<string, string> = {
   Комбо: 'Kombo',
   'Комбо пока нет': 'Kombo hələ yoxdur',
   Комментарий: 'Şərh',
+  'Комментарий к заказу': 'Sifariş şərhi',
   'Комментарий к одобрению': 'Təsdiq şərhi',
   'Комментарий к отказу от оплаты': 'Ödənişdən imtina şərhi',
   Компакт: 'Kompakt',
@@ -272,6 +279,8 @@ export const azTranslations: Record<string, string> = {
     'Mövqelər əlavə edə və ya boş sifarişi ödənişsiz tamamlaya bilərsiniz.',
   'Можно указать 0, если сегодня денег не взяли.':
     'Bu gün pul alınmayıbsa, 0 göstərmək olar.',
+  'Например: клиент оставил больше, оплата от друга, особые условия.':
+    'Məsələn: müştəri artıq pul qoydu, ödəniş dostdan gəldi, xüsusi şərtlər.',
   'На проверке': 'Yoxlamadadır',
   'На этом месте уже запущена активная сессия.': 'Bu yerdə artıq aktiv sessiya başladılıb.',
   Название: 'Ad',
@@ -411,6 +420,7 @@ export const azTranslations: Record<string, string> = {
   'Открыть боковое меню': 'Yan menyunu aç',
   'Открыть заказ': 'Sifarişi aç',
   'Открыть меню': 'Menyunu aç',
+  'Остановить сессию': 'Sessiyanı dayandır',
   Отменен: 'Ləğv edilib',
   Отменено: 'Ləğv edilib',
   Отменить: 'Ləğv et',
@@ -430,6 +440,7 @@ export const azTranslations: Record<string, string> = {
   'Платежей нет': 'Ödəniş yoxdur',
   'Платежи платформе': 'Platformaya ödənişlər',
   Платформа: 'Platforma',
+  Позиция: 'Mövqe',
   'По товару пока нет складских движений.': 'Bu məhsul üzrə anbar hərəkəti hələ yoxdur.',
   'По фильтру мест нет': 'Filtrə uyğun yer yoxdur',
   Подтвержден: 'Təsdiqlənib',
@@ -515,6 +526,8 @@ export const azTranslations: Record<string, string> = {
   Смены: 'Növbələr',
   'Сначала завершите сессию, затем переводите заказ к оплате.':
     'Əvvəlcə sessiyanı tamamlayın, sonra sifarişi ödənişə keçirin.',
+  'Сначала остановите сессию, затем переводите заказ к оплате.':
+    'Əvvəlcə sessiyanı dayandırın, sonra sifarişi ödənişə keçirin.',
   'Сначала найдите существующего пользователя.': 'Əvvəlcə mövcud istifadəçini tapın.',
   'Сколько клиент оставил': 'Müştəri nə qədər qoydu',
   'Снятие резерва заказа': 'Sifariş rezervinin silinməsi',
@@ -550,12 +563,14 @@ export const azTranslations: Record<string, string> = {
   Средний: 'Orta',
   'Срок оплаты доли, дней': 'Pay ödənişi müddəti, gün',
   Старт: 'Start',
+  Стоп: 'Stop',
   Стол: 'Masa',
   'Столы, VIP-кабинеты, игровые зоны и другие локации.':
     'Masalar, VIP kabinetlər, oyun zonaları və digər lokasiyalar.',
   'Страница зарезервирована под следующий финансовый отчёт.':
     'Səhifə növbəti maliyyə hesabatı üçün ayrılıb.',
   Сумма: 'Məbləğ',
+  'Сумма заказа': 'Sifariş məbləği',
   'Таймаут сессии, минут': 'Sessiya timeout-u, dəqiqə',
   'Такая запись уже существует.': 'Belə qeyd artıq mövcuddur.',
   'Такое уведомление уже создано.': 'Belə bildiriş artıq yaradılıb.',
@@ -615,11 +630,14 @@ export const azTranslations: Record<string, string> = {
   'Хранение audit logs, дней': 'Audit log saxlama müddəti, gün',
   'Хранилище на организацию, GB': 'Təşkilat üzrə saxlama yeri, GB',
   Цена: 'Qiymət',
+  'Цена вручную': 'Qiymət əl ilə',
   'Цена будет указана вручную при оплате.':
     'Qiymət ödəniş zamanı əl ilə göstəriləcək.',
   'Цена комбо': 'Kombo qiyməti',
   'Цена не может быть отрицательной.': 'Qiymət mənfi ola bilməz.',
   'Часовой пояс': 'Saat qurşağı',
+  Чаевые: 'Çaypulu',
+  'Чаевые не могут быть отрицательными.': 'Çaypulu mənfi ola bilməz.',
   Частично: 'Qismən',
   'Частично оплачено': 'Qismən ödənilib',
   Черновик: 'Qaralama',
@@ -633,6 +651,8 @@ export const azTranslations: Record<string, string> = {
   Широкий: 'Geniş',
   'Этот заказ уже оплачен.': 'Bu sifariş artıq ödənilib.',
   'Это администратор организации.': 'Bu təşkilat administratorudur.',
+  'Этот комментарий сохранится в заказе после оплаты или завершения.':
+    'Bu şərh ödənişdən və ya tamamlamadan sonra sifarişdə saxlanılacaq.',
   'Chat ID хранится в настройках организации. Bot token должен быть только в Edge Function secret `TELEGRAM_BOT_TOKEN`.':
     'Chat ID təşkilat ayarlarında saxlanılır. Bot token yalnız Edge Function secret `TELEGRAM_BOT_TOKEN` daxilində olmalıdır.',
   'PIN блокировки сайта': 'Sayt kilidi PIN-i',
@@ -863,10 +883,13 @@ export const azTranslations: Record<string, string> = {
   'Причина корректировки': 'Düzəliş səbəbi',
   'Причина удаления': 'Silinmə səbəbi',
   'Причина удаления товара': 'Məhsulun silinmə səbəbi',
+  'будет удалена из заказа сразу, а действие попадёт в журнал.':
+    'sifarişdən dərhal silinəcək, əməliyyat isə jurnala düşəcək.',
   'Причина:': 'Səbəb:',
   'Например: пересчёт, ошибка ввода, поступление без документа.':
     'Məsələn: yenidən sayım, daxiletmə səhvi, sənədsiz daxilolma.',
   'Например: 50': 'Məsələn: 50',
+  'Например: 5': 'Məsələn: 5',
   Провести: 'Keçir',
   'Провести сразу': 'Dərhal keçir',
   'Рабочая схема': 'İş sxemi',
@@ -944,10 +967,12 @@ export const azTranslations: Record<string, string> = {
   'Товар удален.': 'Məhsul silindi.',
   'Product has already been used and cannot be deleted. Archive it instead.':
     'Məhsul artıq istifadə olunub və silinə bilməz. Əvəzinə arxivləşdirin.',
+  'Tip amount cannot be negative.': 'Çaypulu mənfi ola bilməz.',
   'Требовать approval крупных расходов': 'Böyük xərclər üçün təsdiq tələb et',
   'Требует внимания': 'Diqqət tələb edir',
   Убрать: 'Sil',
   Удалить: 'Sil',
+  'Удалить позицию?': 'Mövqeni silmək?',
   'Удалено заказов': 'Silinən sifarişlər',
   'Удалено заказов:': 'Silinən sifarişlər:',
   'Удалено платежей': 'Silinən ödənişlər',

@@ -64,6 +64,13 @@ export function AdminOrderDetailPage() {
         <div className="rounded-lg border border-slate-200 bg-white p-4"><div className="text-xs uppercase text-slate-500">Валовая прибыль</div><div className="mt-1 text-xl font-semibold">{formatMoney(grossProfit)}</div></div>
       </div>
 
+      {order.comment ? (
+        <section className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-4">
+          <h3 className="text-sm font-semibold text-slate-950">Комментарий к заказу</h3>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{order.comment}</p>
+        </section>
+      ) : null}
+
       <section className="grid gap-3">
         <h3 className="text-lg font-semibold text-slate-950">Позиции</h3>
         <div className="grid gap-2">

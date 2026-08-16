@@ -1676,6 +1676,16 @@ export type Database = {
         Args: {
           target_order_id: string
           target_method: PaymentMethod
+          target_comment?: string | null
+        }
+        Returns: OrderRow
+      }
+      complete_order_payment_with_tip: {
+        Args: {
+          target_order_id: string
+          target_method: PaymentMethod
+          target_tip_amount?: number
+          target_comment?: string | null
         }
         Returns: OrderRow
       }
@@ -1684,6 +1694,7 @@ export type Database = {
           target_order_id: string
           target_method: PaymentMethod
           target_amount: number
+          target_comment?: string | null
         }
         Returns: OrderRow
       }
@@ -1697,6 +1708,7 @@ export type Database = {
       complete_empty_order: {
         Args: {
           target_order_id: string
+          target_comment?: string | null
         }
         Returns: OrderRow
       }
