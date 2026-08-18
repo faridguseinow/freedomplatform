@@ -99,7 +99,7 @@ const getSessionGraceNotice = (place: EmployeeWorkspacePlaceRow, nowMs: number) 
   const minutesAfterLastBoundary = ((minutesAfterMinimum - 1) % step) + 1
 
   return minutesAfterLastBoundary <= BILLING_GRACE_MINUTES
-    ? `Льготные ${BILLING_GRACE_MINUTES} мин: тариф пока не вырос`
+    ? `Limit ${BILLING_GRACE_MINUTES} deq`
     : null
 }
 
