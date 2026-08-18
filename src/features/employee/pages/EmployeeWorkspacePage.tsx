@@ -828,7 +828,7 @@ export function EmployeeWorkspacePage() {
                       </div>
 
                       {isOrderWithoutPlace ? (
-                        <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-end">
+                        <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
                           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
                             <span>Имя клиента</span>
                             <input
@@ -858,7 +858,7 @@ export function EmployeeWorkspacePage() {
                       ) : null}
 
                       {isOpeningDayShift ? (
-                        <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-end">
+                        <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
                           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
                             <span>Сколько клиент оставил</span>
                             <input
@@ -876,7 +876,7 @@ export function EmployeeWorkspacePage() {
                           </label>
                         </div>
                       ) : (
-                        <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-end">
+                        <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
                           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
                             <span>Чаевые</span>
                             <input
@@ -897,7 +897,7 @@ export function EmployeeWorkspacePage() {
                                 : 'Чаевые не могут быть отрицательными.'}
                             </span>
                           </label>
-                          <div className="grid min-h-10 content-center rounded-md bg-slate-950 px-3 py-2 text-sm text-white">
+                          <div className="grid min-h-5 content-center rounded-md bg-green-900 px-2 py-2 text-sm text-white">
                             <span className="text-xs text-slate-300">Итого с чаевыми</span>
                             <span className="text-base font-semibold">{formatAzn(selectedOrderTotalWithTip)}</span>
                           </div>
@@ -1037,10 +1037,10 @@ export function EmployeeWorkspacePage() {
 
                       return (
                         <div
-                          className="grid grid-cols-[44px_1fr] gap-3 border-b border-slate-200 p-3 last:border-b-0"
+                          className="grid grid-cols-[80px_1fr] gap-5 border-b border-slate-200 p-3 last:border-b-0"
                           key={item.id}
                         >
-                          <CatalogImage alt={item.name_snapshot} className="size-11" imagePath={item.image_path_snapshot} />
+                          <CatalogImage alt={item.name_snapshot} className="size-20" imagePath={item.image_path_snapshot} />
                           <div className="grid min-w-0 gap-2">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
