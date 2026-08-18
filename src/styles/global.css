@@ -29,6 +29,7 @@ body {
 button,
 input {
   font: inherit;
+  font-size: 16px;
 }
 
 button {
@@ -48,6 +49,7 @@ button:disabled {
 }
 
 .modal-panel {
+  overflow: auto;
   transform-origin: center;
 }
 
