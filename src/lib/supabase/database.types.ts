@@ -1714,6 +1714,15 @@ export type Database = {
         }
         Returns: OrderRow
       }
+      complete_order_split_payment: {
+        Args: {
+          target_order_id: string
+          target_cash_amount?: number
+          target_card_amount?: number
+          target_comment?: string | null
+        }
+        Returns: OrderRow
+      }
       complete_opening_day_order_payment: {
         Args: {
           target_order_id: string
