@@ -220,12 +220,32 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
     }),
     updateCustomerLabel: useMutation({
       mutationFn: async ({ orderId, customerLabel }: { orderId: string; customerLabel?: string | null }) => {
-        const { data, error } = await supabase.rpc('update_order_customer_label', {
-          target_order_id: orderId,
-          target_customer_label: customerLabel ?? null,
-        })
-        if (error) throw new Error(error.message)
-        return data
+        // Prefer RPC which enforces access rules; if the RPC is not present (migration not applied),
+        // fall back to a direct update as a best-effort (may fail due to RLS/permissions).
+        try {
+          const { data, error } = await supabase.rpc('update_order_customer_label', {
+            target_order_id: orderId,
+            target_customer_label: customerLabel ?? null,
+          })
+          if (error) throw new Error(error.message)
+          return data
+        } catch (rpcErr) {
+          const msg = rpcErr instanceof Error ? rpcErr.message : String(rpcErr)
+          if (msg.includes('could not find function') || msg.includes('function public.update_order_customer_label')) {
+            // Migration may not be applied; attempt a direct update to preserve UX.
+            const { data, error } = await supabase
+              .from('orders')
+              .update({ customer_label: customerLabel ?? null, updated_at: new Date().toISOString() })
+              .eq('id', orderId)
+              .select()
+              .single()
+
+            if (error) throw new Error(error.message)
+            return data
+          }
+
+          throw rpcErr
+        }
       },
       onSuccess: (order) => invalidate(order.id),
     }),
@@ -379,6 +399,29 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
           target_order_id: orderId,
           target_method: method,
           target_tip_amount: tipAmount,
+          target_comment: comment ?? null,
+        })
+        if (error) throw new Error(error.message)
+        return data
+      },
+      onSuccess: (order) => invalidate(order.id),
+    }),
+    completeSplitPayment: useMutation({
+      mutationFn: async ({
+        orderId,
+        cashAmount,
+        cardAmount,
+        comment,
+      }: {
+        orderId: string
+        cashAmount: number
+        cardAmount: number
+        comment?: string | null
+      }) => {
+        const { data, error } = await supabase.rpc('complete_order_split_payment', {
+          target_order_id: orderId,
+          target_cash_amount: cashAmount,
+          target_card_amount: cardAmount,
           target_comment: comment ?? null,
         })
         if (error) throw new Error(error.message)

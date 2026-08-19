@@ -240,6 +240,7 @@ export const azTranslations: Record<string, string> = {
   Имя: 'Ad',
   'Имя пользователя': 'İstifadəçi adı',
   'Имя сотрудника': 'Əməkdaş adı',
+  'Имя клиента': 'Müştərinin adı',
   'Имя, email, должность или телефон': 'Ad, email, vəzifə və ya telefon',
   Исправления: 'Düzəlişlər',
   Истекло: 'Vaxtı keçib',
@@ -291,6 +292,7 @@ export const azTranslations: Record<string, string> = {
     'Bu gün pul alınmayıbsa, 0 göstərmək olar.',
   'Например: клиент оставил больше, оплата от друга, особые условия.':
     'Məsələn: müştəri artıq pul qoydu, ödəniş dostdan gəldi, xüsusi şərtlər.',
+  'Например: Эльвин': 'Məsələn: Elvin',
   'На проверке': 'Yoxlamadadır',
   'На этом месте уже запущена активная сессия.': 'Bu yerdə artıq aktiv sessiya başladılıb.',
   Название: 'Ad',
@@ -793,6 +795,8 @@ export const azTranslations: Record<string, string> = {
   Итого: 'Cəmi',
   'Итого к оплате': 'Ödəniləcək cəmi',
   Картой: 'Kartla',
+  Tables: 'Masalar',
+  Goods: 'Məhsullar',
   'Кассовая ответственность, закрытия, расхождения и передачи.':
     'Kassa məsuliyyəti, bağlamalar, uyğunsuzluqlar və təhvil vermələr.',
   'Код подтверждения неверный. Очистка не выполнена.':

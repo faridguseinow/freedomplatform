@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Archive, Gift, Loader2, Plus, RotateCcw, Save, X } from 'lucide-react'
+import { Archive, Edit3, Gift, Loader2, Plus, RotateCcw, Save, X } from 'lucide-react'
+import { CatalogImage } from '../../../components/common/CatalogImage'
 import { useMemo, useState } from 'react'
 import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
@@ -139,6 +140,32 @@ export function AdminCombosPage() {
     setIsModalOpen(true)
   }
 
+  const openEdit = (combo: ComboRow) => {
+    setEditingCombo(combo)
+    setFormError(null)
+    // populate form with existing combo values and its components
+    reset({
+      category_id: combo.category_id ?? '',
+      name: combo.name,
+      description: combo.description ?? '',
+      sale_price: combo.sale_price,
+      sort_order: combo.sort_order,
+      status: combo.status,
+      components: components
+        .filter((c) => c.combo_id === combo.id)
+        .map((c) => ({
+          component_type: c.component_type,
+          product_id: c.product_id ?? '',
+          service_id: c.service_id ?? '',
+          quantity: c.quantity,
+          included_minutes: c.included_minutes ?? undefined,
+          is_required: c.is_required,
+          sort_order: c.sort_order,
+        })),
+    })
+    setIsModalOpen(true)
+  }
+
   const onSubmit = handleSubmit(async (values) => {
     if (!organizationId || !user) {
       setFormError('Организация или пользователь не определены.')
@@ -223,22 +250,30 @@ export function AdminCombosPage() {
           return (
             <article className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_auto]" key={combo.id}>
               <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="truncate text-base font-semibold text-slate-950">{combo.name}</h3>
-                  <span className={cn('rounded-md px-2 py-1 text-xs font-medium', combo.status === 'active' ? 'bg-emerald-50 text-emerald-800' : combo.status === 'inactive' ? 'bg-amber-50 text-amber-800' : 'bg-slate-100 text-slate-600')}>{comboStatusLabel[combo.status]}</span>
-                  <span className={availability?.is_available ? 'rounded-md bg-cyan-50 px-2 py-1 text-xs font-medium text-cyan-800' : 'rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700'}>
-                    {availability?.is_available ? `Доступно ${availability.available_quantity ?? '∞'}` : 'Нет в наличии'}
-                  </span>
+                <div className="flex items-start gap-3">
+                  <CatalogImage alt={combo.name} imagePath={combo.image_path} className="size-10 rounded-full" />
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="truncate text-base font-semibold text-slate-950">{combo.name}</h3>
+                      <span className={cn('rounded-md px-2 py-1 text-xs font-medium', combo.status === 'active' ? 'bg-emerald-50 text-emerald-800' : combo.status === 'inactive' ? 'bg-amber-50 text-amber-800' : 'bg-slate-100 text-slate-600')}>{comboStatusLabel[combo.status]}</span>
+                      <span className={availability?.is_available ? 'rounded-md bg-cyan-50 px-2 py-1 text-xs font-medium text-cyan-800' : 'rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700'}>
+                        {availability?.is_available ? `Доступно ${availability.available_quantity ?? '∞'}` : 'Нет в наличии'}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-600">{componentSummary(combo.id) || 'Состав не заполнен.'}</p>
+                    <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-4">
+                      <div><dt className="text-xs uppercase text-slate-500">Обычная</dt><dd>{formatNumber(basePrice)}</dd></div>
+                      <div><dt className="text-xs uppercase text-slate-500">Комбо</dt><dd>{formatNumber(combo.sale_price)}</dd></div>
+                      <div><dt className="text-xs uppercase text-slate-500">Выгода</dt><dd>{formatNumber(discount)}</dd></div>
+                      <div><dt className="text-xs uppercase text-slate-500">Скидка</dt><dd>{basePrice > 0 ? `${Math.round((discount / basePrice) * 100)}%` : '-'}</dd></div>
+                    </dl>
+                  </div>
                 </div>
-                <p className="mt-1 text-sm text-slate-600">{componentSummary(combo.id) || 'Состав не заполнен.'}</p>
-                <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-4">
-                  <div><dt className="text-xs uppercase text-slate-500">Обычная</dt><dd>{formatNumber(basePrice)}</dd></div>
-                  <div><dt className="text-xs uppercase text-slate-500">Комбо</dt><dd>{formatNumber(combo.sale_price)}</dd></div>
-                  <div><dt className="text-xs uppercase text-slate-500">Выгода</dt><dd>{formatNumber(discount)}</dd></div>
-                  <div><dt className="text-xs uppercase text-slate-500">Скидка</dt><dd>{basePrice > 0 ? `${Math.round((discount / basePrice) * 100)}%` : '-'}</dd></div>
-                </dl>
               </div>
               <div className="flex flex-wrap gap-2 lg:justify-end">
+                <Button onClick={() => openEdit(combo)} type="button" variant="secondary">
+                  <Edit3 className="size-4" />Редактировать
+                </Button>
                 <Button onClick={() => comboMutations.setStatus.mutate({ id: combo.id, status: combo.status === 'archived' ? 'active' : 'archived' })} type="button" variant={combo.status === 'archived' ? 'secondary' : 'danger'}>
                   {combo.status === 'archived' ? <RotateCcw className="size-4" /> : <Archive className="size-4" />}
                   {combo.status === 'archived' ? 'Восстановить' : 'Архивировать'}

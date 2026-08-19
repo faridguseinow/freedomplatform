@@ -200,6 +200,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
 
                 {isUserMenuOpen ? (
                   <div
+                    style={{ zIndex: 9999 }}
                     className={[
                       'absolute rounded-lg border border-slate-200 bg-white p-2 shadow-lg',
                       sidebarCollapsed
@@ -290,7 +291,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                   </button>
 
                   {isUserMenuOpen ? (
-                    <div className="absolute right-0 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+                    <div style={{ zIndex: 9999999 }} className="absolute right-0 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
                       <div className="border-b border-slate-100 px-2 pb-2">
                         <p className="truncate text-sm font-medium text-slate-900">{displayName}</p>
                         <p className="mt-0.5 text-xs text-slate-500">

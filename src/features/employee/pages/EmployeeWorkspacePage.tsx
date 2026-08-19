@@ -193,7 +193,7 @@ function CatalogAddButton({
 }
 
 export function EmployeeWorkspacePage() {
-  const { organizationId } = useAuth()
+  const { organizationId, role } = useAuth()
   const { t } = useI18n()
   const workspaceQuery = useEmployeeWorkspaceData(organizationId)
   const productsQuery = useEmployeeProducts({ organizationId })
@@ -211,6 +211,8 @@ export function EmployeeWorkspacePage() {
   const [removeRequestReason, setRemoveRequestReason] = useState('')
   const [openingDayPaymentAmount, setOpeningDayPaymentAmount] = useState('')
   const [tipAmount, setTipAmount] = useState('')
+  const [cashSplitAmount, setCashSplitAmount] = useState('')
+  const [cardSplitAmount, setCardSplitAmount] = useState('')
   const [orderComment, setOrderComment] = useState('')
   const [orderCustomerLabel, setOrderCustomerLabel] = useState('')
   const [vipEquipmentText, setVipEquipmentText] = useState('')
@@ -245,6 +247,17 @@ export function EmployeeWorkspacePage() {
     (Number.isFinite(tipValue) && tipValue >= 0)
   const normalizedTipAmount = hasValidTipAmount && tipAmount.trim().length ? tipValue : 0
   const selectedOrderTotalWithTip = (selectedOrder?.total_amount ?? 0) + normalizedTipAmount
+  const cashSplitValue = parseMoneyInput(cashSplitAmount)
+  const cardSplitValue = parseMoneyInput(cardSplitAmount)
+  const splitPaymentTargetTotal = isOpeningDayShift ? openingDayPaymentValue : selectedOrderTotalWithTip
+  const splitPaymentTotal = cashSplitValue + cardSplitValue
+  const isSplitPaymentValid =
+    Number.isFinite(cashSplitValue) &&
+    Number.isFinite(cardSplitValue) &&
+    cashSplitValue >= 0 &&
+    cardSplitValue >= 0 &&
+    splitPaymentTotal > 0 &&
+    Math.abs(splitPaymentTotal - splitPaymentTargetTotal) < 0.01
   const orderItems = orderItemsQuery.data ?? []
   const placesById = useMemo(() => new Map(places.map((place) => [place.id, place])), [places])
   const selectedOrderPlace = selectedOrder?.place_id ? placesById.get(selectedOrder.place_id) ?? null : null
@@ -284,6 +297,8 @@ export function EmployeeWorkspacePage() {
     setPaymentChoiceOrderId(null)
     setOpeningDayPaymentAmount('')
     setTipAmount('')
+    setCashSplitAmount('')
+    setCardSplitAmount('')
     setOrderComment(order?.comment ?? '')
     setOrderCustomerLabel(order?.customer_label ?? '')
     setVipEquipmentText(formatVipEquipmentSummary(place) ?? '')
@@ -297,6 +312,8 @@ export function EmployeeWorkspacePage() {
     setCancelReason('')
     setOpeningDayPaymentAmount('')
     setTipAmount('')
+    setCashSplitAmount('')
+    setCardSplitAmount('')
     setOrderComment('')
     setOrderCustomerLabel('')
     setVipEquipmentText('')
@@ -306,7 +323,9 @@ export function EmployeeWorkspacePage() {
     setSelectedOrderId(null)
   }
 
-  if (!currentShiftQuery.isLoading && !currentShiftQuery.data?.shift) {
+  // Allow organization admins to view the workspace even when no shift is open.
+  // Non-admin users still see the prompt to open a shift.
+  if (!currentShiftQuery.isLoading && !currentShiftQuery.data?.shift && role !== 'organization_admin') {
     return (
       <section className="grid content-start gap-3">
         <div className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm lg:flex-row lg:items-center lg:justify-between">
@@ -331,18 +350,40 @@ export function EmployeeWorkspacePage() {
 
   const createOrderForPlace = (place: EmployeeWorkspacePlaceRow) =>
     runAction(async () => {
+      if (!currentShiftQuery.data?.shift) {
+        if (role === 'organization_admin') {
+          // Admins can view workspace without opening a shift, but should not create orders.
+          setError('Смена не открыта. Откройте смену, чтобы начать работу с заказами.')
+          return
+        }
+        throw new Error('Смена не открыта. Откройте смену, чтобы начать работу с заказами.')
+      }
       const order = await orderMutations.createOrder.mutateAsync({ placeId: place.id })
       selectOrder(order.id)
     })
 
   const startSession = (place: EmployeeWorkspacePlaceRow) =>
     runAction(async () => {
+      if (!currentShiftQuery.data?.shift) {
+        if (role === 'organization_admin') {
+          setError('Смена не открыта. Откройте смену, чтобы начать работу с заказами.')
+          return
+        }
+        throw new Error('Смена не открыта. Откройте смену, чтобы начать работу с заказами.')
+      }
       const session = await orderMutations.startSession.mutateAsync({ placeId: place.id })
       selectOrder(session.order_id)
     })
 
   const startSessionForOrder = (place: EmployeeWorkspacePlaceRow, orderId: string) =>
     runAction(async () => {
+      if (!currentShiftQuery.data?.shift) {
+        if (role === 'organization_admin') {
+          setError('Смена не открыта. Откройте смену, чтобы начать работу с заказами.')
+          return
+        }
+        throw new Error('Смена не открыта. Откройте смену, чтобы начать работу с заказами.')
+      }
       await orderMutations.startSession.mutateAsync({ placeId: place.id, orderId })
     })
 
@@ -456,6 +497,43 @@ export function EmployeeWorkspacePage() {
     })
   }
 
+  const completeSplitPayment = () => {
+    if (!selectedOrderId) return
+    void runAction(async () => {
+      if (isOpeningDayShift) {
+        if (!hasOpeningDayPaymentAmount) {
+          throw new Error('Укажите сумму, которую клиент реально оставил.')
+        }
+      } else if (!hasValidTipAmount) {
+        throw new Error('Чаевые не могут быть отрицательными.')
+      }
+
+      if (!Number.isFinite(cashSplitValue) || !Number.isFinite(cardSplitValue)) {
+        throw new Error('Проверьте суммы для оплаты.')
+      }
+
+      if (cashSplitValue < 0 || cardSplitValue < 0) {
+        throw new Error('Суммы оплаты не могут быть отрицательными.')
+      }
+
+      if (splitPaymentTotal <= 0) {
+        throw new Error('Укажите хотя бы одну сумму оплаты.')
+      }
+
+      if (Math.abs(splitPaymentTotal - splitPaymentTargetTotal) > 0.01) {
+        throw new Error('Суммы оплаты должны закрывать всю сумму заказа.')
+      }
+
+      await orderMutations.completeSplitPayment.mutateAsync({
+        orderId: selectedOrderId,
+        cashAmount: cashSplitValue,
+        cardAmount: cardSplitValue,
+        comment: orderComment.trim() || null,
+      })
+      closeOrder()
+    })
+  }
+
   const openPaymentChoice = () => {
     if (!selectedOrderId || !selectedOrder) return
     void runAction(async () => {
@@ -515,22 +593,39 @@ export function EmployeeWorkspacePage() {
 
   const createOrderWithoutPlace = () =>
     runAction(async () => {
+      if (!currentShiftQuery.data?.shift) {
+        if (role === 'organization_admin') {
+          setError('Смена не открыта. Откройте смену, чтобы начать работу с заказами.')
+          return
+        }
+        throw new Error('Смена не открыта. Откройте смену, чтобы начать работу с заказами.')
+      }
       const order = await orderMutations.createOrder.mutateAsync({})
       selectOrder(order.id)
     })
 
   const saveOrderCustomerLabel = () => {
-    if (!selectedOrder || selectedOrder.place_id) return
     const nextLabel = orderCustomerLabel.trim()
-    const currentLabel = selectedOrder.customer_label?.trim() ?? ''
-    if (nextLabel === currentLabel || orderMutations.updateCustomerLabel.isPending) return
+    if (orderMutations.updateCustomerLabel.isPending || orderMutations.createOrder.isPending) return
 
-    void runAction(() =>
-      orderMutations.updateCustomerLabel.mutateAsync({
-        orderId: selectedOrder.id,
-        customerLabel: nextLabel || null,
-      }),
-    )
+    void runAction(async () => {
+      // Ensure we have a selected order. If not, create one (no place)
+      let orderId = selectedOrder?.id ?? selectedOrderId
+      if (!orderId) {
+        const order = await orderMutations.createOrder.mutateAsync({})
+        selectOrder(order.id)
+        orderId = order.id
+      }
+
+      // Reload selectedOrder reference
+      const orderRef = orders.find((o) => o.id === orderId) ?? selectedOrder
+      if (!orderRef || orderRef.place_id) return
+
+      const currentLabel = orderRef.customer_label?.trim() ?? ''
+      if (nextLabel === currentLabel) return
+
+      await orderMutations.updateCustomerLabel.mutateAsync({ orderId, customerLabel: nextLabel || null })
+    })
   }
 
   const saveVipEquipment = () => {
@@ -985,6 +1080,56 @@ export function EmployeeWorkspacePage() {
                               >
                                 <CreditCard className="size-4" /> Картой
                               </Button>
+                              <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3 md:col-span-3">
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="text-sm font-semibold text-slate-950">Разделённая оплата</span>
+                                  <span className="text-sm font-medium text-slate-700">
+                                    {formatAzn(splitPaymentTargetTotal)}
+                                  </span>
+                                </div>
+                                <div className="grid gap-2 md:grid-cols-2">
+                                  <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                                    <span>Наличными</span>
+                                    <input
+                                      className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                                      inputMode="decimal"
+                                      min={0}
+                                      onChange={(event) => setCashSplitAmount(event.target.value)}
+                                      placeholder="Например: 3"
+                                      type="number"
+                                      value={cashSplitAmount}
+                                    />
+                                  </label>
+                                  <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                                    <span>Картой</span>
+                                    <input
+                                      className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                                      inputMode="decimal"
+                                      min={0}
+                                      onChange={(event) => setCardSplitAmount(event.target.value)}
+                                      placeholder="Например: 2"
+                                      type="number"
+                                      value={cardSplitAmount}
+                                    />
+                                  </label>
+                                </div>
+                                <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
+                                  <span>Итого: {formatAzn(splitPaymentTotal)}</span>
+                                  <span>{isSplitPaymentValid ? 'Сумма совпадает' : 'Должно быть равно общей сумме'}</span>
+                                </div>
+                                <Button
+                                  disabled={
+                                    isClosingOrder ||
+                                    !isSplitPaymentValid ||
+                                    (isOpeningDayShift && !hasOpeningDayPaymentAmount) ||
+                                    (!isOpeningDayShift && !hasValidTipAmount)
+                                  }
+                                  onClick={completeSplitPayment}
+                                  type="button"
+                                >
+                                  <Banknote className="size-4" /> Принять разделённую оплату
+                                </Button>
+                              </div>
                             </>
                           ) : null}
 
