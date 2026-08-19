@@ -89,7 +89,9 @@ export function usePaymentsByPlace(organizationId: string | null, date: string) 
       if (paymentsErr) throw new Error(paymentsErr.message)
       const paymentRows = (payments ?? []) as PaymentRow[]
 
-      const orderIds = Array.from(new Set(paymentRows.map((p) => p.order_id).filter(Boolean)))
+      const orderIds = Array.from(
+        new Set(paymentRows.map((p) => p.order_id).filter((id): id is string => Boolean(id))),
+      )
 
       let orders: { id: string; place_id: string | null }[] = []
       if (orderIds.length) {
@@ -102,7 +104,7 @@ export function usePaymentsByPlace(organizationId: string | null, date: string) 
         orders = ordersData ?? []
       }
 
-      const placeIds = Array.from(new Set(orders.map((o) => o.place_id).filter(Boolean)))
+      const placeIds = Array.from(new Set(orders.map((o) => o.place_id).filter((id): id is string => Boolean(id))))
 
       let places: { id: string; type: string | null }[] = []
       if (placeIds.length) {

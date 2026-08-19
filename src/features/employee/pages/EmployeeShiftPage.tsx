@@ -225,7 +225,7 @@ export function EmployeeShiftPage() {
             />
             <ShiftMetric
               icon={CreditCard}
-              label="Переводы"
+              label="Картой"
               value={formatMoney(summary?.card_transfer_sales_total)}
             />
             <ShiftMetric

@@ -198,7 +198,7 @@ export const azTranslations: Record<string, string> = {
   product: 'məhsul',
   service: 'xidmət',
   combo: 'kombo',
-  'Комбо': 'Kombolar',
+  // 'Комбо' translation removed to avoid duplicate key; use item type key `combo` above
   'Показать состав': 'Tərkibi göstər',
   'Скрыть состав': 'Tərkibi gizlət',
   'Загрузка организации': 'Təşkilat yüklənir',

@@ -29,7 +29,7 @@ npm run dev
 Default local URL:
 
 ```text
-http://localhost:5173/
+https://freedom.vercel.app/
 ```
 
 ## Checks

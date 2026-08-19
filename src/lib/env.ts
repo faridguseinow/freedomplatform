@@ -10,7 +10,7 @@ export type EnvValidationResult =
   | { isValid: false; env: PublicEnv; missingKeys: PublicEnvKey[] }
 
 const fallbackEnv: PublicEnv = {
-  supabaseUrl: 'http://127.0.0.1:54321',
+  supabaseUrl: 'http://freedom.vercel.app:54321',
   supabaseAnonKey: 'missing-anon-key',
 }
 

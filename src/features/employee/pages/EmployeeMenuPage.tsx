@@ -1,4 +1,4 @@
-import { Package } from 'lucide-react'
+// Removed duplicate import of React
 import React from 'react'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import { useAuth } from '../../../hooks/useAuth'
@@ -53,20 +53,22 @@ export function EmployeeMenuPage() {
       sortOrder: s.sort_order ?? 0,
     })),
     ...combos.map((c: any) => {
-      // try to parse component_preview to an array of components with name and quantity
-      let components: { name: string; quantity?: number }[] = []
+      // try to parse component_preview to an array of component names with quantities
+      let componentsNames: string[] = []
       try {
         const raw = Array.isArray(c.component_preview) ? c.component_preview : JSON.parse(c.component_preview ?? '[]')
         if (Array.isArray(raw)) {
-          components = raw
-            .map((x: any) => ({
-              name: x.name || x.name_snapshot || x.product_name || x.service_name || x.component_name || x.component_title || null,
-              quantity: x.quantity ?? x.qty ?? x.count ?? null,
-            }))
-            .filter((x: any) => x.name)
+          componentsNames = raw
+            .map((x: any) => {
+              const name = x.name || x.name_snapshot || x.product_name || x.service_name || x.component_name
+              const qty = x.quantity ?? x.qty ?? x.count ?? x.amount ?? x.component_quantity ?? null
+              if (!name) return null
+              return qty ? `${name} ×${qty}` : String(name)
+            })
+            .filter(Boolean) as string[]
         }
       } catch (e) {
-        components = []
+        componentsNames = []
       }
 
       return {
@@ -76,9 +78,10 @@ export function EmployeeMenuPage() {
         type: 'combo',
         imagePath: c.image_path ?? null,
         categoryId: c.category_id ?? null,
+        availableQuantity: c.available_quantity ?? null,
         sortOrder: 0,
         componentPreview: c.component_preview ?? null,
-        components,
+        componentsNames,
       }
     }),
   ]
@@ -98,7 +101,7 @@ export function EmployeeMenuPage() {
 
   // Sort items inside each category by sortOrder then name
   Object.keys(itemsByCategory).forEach((k) => {
-    itemsByCategory[k].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || a.name.localeCompare(b.name))
+    itemsByCategory[k]!.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || a.name.localeCompare(b.name))
   })
 
   // Ensure there's a combo category: if none of the fetched categories has type 'combo'
@@ -150,11 +153,8 @@ export function EmployeeMenuPage() {
                   const isCombo = it.type === 'combo'
                   const isExpanded = Boolean(expandedIds[it.id])
                   // short preview
-                  const ingredientsPreview = (it.components && it.components.length)
-                    ? it.components
-                        .slice(0, 5)
-                        .map((c: any) => (c.quantity ? `${c.name} x${c.quantity}` : c.name))
-                        .join(', ') + (it.components.length > 5 ? '…' : '')
+                  const ingredientsPreview = (it.componentsNames && it.componentsNames.length)
+                    ? it.componentsNames.slice(0, 5).join(', ') + (it.componentsNames.length > 5 ? '…' : '')
                     : null
 
                   return (
@@ -163,14 +163,18 @@ export function EmployeeMenuPage() {
                         <CatalogImage alt={it.name} imagePath={it.imagePath} className="w-20 h-20 rounded" />
 
                         <div className="min-w-0 flex-1">
-                          <div className="truncate font-medium">{it.name}{ingredientsPreview ? ` — ${ingredientsPreview}` : ''}</div>
+                          <div className="truncate font-medium">
+                            {it.name}
+                            {it.availableQuantity != null ? ` · ${it.availableQuantity}` : ''}
+                            {ingredientsPreview ? ` — ${ingredientsPreview}` : ''}
+                          </div>
                           <div className="text-xs text-slate-500">{t(it.type)}</div>
                         </div>
 
                         <div className="ml-4 font-semibold whitespace-nowrap">{formatAzn(it.price)}</div>
                       </div>
 
-                      {isCombo && it.components && it.components.length ? (
+                      {isCombo && it.componentsNames && it.componentsNames.length ? (
                         <div className="w-full">
                           <button
                             type="button"
@@ -182,8 +186,8 @@ export function EmployeeMenuPage() {
 
                           {isExpanded ? (
                             <ul className="mt-2 text-xs text-slate-600 space-y-1">
-                              {it.components.map((c: any, idx: number) => (
-                                <li key={idx}>{c.quantity ? `${c.name} x${c.quantity}` : c.name}</li>
+                              {it.componentsNames.map((n: string, idx: number) => (
+                                <li key={idx}>{n}</li>
                               ))}
                             </ul>
                           ) : null}

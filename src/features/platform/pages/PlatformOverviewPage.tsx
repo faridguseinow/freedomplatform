@@ -260,6 +260,10 @@ export function PlatformOverviewPage() {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <OverviewMetric icon={Landmark} label="Доход" tone="green" value={money(totalIncome)} />
         <OverviewMetric icon={CreditCard} label="Расходы" value={money(totalExpenses)} />
+        <OverviewMetric icon={Landmark} label="Playstation" value={money(totalPlaystation)} />
+        <OverviewMetric icon={Landmark} label="Billiard" value={money(totalBilliard)} />
+        <OverviewMetric icon={Landmark} label="Tables" value={money(totalTables)} />
+        <OverviewMetric icon={Landmark} label="Goods" value={money(totalGoods)} />
         <OverviewMetric
           hint={`ожидает платежей: ${money(pendingPaymentsTotal)}`}
           icon={AlertTriangle}
