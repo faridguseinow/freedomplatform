@@ -7,6 +7,10 @@ import {
   Landmark,
   Loader2,
   ReceiptText,
+  const totalPlaystation = financeSummary.reduce((sum, row) => sum + (row.playstation_revenue ?? 0), 0)
+  const totalBilliard = financeSummary.reduce((sum, row) => sum + (row.billiard_revenue ?? 0), 0)
+  const totalTables = financeSummary.reduce((sum, row) => sum + (row.table_revenue ?? 0), 0)
+  const totalGoods = financeSummary.reduce((sum, row) => sum + (row.goods_revenue ?? 0), 0)
   Users,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -87,6 +91,12 @@ function OverviewMetric({ hint, icon: Icon, label, tone = 'default', value }: Ov
       </div>
       <div className="text-xl font-semibold leading-none">{value}</div>
       {hint ? <div className="text-xs leading-5 text-slate-500">{hint}</div> : null}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <OverviewMetric icon={ReceiptText} label="Playstation" value={money(totalPlaystation)} />
+        <OverviewMetric icon={ReceiptText} label="Billiard" value={money(totalBilliard)} />
+        <OverviewMetric icon={ReceiptText} label="Tables" value={money(totalTables)} />
+        <OverviewMetric icon={ReceiptText} label="Goods" value={money(totalGoods)} />
+      </div>
     </div>
   )
 }

@@ -484,6 +484,29 @@ export function AdminFinancePage() {
         description="Финансовый центр организации: доходы, расходы, закупки, cash flow, P&L и доля Freedom Platform."
       />
       <StatGrid summary={periodSummary.data} />
+      {summary.data ? (
+        <section className="grid gap-3">
+          <h3 className="text-lg font-semibold text-slate-950">Выручка по площадкам (итого)</h3>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-md border border-slate-200 bg-white p-4">
+              <p className="text-xs font-medium uppercase text-slate-500">Playstation</p>
+              <p className="mt-2 text-xl font-semibold text-slate-950">{money(summary.data.playstation_revenue)}</p>
+            </div>
+            <div className="rounded-md border border-slate-200 bg-white p-4">
+              <p className="text-xs font-medium uppercase text-slate-500">Billiard</p>
+              <p className="mt-2 text-xl font-semibold text-slate-950">{money(summary.data.billiard_revenue)}</p>
+            </div>
+            <div className="rounded-md border border-slate-200 bg-white p-4">
+              <p className="text-xs font-medium uppercase text-slate-500">Tables</p>
+              <p className="mt-2 text-xl font-semibold text-slate-950">{money(summary.data.table_revenue)}</p>
+            </div>
+            <div className="rounded-md border border-slate-200 bg-white p-4">
+              <p className="text-xs font-medium uppercase text-slate-500">Goods</p>
+              <p className="mt-2 text-xl font-semibold text-slate-950">{money(summary.data.goods_revenue)}</p>
+            </div>
+          </div>
+        </section>
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {financeLinks.map(({ href, label, Icon }) => (
           <Link

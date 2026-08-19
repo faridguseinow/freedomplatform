@@ -149,6 +149,11 @@ export const employeeNavItems: NavItem[] = [
     path: '/employee/shift',
     icon: Clock3,
   },
+  {
+    label: 'Меню',
+    path: '/employee/menu',
+    icon: Package,
+  },
 ]
 
 export const pageTitles = [

@@ -985,6 +985,11 @@ export type FinanceDashboardSummaryRow = {
   platform_share_outstanding: number
   pending_expense_approvals: number
   periods_waiting_review: number
+  playstation_revenue: number
+  billiard_revenue: number
+  table_revenue: number
+  goods_revenue: number
+  other_revenue: number
 }
 
 export type FinancialPeriodSummary = {

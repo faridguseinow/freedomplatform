@@ -230,6 +230,11 @@ const EmployeeShiftPage = lazy(() =>
     default: module.EmployeeShiftPage,
   })),
 )
+const EmployeeMenuPage = lazy(() =>
+  import('../../features/employee/pages/EmployeeMenuPage').then((module) => ({
+    default: module.default,
+  })),
+)
 
 const lazyPage = (element: ReactNode) => (
   <Suspense fallback={<FullPageLoader />}>{element}</Suspense>
@@ -328,6 +333,7 @@ export function AppRouter() {
               <Route element={lazyPage(<EmployeeWorkspacePage />)} index />
               <Route element={lazyPage(<EmployeeWorkspacePage />)} path="workspace" />
               <Route element={lazyPage(<EmployeeShiftPage />)} path="shift" />
+              <Route element={lazyPage(<EmployeeMenuPage />)} path="menu" />
               </Route>
             </Route>
           </Route>

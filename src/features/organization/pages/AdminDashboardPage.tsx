@@ -16,6 +16,7 @@ import { Button } from '../../../components/ui/Button'
 import { useAuth } from '../../../hooks/useAuth'
 import { cn } from '../../../lib/utils/cn'
 import { useFinanceDashboardSummary } from '../../finance/financeApi'
+import { usePaymentsForDate, usePaymentsByPlace } from '../../orders/paymentsApi'
 import { orderStatusLabel } from '../../orders/employeeOrdersApi'
 import { useAdminOrders } from '../../orders/ordersApi'
 import { useAdminShifts } from '../../shifts/shiftsApi'
@@ -100,6 +101,17 @@ export function AdminDashboardPage() {
   const finance = financeQuery.data
 
   const today = todayKey()
+  const paymentsTodayQuery = usePaymentsForDate(organizationId, today)
+  const paymentsToday = paymentsTodayQuery.data ?? []
+  const cashToday = paymentsToday
+    .filter((p) => p.method === 'cash')
+    .reduce((sum, p) => sum + (p.amount ?? 0), 0)
+  const cardToday = paymentsToday
+    .filter((p) => p.method === 'card_transfer')
+    .reduce((sum, p) => sum + (p.amount ?? 0), 0)
+
+  const paymentsByPlaceQuery = usePaymentsByPlace(organizationId, today)
+  const paymentsByPlace = paymentsByPlaceQuery.data
   const openOrders = orders.filter((order) => order.status === 'open').length
   const waitingPayment = orders.filter((order) => order.status === 'waiting_payment').length
   const refusedOrders = orders.filter((order) => order.status === 'payment_refused').length
@@ -175,11 +187,25 @@ export function AdminDashboardPage() {
       ) : null}
 
       <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
-        <StatCard label="Выручка сегодня" tone="success" value={formatMoney(revenueToday)} />
+        <StatCard label="Выручка сегодня (всего)" tone="success" value={formatMoney(revenueToday)} />
+        <StatCard label="Выручка наличными" tone="success" value={formatMoney(cashToday)} />
+        <StatCard label="Выручка по карте" tone="default" value={formatMoney(cardToday)} />
         <StatCard label="Открытые заказы" tone={openOrders ? 'warning' : 'default'} value={openOrders} />
         <StatCard label="Ожидают оплату" tone={waitingPayment ? 'warning' : 'default'} value={waitingPayment} />
         <StatCard label="Открытые смены" tone={openShifts ? 'success' : 'default'} value={openShifts} />
       </div>
+
+      <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-lg font-semibold text-slate-950">Выручка по площадкам (сегодня)</h3>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
+          <StatCard label="Playstation" tone="default" value={formatMoney(paymentsByPlace?.playstation ?? 0)} />
+          <StatCard label="Billiard" tone="default" value={formatMoney(paymentsByPlace?.billiard ?? 0)} />
+          <StatCard label="Tables" tone="default" value={formatMoney(paymentsByPlace?.tables ?? 0)} />
+          <StatCard label="Goods" tone="default" value={formatMoney(paymentsByPlace?.goods ?? 0)} />
+        </div>
+      </section>
 
       <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
         <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
