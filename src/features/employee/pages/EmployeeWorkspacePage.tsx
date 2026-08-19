@@ -115,19 +115,19 @@ const formatVipEquipmentSummary = (place: EmployeeWorkspacePlaceRow | null) => {
 }
 
 const placeStatus = (place: EmployeeWorkspacePlaceRow) => {
-  if (place.status !== 'active') return 'Недоступно'
-  if (place.active_order_status === 'waiting_payment') return 'Ожидает оплаты'
-  if (place.active_order_id || place.active_session_id) return 'Занято'
-  return 'Свободно'
+  if (place.status !== 'active') return 'Mümkün deyil'
+  if (place.active_order_status === 'waiting_payment') return 'Ödəniş gözləyir'
+  if (place.active_order_id || place.active_session_id) return 'Dolu'
+  return 'Boş'
 }
 
 const getStatusIndicatorClassName = (status: ReturnType<typeof placeStatus>) =>
   cn(
     'size-3.5 shrink-0 rounded-full ring-4',
-    status === 'Свободно' && 'bg-emerald-500 ring-emerald-100',
-    status === 'Занято' && 'bg-red-500 ring-red-100',
-    status === 'Ожидает оплаты' && 'bg-orange-500 ring-orange-100',
-    status === 'Недоступно' && 'bg-slate-400 ring-slate-100',
+    status === 'Boş' && 'bg-emerald-500 ring-emerald-100',
+    status === 'Dolu' && 'bg-red-500 ring-red-100',
+    status === 'Ödəniş gözləyir' && 'bg-orange-500 ring-orange-100',
+    status === 'Mümkün deyil' && 'bg-slate-400 ring-slate-100',
   )
 
 const getSlotClassName = (place: EmployeeWorkspacePlaceRow, shape: string) =>
@@ -280,7 +280,7 @@ export function EmployeeWorkspacePage() {
     try {
       await action()
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Операция не выполнена.')
+      setError(nextError instanceof Error ? nextError.message : 'Əməliyyat yerinə yetirilmədi.')
     }
   }
 
@@ -330,17 +330,17 @@ export function EmployeeWorkspacePage() {
       <section className="grid content-start gap-3">
         <div className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm lg:flex-row lg:items-center lg:justify-between">
           <header className="min-w-0">
-            <h2 className="text-xl font-semibold text-slate-950">Рабочая панель</h2>
+            <h2 className="text-xl font-semibold text-slate-950">İş paneli</h2>
             <p className="mt-1 text-sm leading-5 text-amber-900">
-              Для продаж, сессий и оплат нужна открытая смена.
+              Satışlar, sessiyalar və ödənişlər üçün açıq dəyişiklik tələb olunur.
             </p>
             <p className="mt-1 text-xs leading-5 text-amber-800">
-              Смена не открыта. Откройте смену, чтобы начать работу с заказами.
+              Dəyişiklik açılmayıb. Sifarişlərlə işə başlamaq üçün dəyişikliyi açın.
             </p>
           </header>
           <Button type="button">
             <Link className="inline-flex items-center gap-2" to="/employee/shift">
-              <Clock3 className="size-4" /> Открыть смену
+              <Clock3 className="size-4" /> Dəyişiklik aç
             </Link>
           </Button>
         </div>
@@ -353,10 +353,10 @@ export function EmployeeWorkspacePage() {
       if (!currentShiftQuery.data?.shift) {
         if (role === 'organization_admin') {
           // Admins can view workspace without opening a shift, but should not create orders.
-          setError('Смена не открыта. Откройте смену, чтобы начать работу с заказами.')
+          setError('Dəyişiklik açılmayıb. Sifarişlərlə işə başlamaq üçün dəyişikliyi açın.')
           return
         }
-        throw new Error('Смена не открыта. Откройте смену, чтобы начать работу с заказами.')
+        throw new Error('Dəyişiklik açılmayıb. Sifarişlərlə işə başlamaq üçün dəyişikliyi açın.')
       }
       const order = await orderMutations.createOrder.mutateAsync({ placeId: place.id })
       selectOrder(order.id)
@@ -366,10 +366,10 @@ export function EmployeeWorkspacePage() {
     runAction(async () => {
       if (!currentShiftQuery.data?.shift) {
         if (role === 'organization_admin') {
-          setError('Смена не открыта. Откройте смену, чтобы начать работу с заказами.')
+          setError('Dəyişiklik açılmayıb. Sifarişlərlə işə başlamaq üçün dəyişikliyi açın.')
           return
         }
-        throw new Error('Смена не открыта. Откройте смену, чтобы начать работу с заказами.')
+        throw new Error('Dəyişiklik açılmayıb. Sifarişlərlə işə başlamaq üçün dəyişikliyi açın.')
       }
       const session = await orderMutations.startSession.mutateAsync({ placeId: place.id })
       selectOrder(session.order_id)
@@ -379,10 +379,10 @@ export function EmployeeWorkspacePage() {
     runAction(async () => {
       if (!currentShiftQuery.data?.shift) {
         if (role === 'organization_admin') {
-          setError('Смена не открыта. Откройте смену, чтобы начать работу с заказами.')
+          setError('Dəyişiklik açılmayıb. Sifarişlərlə işə başlamaq üçün dəyişikliyi açın.')
           return
         }
-        throw new Error('Смена не открыта. Откройте смену, чтобы начать работу с заказами.')
+        throw new Error('Dəyişiklik açılmayıb. Sifarişlərlə işə başlamaq üçün dəyişikliyi açın.')
       }
       await orderMutations.startSession.mutateAsync({ placeId: place.id, orderId })
     })
@@ -417,7 +417,7 @@ export function EmployeeWorkspacePage() {
         orderId: selectedOrderId,
         orderItemId: item.id,
         requestType: 'change_quantity',
-        reason: 'Быстрое изменение количества сотрудником.',
+        reason: 'Məmur tərəfindən sürətli miqdar dəyişməsi.',
         requestedQuantity: quantity,
       }),
     )
@@ -450,11 +450,11 @@ export function EmployeeWorkspacePage() {
 
   const requestQuantity = (item: EmployeeOrderItemRow) => {
     if (!selectedOrderId) return
-    const quantityText = window.prompt(t('Новое количество'), String(item.quantity))
+    const quantityText = window.prompt(t('Yeni miqdar'), String(item.quantity))
     if (!quantityText) return
     const quantity = Number(quantityText)
     if (!Number.isFinite(quantity) || quantity <= 0) return
-    const reason = window.prompt(t('Причина изменения количества'))
+    const reason = window.prompt(t('Miqdar dəyişməsinin səbəbi'))
     if (!reason) return
     void runAction(() =>
       orderMutations.requestAdjustment.mutateAsync({
@@ -472,7 +472,7 @@ export function EmployeeWorkspacePage() {
     void runAction(async () => {
       if (isOpeningDayShift) {
         if (!hasOpeningDayPaymentAmount) {
-          throw new Error('Укажите сумму, которую клиент реально оставил.')
+          throw new Error('Müştərinin həqiqətən qoyduğu məbləği daxil edin.')
         }
 
         await orderMutations.completeOpeningDayPayment.mutateAsync({
@@ -483,7 +483,7 @@ export function EmployeeWorkspacePage() {
         })
       } else {
         if (!hasValidTipAmount) {
-          throw new Error('Чаевые не могут быть отрицательными.')
+          throw new Error('Çaypulu mənfi ola bilməz.')
         }
 
         await orderMutations.completePaymentWithTip.mutateAsync({
@@ -502,26 +502,26 @@ export function EmployeeWorkspacePage() {
     void runAction(async () => {
       if (isOpeningDayShift) {
         if (!hasOpeningDayPaymentAmount) {
-          throw new Error('Укажите сумму, которую клиент реально оставил.')
+          throw new Error('Müştərinin həqiqətən qoyduğu məbləği daxil edin.')
         }
       } else if (!hasValidTipAmount) {
-        throw new Error('Чаевые не могут быть отрицательными.')
+        throw new Error('Çaypulu mənfi ola bilməz.')
       }
 
       if (!Number.isFinite(cashSplitValue) || !Number.isFinite(cardSplitValue)) {
-        throw new Error('Проверьте суммы для оплаты.')
+        throw new Error('Ödəniş məbləğlərini yoxlayın.')
       }
 
       if (cashSplitValue < 0 || cardSplitValue < 0) {
-        throw new Error('Суммы оплаты не могут быть отрицательными.')
+        throw new Error('Ödəniş məbləğləri mənfi ola bilməz.')
       }
 
       if (splitPaymentTotal <= 0) {
-        throw new Error('Укажите хотя бы одну сумму оплаты.')
+        throw new Error('Ən azı bir ödəniş məbləği daxil edin.')
       }
 
       if (Math.abs(splitPaymentTotal - splitPaymentTargetTotal) > 0.01) {
-        throw new Error('Суммы оплаты должны закрывать всю сумму заказа.')
+        throw new Error('Ödəniş məbləğləri sifarişin ümumi məbləğini tam örtməlidir.')
       }
 
       await orderMutations.completeSplitPayment.mutateAsync({
@@ -549,7 +549,7 @@ export function EmployeeWorkspacePage() {
 
   const refusePayment = () => {
     if (!selectedOrderId) return
-    const comment = window.prompt('Комментарий к отказу от оплаты')
+    const comment = window.prompt('Ödənişdən imtina üçün şərh')
     if (!comment) return
     void runAction(async () => {
       await orderMutations.refusePayment.mutateAsync({ orderId: selectedOrderId, comment })
@@ -571,7 +571,7 @@ export function EmployeeWorkspacePage() {
   const confirmOrderCloseAction = () => {
     if (!selectedOrder || !orderCloseAction) return
     if (orderCloseAction === 'cancel' && !cancelReason.trim()) {
-      setError('Укажите причину отмены заказа.')
+      setError('Sifarişin ləğv səbəbini göstərin.')
       return
     }
 
@@ -595,10 +595,10 @@ export function EmployeeWorkspacePage() {
     runAction(async () => {
       if (!currentShiftQuery.data?.shift) {
         if (role === 'organization_admin') {
-          setError('Смена не открыта. Откройте смену, чтобы начать работу с заказами.')
+          setError('Dəyişiklik açılmayıb. Sifarişlərlə işə başlamaq üçün dəyişikliyi açın.')
           return
         }
-        throw new Error('Смена не открыта. Откройте смену, чтобы начать работу с заказами.')
+        throw new Error('Dəyişiklik açılmayıb. Sifarişlərlə işə başlamaq üçün dəyişikliyi açın.')
       }
       const order = await orderMutations.createOrder.mutateAsync({})
       selectOrder(order.id)
@@ -661,7 +661,7 @@ export function EmployeeWorkspacePage() {
 
       {workspaceQuery.isLoading ? (
         <div className="inline-flex min-h-28 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600">
-          <Loader2 className="size-4 animate-spin text-emerald-700" /> Загрузка рабочего места
+          <Loader2 className="size-4 animate-spin text-emerald-700" /> İş yeri yüklənir
         </div>
       ) : null}
 
@@ -729,15 +729,15 @@ export function EmployeeWorkspacePage() {
                         {formatElapsed(occupancyStartedAt, nowMs)}
                       </span>
                     ) : (
-                      <span>{isTable ? 'Стол' : place.has_timer ? 'Сессия не начата' : 'Без таймера'}</span>
+                      <span>{isTable ? 'Masa' : place.has_timer ? 'Sessiya başlanmayıb' : 'Taymersiz'}</span>
                     )}
                     <span>
                       {hasActiveOrder
-                        ? `#${place.active_order_number} · ${place.active_order_item_count} поз.`
-                        : 'Заказ не открыт'}
+                        ? `#${place.active_order_number} · ${place.active_order_item_count} maddə.`
+                        : 'Sifariş açılmayıb'}
                     </span>
                     <span className="font-semibold text-slate-950">
-                      {isOpeningDayShift ? 'Ручной итог' : formatAzn((place.active_order_total ?? 0) + sessionAmount)}
+                      {isOpeningDayShift ? 'Əl ilə yekun' : formatAzn((place.active_order_total ?? 0) + sessionAmount)}
                     </span>
                     {sessionGraceNotice ? (
                       <span className="font-medium text-orange-700">{sessionGraceNotice}</span>
@@ -759,7 +759,7 @@ export function EmployeeWorkspacePage() {
                           }}
                           type="button"
                         >
-                          <Square className="size-3.5" /> Закрыть сессию
+                          <Square className="size-3.5" /> Sessiyanı bağla
                         </button>
                       ) : (
                         <button
@@ -771,7 +771,7 @@ export function EmployeeWorkspacePage() {
                           }}
                           type="button"
                         >
-                          <Play className="size-3.5" /> Начать сессию
+                          <Play className="size-3.5" /> Sessiyanı başlat
                         </button>
                       )}
                     </>
@@ -785,7 +785,7 @@ export function EmployeeWorkspacePage() {
                       type="button"
                     >
                       <ReceiptText className="size-3.5" />
-                      {hasActiveOrder ? 'Открыть заказ' : 'Создать заказ'}
+                      {hasActiveOrder ? 'Sifarişi aç' : 'Sifariş yarat'}
                     </button>
                   )}
                 </div>
@@ -798,9 +798,9 @@ export function EmployeeWorkspacePage() {
       {!workspaceQuery.isLoading && !placeLayout.length ? (
         <section className="grid min-h-64 place-items-center rounded-lg border border-dashed border-slate-300 bg-white p-6 text-center">
           <div className="grid gap-2">
-            <h3 className="text-lg font-semibold text-slate-950">Рабочая схема пустая</h3>
+            <h3 className="text-lg font-semibold text-slate-950">İş sxemi boşdur</h3>
             <p className="max-w-md text-sm text-slate-600">
-              Администратор организации может добавить места и настроить их расположение.
+              Təşkilat administratoru yerlər əlavə edə və onların yerləşdirilməsini tənzimləyə bilər.
             </p>
           </div>
         </section>
@@ -809,11 +809,11 @@ export function EmployeeWorkspacePage() {
       <section className="grid max-h-44 gap-2 overflow-hidden border-t border-slate-200 pt-2">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="text-base font-semibold text-slate-950">Заказы без места</h3>
-            <p className="text-xs text-slate-500">{ordersWithoutPlace.length} активн.</p>
+            <h3 className="text-base font-semibold text-slate-950">Məkansız sifarişlər</h3>
+            <p className="text-xs text-slate-500">{ordersWithoutPlace.length} aktiv.</p>
           </div>
           <Button className="min-h-9 px-3" onClick={createOrderWithoutPlace} type="button">
-            <Plus className="size-4" /> Заказ без места
+            <Plus className="size-4" /> Məkansız sifariş
           </Button>
         </div>
 
@@ -833,14 +833,14 @@ export function EmployeeWorkspacePage() {
                   <span className="text-sm text-slate-600">{orderStatusLabel[order.status]}</span>
                 </div>
                 <div className="mt-2 text-sm text-slate-600">
-                  {isOpeningDayShift ? 'Итог будет введён вручную' : `Итого: ${formatAzn(order.total_amount)}`}
+                  {isOpeningDayShift ? 'Yekun əl ilə daxil ediləcək' : `Cəmi: ${formatAzn(order.total_amount)}`}
                 </div>
               </button>
             ))}
           </div>
         ) : (
           <div className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-3 text-sm text-slate-500">
-            Заказов без места нет.
+            Məkansız sifariş yoxdur.
           </div>
         )}
       </section>
@@ -857,7 +857,7 @@ export function EmployeeWorkspacePage() {
             <header className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
               <div className="grid min-w-0 flex-1 gap-2">
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <h3 className="shrink-0 text-lg font-semibold text-slate-950">Заказ #{selectedOrder.order_number}</h3>
+                  <h3 className="shrink-0 text-lg font-semibold text-slate-950">Sifariş #{selectedOrder.order_number}</h3>
                   {isVipEquipmentPlace(selectedOrderPlace) ? (
                     <input
                       className="min-h-8 min-w-40 flex-1 rounded-md border border-slate-200 bg-white px-2.5 text-sm text-slate-950 outline-none transition-colors focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
@@ -872,11 +872,11 @@ export function EmployeeWorkspacePage() {
                 </div>
                 <p className="text-sm text-slate-600">
                   {selectedOrder.customer_label ? `${selectedOrder.customer_label} · ` : ''}
-                  {selectedOrder.current_place_name_snapshot ?? 'Без места'} · {orderStatusLabel[selectedOrder.status]}
+                  {selectedOrder.current_place_name_snapshot ?? 'Məkansız'} · {orderStatusLabel[selectedOrder.status]}
                 </p>
               </div>
               <button
-                aria-label="Закрыть"
+                aria-label="Bağla"
                 className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100"
                 onClick={closeOrder}
                 type="button"
@@ -911,7 +911,7 @@ export function EmployeeWorkspacePage() {
                     <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-sm font-semibold text-slate-950">
-                          {isOpeningDayShift ? 'Фактическая сумма' : 'Сумма заказа'}
+                          {isOpeningDayShift ? 'Həqiqi məbləğ' : 'Sifariş məbləği'}
                         </span>
                         <span className="text-2xl font-semibold text-slate-950">
                           {isOpeningDayShift
@@ -925,7 +925,7 @@ export function EmployeeWorkspacePage() {
                       {isOrderWithoutPlace ? (
                         <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
                           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                            <span>Имя клиента</span>
+                            <span>Müştəri adı</span>
                             <input
                               className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
                               onBlur={saveOrderCustomerLabel}
@@ -935,7 +935,7 @@ export function EmployeeWorkspacePage() {
                                   event.currentTarget.blur()
                                 }
                               }}
-                              placeholder="Например: Эльвин"
+                              placeholder="Məsələn: Elvin"
                               value={orderCustomerLabel}
                             />
                           </label>
@@ -947,7 +947,7 @@ export function EmployeeWorkspacePage() {
                             type="button"
                             variant="secondary"
                           >
-                            Сохранить
+                            Saxla
                           </Button>
                         </div>
                       ) : null}
@@ -955,25 +955,25 @@ export function EmployeeWorkspacePage() {
                       {isOpeningDayShift ? (
                         <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
                           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                            <span>Сколько клиент оставил</span>
+                            <span>Müştəri nə qədər qoydu</span>
                             <input
                               className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
                               inputMode="decimal"
                               min={0}
                               onChange={(event) => setOpeningDayPaymentAmount(event.target.value)}
-                              placeholder="Например: 50"
+                              placeholder="Məsələn: 50"
                               type="number"
                               value={openingDayPaymentAmount}
                             />
                             <span className="text-xs font-normal text-slate-500">
-                              Можно указать 0, если сегодня денег не взяли.
+                              Bu gün pul alınmasa 0 yazmaq da mümkündür.
                             </span>
                           </label>
                         </div>
                       ) : (
                         <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
                           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                            <span>Чаевые</span>
+                            <span>Çəp</span>
                             <input
                               className={cn(
                                 'min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15',
@@ -982,18 +982,18 @@ export function EmployeeWorkspacePage() {
                               inputMode="decimal"
                               min={0}
                               onChange={(event) => setTipAmount(event.target.value)}
-                              placeholder="Например: 5"
+                              placeholder="Məsələn: 5"
                               type="number"
                               value={tipAmount}
                             />
                             <span className={cn('text-xs font-normal text-slate-500', !hasValidTipAmount && 'text-red-700')}>
                               {hasValidTipAmount
-                                ? 'Если чаевых нет, оставьте 0 или пусто.'
-                                : 'Чаевые не могут быть отрицательными.'}
+                                ? 'Çəp yoxdur, 0 və ya boş qoyun.'
+                                : 'Çəp mənfi ola bilməz.'}
                             </span>
                           </label>
                           <div className="grid min-h-5 content-center rounded-md bg-green-900 px-2 py-2 text-sm text-white">
-                            <span className="text-xs text-slate-300">Итого с чаевыми</span>
+                            <span className="text-xs text-slate-300">Çəplə cəmi</span>
                             <span className="text-base font-semibold">{formatAzn(selectedOrderTotalWithTip)}</span>
                           </div>
                         </div>
@@ -1005,9 +1005,9 @@ export function EmployeeWorkspacePage() {
                           onClick={() => setIsOrderCommentOpen((isOpen) => !isOpen)}
                           type="button"
                         >
-                          <span>Комментарий к заказу</span>
+                          <span>Sifariş şərhi</span>
                           <span className="inline-flex items-center gap-2 text-xs font-normal text-slate-500">
-                            {orderComment.trim() ? 'Заполнен' : 'Пусто'}
+                            {orderComment.trim() ? 'Doldurulub' : 'Boş'}
                             <ChevronDown
                               className={cn('size-4 transition-transform', isOrderCommentOpen && 'rotate-180')}
                             />
@@ -1015,15 +1015,15 @@ export function EmployeeWorkspacePage() {
                         </button>
                         {isOrderCommentOpen ? (
                           <label className="grid gap-1.5 border-t border-slate-200 p-3 text-sm font-medium text-slate-700">
-                            <span className="sr-only">Комментарий к заказу</span>
+                            <span className="sr-only">Sifariş şərhi</span>
                             <textarea
                               className="min-h-20 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
                               onChange={(event) => setOrderComment(event.target.value)}
-                              placeholder="Например: клиент оставил больше, оплата от друга, особые условия."
+                              placeholder="Məsələn: müştəri daha çox qoydu, dostdan ödəmə, xüsusi şərtlər."
                               value={orderComment}
                             />
                             <span className="text-xs font-normal text-slate-500">
-                              Этот комментарий сохранится в заказе после оплаты или завершения.
+                              Bu şərh ödəniş və ya bağlanma sonrası sifarişdə saxlanılacaq.
                             </span>
                           </label>
                         ) : null}
@@ -1031,7 +1031,7 @@ export function EmployeeWorkspacePage() {
 
                       {selectedOrder.status === 'payment_refused' ? (
                         <div className="rounded-md border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">
-                          Оплата отклонена. {selectedOrder.payment_refusal_comment ?? ''}
+                          Ödəniş rədd edildi. {selectedOrder.payment_refusal_comment ?? ''}
                         </div>
                       ) : (
                         <div className="grid gap-2 md:grid-cols-3">
@@ -1039,10 +1039,10 @@ export function EmployeeWorkspacePage() {
                             <Button disabled={!canPreparePayment || isClosingOrder} onClick={openPaymentChoice} type="button">
                               <Hourglass className="size-4" />
                               {isOpeningDayShift
-                                ? 'Записать сумму'
+                                ? 'Məbləği yaz'
                                 : selectedOrder.status === 'waiting_payment'
-                                  ? 'Принять оплату'
-                                  : 'К оплате'}
+                                  ? 'Ödənişi qəbul et'
+                                  : 'Ödənişə'}
                             </Button>
                           ) : (
                             <Button
@@ -1051,7 +1051,7 @@ export function EmployeeWorkspacePage() {
                               type="button"
                             >
                               <CheckCircle2 className="size-4" />
-                              Завершить заказ
+                              Sifarişi bitir
                             </Button>
                           )}
 
@@ -1066,7 +1066,7 @@ export function EmployeeWorkspacePage() {
                                 onClick={() => completePayment('cash')}
                                 type="button"
                               >
-                                <Banknote className="size-4" /> Наличными
+                                <Banknote className="size-4" /> Nağd
                               </Button>
                               <Button
                                 disabled={
@@ -1078,44 +1078,44 @@ export function EmployeeWorkspacePage() {
                                 type="button"
                                 variant="secondary"
                               >
-                                <CreditCard className="size-4" /> Картой
+                                <CreditCard className="size-4" /> Kartla
                               </Button>
                               <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3 md:col-span-3">
                                 <div className="flex items-center justify-between gap-3">
-                                  <span className="text-sm font-semibold text-slate-950">Разделённая оплата</span>
+                                  <span className="text-sm font-semibold text-slate-950">Ayrılmış ödəniş</span>
                                   <span className="text-sm font-medium text-slate-700">
                                     {formatAzn(splitPaymentTargetTotal)}
                                   </span>
                                 </div>
                                 <div className="grid gap-2 md:grid-cols-2">
                                   <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                                    <span>Наличными</span>
+                                    <span>Nağd</span>
                                     <input
                                       className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
                                       inputMode="decimal"
                                       min={0}
                                       onChange={(event) => setCashSplitAmount(event.target.value)}
-                                      placeholder="Например: 3"
+                                      placeholder="Məsələn: 3"
                                       type="number"
                                       value={cashSplitAmount}
                                     />
                                   </label>
                                   <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                                    <span>Картой</span>
+                                    <span>Kartla</span>
                                     <input
                                       className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
                                       inputMode="decimal"
                                       min={0}
                                       onChange={(event) => setCardSplitAmount(event.target.value)}
-                                      placeholder="Например: 2"
+                                      placeholder="Məsələn: 2"
                                       type="number"
                                       value={cardSplitAmount}
                                     />
                                   </label>
                                 </div>
                                 <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
-                                  <span>Итого: {formatAzn(splitPaymentTotal)}</span>
-                                  <span>{isSplitPaymentValid ? 'Сумма совпадает' : 'Должно быть равно общей сумме'}</span>
+                                  <span>Cəmi: {formatAzn(splitPaymentTotal)}</span>
+                                  <span>{isSplitPaymentValid ? 'Məbləğ uyğun gəlir' : 'Ümumi məbləğə bərabər olmalıdır'}</span>
                                 </div>
                                 <Button
                                   disabled={
@@ -1127,7 +1127,7 @@ export function EmployeeWorkspacePage() {
                                   onClick={completeSplitPayment}
                                   type="button"
                                 >
-                                  <Banknote className="size-4" /> Принять разделённую оплату
+                                  <Banknote className="size-4" /> Ayrılmış ödənişi qəbul et
                                 </Button>
                               </div>
                             </>
@@ -1140,7 +1140,7 @@ export function EmployeeWorkspacePage() {
                               type="button"
                               variant="danger"
                             >
-                              Отказ от оплаты
+                              Ödənişdən imtina
                             </Button>
                           ) : null}
 
@@ -1151,7 +1151,7 @@ export function EmployeeWorkspacePage() {
                             variant="danger"
                           >
                             <X className="size-4" />
-                            Отменить заказ
+                            Sifarişi ləğv et
                           </Button>
                         </div>
                       )}
@@ -1162,16 +1162,16 @@ export function EmployeeWorkspacePage() {
                 <div className="grid gap-3 rounded-lg border border-emerald-200 bg-white p-3 shadow-sm">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <h4 className="text-base font-semibold text-slate-950">Состав заказа</h4>
+                      <h4 className="text-base font-semibold text-slate-950">Sifarişin tərkibi</h4>
                     </div>
                     <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800">
-                      {orderItems.length} поз.
+                      {orderItems.length} maddə.
                     </span>
                   </div>
 
                   <div className="overflow-hidden rounded-lg border border-slate-300">
                     {orderItemsQuery.isLoading ? (
-                      <div className="p-4 text-sm text-slate-600">Загрузка позиций...</div>
+                      <div className="p-4 text-sm text-slate-600">Maddələr yüklənir...</div>
                     ) : null}
                     {orderItems.map((item) => {
                       const canEditQuantity =
@@ -1195,7 +1195,7 @@ export function EmployeeWorkspacePage() {
                                     {item.quantity} × {formatAzn(item.unit_price)}
                                   </div>
                                 ) : (
-                                  <div className="text-sm text-slate-600">Учёт без цены</div>
+                                  <div className="text-sm text-slate-600">Qiymətsiz hesablama</div>
                                 )}
                               </div>
                               {!isOpeningDayShift ? (
@@ -1209,7 +1209,7 @@ export function EmployeeWorkspacePage() {
                                 {canEditQuantity ? (
                                   <div className="inline-grid grid-cols-[32px_44px_32px] overflow-hidden rounded-md border border-slate-200 bg-white">
                                     <button
-                                      aria-label="Уменьшить на 1"
+                                      aria-label="1 azaldın"
                                       className="inline-flex min-h-8 items-center justify-center text-slate-700 transition hover:bg-slate-50 disabled:text-slate-300"
                                       disabled={item.quantity <= 1 || orderMutations.requestAdjustment.isPending}
                                       onClick={() => changeItemQuantity(item, item.quantity - 1)}
@@ -1221,7 +1221,7 @@ export function EmployeeWorkspacePage() {
                                       {item.quantity}
                                     </span>
                                     <button
-                                      aria-label="Увеличить на 1"
+                                      aria-label="1 artırın"
                                       className="inline-flex min-h-8 items-center justify-center text-emerald-800 transition hover:bg-emerald-50 disabled:text-slate-300"
                                       disabled={orderMutations.requestAdjustment.isPending}
                                       onClick={() => changeItemQuantity(item, item.quantity + 1)}
@@ -1233,11 +1233,11 @@ export function EmployeeWorkspacePage() {
                                 ) : null}
                                 {canEditQuantity ? (
                                   <Button className="min-h-8 px-3 py-1 text-xs" onClick={() => requestQuantity(item)} type="button" variant="secondary">
-                                    Кол-во
+                                    Say
                                   </Button>
                                 ) : null}
                                 <Button className="min-h-8 px-3 py-1 text-xs" onClick={() => requestRemove(item)} type="button" variant="danger">
-                                  Удалить
+                                  Sil
                                 </Button>
                               </div>
                             ) : null}
@@ -1247,7 +1247,7 @@ export function EmployeeWorkspacePage() {
                     })}
                     {!orderItems.length && !orderItemsQuery.isLoading ? (
                       <div className="grid min-h-28 place-items-center p-4 text-center text-sm text-slate-600">
-                        Позиции пока не добавлены.
+                        Hələ maddə əlavə edilməyib.
                       </div>
                     ) : null}
                   </div>
@@ -1288,18 +1288,18 @@ export function EmployeeWorkspacePage() {
                                 onClick={() => setPickerTab(tab)}
                                 type="button"
                               >
-                                {tab === 'products' ? 'Товары' : tab === 'services' ? 'Услуги' : 'Комбо'}
+                                {tab === 'products' ? 'Məhsullar' : tab === 'services' ? 'Xidmətlər' : 'Kombi'}
                               </button>
                             ))}
                           </div>
                           <label className="relative block">
-                            <span className="sr-only">Поиск</span>
+                            <span className="sr-only">Axtarış</span>
                             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                             <input
                               className="min-h-9 w-full rounded-md border border-slate-200 bg-white px-3 pl-10 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
                               id="employee_catalog_search"
                               onChange={(event) => setSearch(event.target.value)}
-                              placeholder="Поиск"
+                              placeholder="Axtarış"
                               type="search"
                               value={search}
                             />
@@ -1352,24 +1352,24 @@ export function EmployeeWorkspacePage() {
                         <div className="flex items-center justify-between gap-2">
                           <div>
                             <h4 className="text-sm font-semibold text-slate-950">
-                              {isSelectedTable ? 'Занятость' : 'Сессия'}
+                              {isSelectedTable ? 'Məşğulluq' : 'Sessiya'}
                             </h4>
                             <p className="mt-0.5 text-xs leading-5 text-slate-600">
                               {isSelectedTable
                                 ? tableOpenedAt
-                                  ? 'Время занятости стола считается от открытия заказа.'
-                                  : 'Создайте заказ, чтобы видеть время занятости стола.'
+                                  ? 'Masa məşğulluq vaxtı sifarişin açılmasından hesablanır.'
+                                  : 'Masa məşğulluq vaxtını görmək üçün sifariş yaradın.'
                                 : isOpeningDayShift
                                 ? hasActiveSession
-                                  ? 'Время идёт. Завершите сессию, затем укажите сумму, которую клиент оставил.'
-                                  : 'Укажите фактическую сумму клиента в конце заказа.'
+                                  ? 'Vaxt gedir. Sessiyanı bitirin, sonra müştərinin qoyduğu məbləği göstərin.'
+                                  : 'Sifarişin sonunda müştərinin həqiqi məbləğini daxil edin.'
                                 : hasActiveSession
-                                  ? 'Сначала остановите сессию, затем переводите заказ к оплате.'
+                                  ? 'Əvvəl sessiyanı dayandırın, sonra sifarişi ödənişə keçirin.'
                                   : selectedOrder.status === 'waiting_payment'
-                                    ? 'Заказ готов к оплате.'
+                                    ? 'Sifariş ödənişə hazırdır.'
                                     : !hasNormalPaymentAmount
-                                      ? 'Можно добавить позиции или завершить пустой заказ без оплаты.'
-                                      : 'Добавьте позиции или переведите заказ к оплате.'}
+                                      ? 'Maddələr əlavə edə və ya ödənişsiz boş sifarişi bitirə bilərsiniz.'
+                                      : 'Maddələr əlavə edin və ya sifarişi ödənişə keçirin.'}
                             </p>
                           </div>
                           {hasActiveSession ? (
@@ -1380,8 +1380,8 @@ export function EmployeeWorkspacePage() {
                               </div>
                               <div className="mt-0.5 text-xs">
                                 {isOpeningDayShift
-                                  ? 'Цена вручную'
-                                  : `Сейчас: ${formatAzn(selectedPlace ? calculateCurrentSessionAmount(selectedPlace, nowMs) : 0)}`}
+                                  ? 'Qiymət əl ilə'
+                                  : `Hazırda: ${formatAzn(selectedPlace ? calculateCurrentSessionAmount(selectedPlace, nowMs) : 0)}`}
                               </div>
                               {selectedSessionGraceNotice ? (
                                 <div className="mt-0.5 text-xs font-semibold text-orange-700">
@@ -1395,7 +1395,7 @@ export function EmployeeWorkspacePage() {
                                 <Timer className="size-4" />
                                 {formatElapsed(tableOpenedAt, nowMs)}
                               </div>
-                              <div className="mt-0.5 text-xs">Стол открыт</div>
+                              <div className="mt-0.5 text-xs">Masa açıqdır</div>
                             </div>
                           ) : null}
                         </div>
@@ -1406,11 +1406,11 @@ export function EmployeeWorkspacePage() {
                               className="min-h-9"
                               disabled={!canStartSession}
                               onClick={() => selectedPlace && startSessionForOrder(selectedPlace, selectedOrder.id)}
-                              title="Начать сессию"
+                              title="Sessiyanı başlat"
                               type="button"
                               variant="secondary"
                             >
-                              <Play className="size-4" /> Старт
+                              <Play className="size-4" /> Başla
                             </Button>
                             <Button
                               className="min-h-9"
@@ -1419,14 +1419,14 @@ export function EmployeeWorkspacePage() {
                                 selectedPlace?.active_session_id &&
                                 runAction(() => orderMutations.completeSession.mutateAsync(selectedPlace.active_session_id!))
                               }
-                              title="Остановить сессию"
+                              title="Sessiyanı dayandır"
                               type="button"
                               variant="secondary"
                             >
-                              <Square className="size-4" /> Стоп
+                              <Square className="size-4" /> Dayandır
                             </Button>
-                            <Button className="min-h-9" disabled title="Пауза сессии пока не поддержана сервером" type="button" variant="secondary">
-                              <Pause className="size-4" /> Пауза
+                            <Button className="min-h-9" disabled title="Sessiya pauzu hələ server tərəfindən dəstəklənmir" type="button" variant="secondary">
+                              <Pause className="size-4" /> Pauza
                             </Button>
                           </div>
                         ) : null}
@@ -1438,7 +1438,7 @@ export function EmployeeWorkspacePage() {
             </div>
 
             <footer className="border-t border-slate-200 px-4 py-3 text-xs text-slate-500">
-              Таймер считается локально; финальная сумма сессии пересчитывается сервером при завершении.
+              Taymer yerli hesablanır; sessiyanın son məbləği bitdikdə server tərəfindən yenidən hesablanır.
             </footer>
           </aside>
 
@@ -1446,19 +1446,19 @@ export function EmployeeWorkspacePage() {
             <Modal className="z-[60] bg-slate-950/45" onClose={closeRemoveRequest}>
               <section className="grid w-full max-w-md gap-4 rounded-xl bg-white p-5 shadow-xl">
                 <div className="grid gap-1">
-                  <h4 className="text-lg font-semibold text-slate-950">Удалить позицию?</h4>
+                  <h4 className="text-lg font-semibold text-slate-950">Maddəni silmək?</h4>
                   <p className="text-sm text-slate-600">
-                    Позиция «{removeRequestItem.name_snapshot}» будет удалена из заказа сразу, а действие попадёт в журнал.
+                    «{removeRequestItem.name_snapshot}» maddəsi dərhal sifarişdən silinəcək və hərəkət jurnala yazılacaq.
                   </p>
                 </div>
 
                 <label className="grid gap-2">
-                  <span className="text-sm font-medium text-slate-700">Причина удаления</span>
+                  <span className="text-sm font-medium text-slate-700">Silinmə səbəbi</span>
                   <textarea
                     autoFocus
                     className="min-h-24 resize-none rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
                     onChange={(event) => setRemoveRequestReason(event.target.value)}
-                    placeholder="Например: клиент отменил позицию"
+                    placeholder="Məsələn: müştəri maddəni ləğv etdi"
                     value={removeRequestReason}
                   />
                 </label>
@@ -1470,7 +1470,7 @@ export function EmployeeWorkspacePage() {
                     type="button"
                     variant="secondary"
                   >
-                    Назад
+                    Geri
                   </Button>
                   <Button
                     disabled={orderMutations.requestAdjustment.isPending || !removeRequestReason.trim()}
@@ -1481,7 +1481,7 @@ export function EmployeeWorkspacePage() {
                     {orderMutations.requestAdjustment.isPending ? (
                       <Loader2 className="size-4 animate-spin" />
                     ) : null}
-                    Удалить
+                    Sil
                   </Button>
                 </div>
               </section>
@@ -1499,22 +1499,22 @@ export function EmployeeWorkspacePage() {
               <section className="grid w-full max-w-md gap-4 rounded-xl bg-white p-5 shadow-xl">
                 <div className="grid gap-1">
                   <h4 className="text-lg font-semibold text-slate-950">
-                    {orderCloseAction === 'finish-empty' ? 'Завершить заказ?' : 'Отменить заказ?'}
+                    {orderCloseAction === 'finish-empty' ? 'Sifarişi bitirmək?' : 'Sifarişi ləğv etmək?'}
                   </h4>
                   <p className="text-sm text-slate-600">
                     {orderCloseAction === 'finish-empty'
-                      ? `Заказ #${selectedOrder.order_number} будет закрыт без оплаты, потому что сумма равна 0.`
-                      : `Заказ #${selectedOrder.order_number} будет отменён и исчезнет из рабочей панели.`}
+                      ? `#${selectedOrder.order_number} sifarişi ödənişsiz bağlanacaq, çünki məbləğ 0-dır.`
+                      : `#${selectedOrder.order_number} sifarişi ləğv ediləcək və iş panelindən yox olacaq.`}
                   </p>
                 </div>
 
                 {orderCloseAction === 'cancel' ? (
                   <label className="grid gap-2">
-                    <span className="text-sm font-medium text-slate-700">Причина отмены</span>
+                    <span className="text-sm font-medium text-slate-700">Ləğv səbəbi</span>
                     <textarea
                       className="min-h-24 resize-none rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
                       onChange={(event) => setCancelReason(event.target.value)}
-                      placeholder="Например: клиент передумал"
+                      placeholder="Məsələn: müştəri fikrini dəyişdi"
                       value={cancelReason}
                     />
                   </label>
@@ -1530,7 +1530,7 @@ export function EmployeeWorkspacePage() {
                     type="button"
                     variant="secondary"
                   >
-                    Назад
+                    Geri
                   </Button>
                   <Button
                     disabled={isOrderCloseActionPending || (orderCloseAction === 'cancel' && !cancelReason.trim())}
@@ -1538,7 +1538,7 @@ export function EmployeeWorkspacePage() {
                     type="button"
                     variant={orderCloseAction === 'cancel' ? 'danger' : 'primary'}
                   >
-                    {orderCloseAction === 'finish-empty' ? 'Завершить' : 'Отменить'}
+                    {orderCloseAction === 'finish-empty' ? 'Bitir' : 'Ləğv et'}
                   </Button>
                 </div>
               </section>
