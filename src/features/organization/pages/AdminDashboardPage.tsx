@@ -16,7 +16,7 @@ import type {
   AdjustmentRequestType,
 } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
-import { useFinanceDashboardSummary } from '../../finance/financeApi'
+import { todayDate, useFinanceDashboardSummary } from '../../finance/financeApi'
 import { useAdminAdjustmentRequests } from '../../orders/adjustmentRequestsApi'
 import {
   usePaymentMethodSummaryByShiftIds,
@@ -130,22 +130,23 @@ export function AdminDashboardPage() {
   const activeShift = shifts
     .filter((shift) => shift.status === 'open' || shift.status === 'closing')
     .sort((first, second) => second.opened_at.localeCompare(first.opened_at))[0]
-  const activeOperationalDayId = activeShift?.operational_day_id ?? null
-  const currentDayShifts = activeOperationalDayId
-    ? shifts.filter((shift) => shift.operational_day_id === activeOperationalDayId)
-    : []
+  const todayBusinessDate = todayDate()
+  const reportBusinessDate =
+    activeShift?.business_date ??
+    shifts.find((shift) => shift.business_date === todayBusinessDate)?.business_date ??
+    todayBusinessDate
+  const currentDayShifts = shifts.filter((shift) => shift.business_date === reportBusinessDate)
   const currentShiftIds = currentDayShifts.map((shift) => shift.id)
   const paymentSummaryQuery = usePaymentMethodSummaryByShiftIds(organizationId, currentShiftIds)
   const paymentSummary = paymentSummaryQuery.data
   const revenueBreakdownQuery = useRevenueBreakdownByShiftIds(organizationId, currentShiftIds)
   const revenueBreakdown = revenueBreakdownQuery.data
   const openOrders = orders.filter((order) => order.status === 'open').length
-  const waitingPayment = orders.filter((order) => order.status === 'waiting_payment').length
   const refusedOrders = orders.filter((order) => order.status === 'payment_refused').length
   const openShifts = shifts.filter((shift) => shift.status === 'open' || shift.status === 'closing').length
   const timedPlaces = places.filter((place) => place.has_timer).length
   const lowStock = inventory.filter((item) => item.stock_quantity <= item.minimum_stock_quantity).length
-  const operationalDayLabel = activeShift?.business_date ?? t('Смена не открыта')
+  const operationalDayLabel = currentDayShifts.length ? reportBusinessDate : t('Смена не открыта')
 
   const isLoading =
     ordersQuery.isLoading ||
@@ -223,18 +224,17 @@ export function AdminDashboardPage() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
-        <StatCard label="Выручка смены (всего)" tone="success" value={formatMoney(paymentSummary?.total ?? 0)} />
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-5">
+        <StatCard label="Выручка сегодня (всего)" tone="success" value={formatMoney(paymentSummary?.total ?? 0)} />
         <StatCard label="Наличными" tone="success" value={formatMoney(paymentSummary?.cash ?? 0)} />
         <StatCard label="По карте" tone="default" value={formatMoney(paymentSummary?.card ?? 0)} />
         <StatCard label="Открытые заказы" tone={openOrders ? 'warning' : 'default'} value={openOrders} />
-        <StatCard label="Ожидают оплату" tone={waitingPayment ? 'warning' : 'default'} value={waitingPayment} />
         <StatCard label="Открытые смены" tone={openShifts ? 'success' : 'default'} value={openShifts} />
       </div>
 
       <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-lg font-semibold text-slate-950">{t('Выручка по направлениям (смена)')}</h3>
+          <h3 className="text-lg font-semibold text-slate-950">{t('Выручка по направлениям (сегодня)')}</h3>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
           <StatCard

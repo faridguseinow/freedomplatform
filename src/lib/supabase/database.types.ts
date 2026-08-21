@@ -123,6 +123,7 @@ export type FinancialPeriodStatus =
   | 'approved'
   | 'locked'
   | 'rejected'
+  | 'cancelled'
 
 export type PlatformShareStatus =
   | 'accumulating'
@@ -1919,6 +1920,21 @@ export type Database = {
         Args: {
           target_period_id: string
           target_decision: 'approved' | 'clarification_requested' | 'rejected'
+          target_comment?: string | null
+        }
+        Returns: FinancialPeriodRow
+      }
+      update_financial_period: {
+        Args: {
+          target_period_id: string
+          target_period_start: string
+          target_period_end: string
+        }
+        Returns: FinancialPeriodRow
+      }
+      cancel_financial_period: {
+        Args: {
+          target_period_id: string
           target_comment?: string | null
         }
         Returns: FinancialPeriodRow

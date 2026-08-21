@@ -80,6 +80,39 @@ export function useFinancialPeriodMutations(organizationId: string | null) {
       },
       onSuccess: (period) => invalidate(period.id),
     }),
+    update: useMutation({
+      mutationFn: async ({
+        periodId,
+        periodStart,
+        periodEnd,
+      }: {
+        periodId: string
+        periodStart: string
+        periodEnd: string
+      }) => {
+        const { data, error } = await supabase.rpc('update_financial_period', {
+          target_period_id: periodId,
+          target_period_start: periodStart,
+          target_period_end: periodEnd,
+        })
+
+        if (error) throw new Error(error.message)
+        return data as FinancialPeriodRow
+      },
+      onSuccess: (period) => invalidate(period.id),
+    }),
+    cancel: useMutation({
+      mutationFn: async ({ periodId, comment }: { periodId: string; comment?: string | null }) => {
+        const { data, error } = await supabase.rpc('cancel_financial_period', {
+          target_period_id: periodId,
+          target_comment: comment ?? null,
+        })
+
+        if (error) throw new Error(error.message)
+        return data as FinancialPeriodRow
+      },
+      onSuccess: (period) => invalidate(period.id),
+    }),
     organizationId,
   }
 }

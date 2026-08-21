@@ -27,8 +27,10 @@ import type {
   FinancePaymentMethod,
   FinanceTransactionRow,
   FinanceTransactionType,
+  FinancialPeriodRow,
   FinancialPeriodSummary,
 } from '../../../lib/supabase/database.types'
+import { cn } from '../../../lib/utils/cn'
 import {
   monthStartDate,
   todayDate,
@@ -66,6 +68,32 @@ const money = (value: number | null | undefined) =>
   new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(
     value ?? 0,
   )
+const percent = (value: number | null | undefined) =>
+  `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(value ?? 0)}%`
+
+function formatDateInput(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function getFinancialCycle(closeDay: number | null | undefined) {
+  const day = Math.min(28, Math.max(1, closeDay ?? 15))
+  const now = new Date()
+  const start =
+    now.getDate() >= day
+      ? new Date(now.getFullYear(), now.getMonth(), day)
+      : new Date(now.getFullYear(), now.getMonth() - 1, day)
+  const end = new Date(start.getFullYear(), start.getMonth() + 1, day - 1)
+  const nextClose = new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1)
+
+  return {
+    end: formatDateInput(end),
+    nextClose: formatDateInput(nextClose),
+    start: formatDateInput(start),
+  }
+}
 
 const statusLabel: Record<string, string> = {
   planned: 'План',
@@ -81,6 +109,16 @@ const statusLabel: Record<string, string> = {
   pending_approval: 'На проверке',
   partially_paid: 'Частично оплачено',
   overdue: 'Просрочено',
+}
+
+const periodStatusLabel: Record<string, string> = {
+  open: 'Открыт',
+  submitted: 'На проверке',
+  clarification_requested: 'Нужны уточнения',
+  approved: 'Одобрен',
+  locked: 'Закрыт',
+  rejected: 'Отклонён',
+  cancelled: 'Удалён',
 }
 
 const methodOptions: { value: FinancePaymentMethod; label: string }[] = [
@@ -150,6 +188,25 @@ function MetricCard({
         ) : null}
       </div>
       <p className="mt-2 text-xl font-semibold text-slate-950">{money(Number(value ?? 0))}</p>
+    </div>
+  )
+}
+
+function InfoCard({
+  description,
+  label,
+  value,
+}: {
+  description?: string
+  label: string
+  value: string
+}) {
+  const { t } = useI18n()
+  return (
+    <div className="rounded-md border border-slate-200 bg-white p-4">
+      <p className="text-xs font-medium uppercase text-slate-500">{t(label)}</p>
+      <p className="mt-2 text-xl font-semibold text-slate-950">{value}</p>
+      {description ? <p className="mt-2 text-sm leading-5 text-slate-600">{t(description)}</p> : null}
     </div>
   )
 }
@@ -681,9 +738,12 @@ function AdminFinanceShell({
 
 export function AdminFinancePage() {
   const { currentOrganization, organizationId } = useAuth()
+  const { t } = useI18n()
   const summary = useFinanceDashboardSummary(organizationId)
-  const periodSummary = useFinancePeriodSummary(organizationId, DEFAULT_START, DEFAULT_END)
-  const paymentMethodSummary = usePaymentMethodSummary(organizationId, DEFAULT_START, DEFAULT_END)
+  const settings = useFinanceSettings(organizationId)
+  const currentCycle = getFinancialCycle(settings.data?.financial_month_close_day)
+  const periodSummary = useFinancePeriodSummary(organizationId, currentCycle.start, DEFAULT_END)
+  const paymentMethodSummary = usePaymentMethodSummary(organizationId, currentCycle.start, DEFAULT_END)
   const revenueBreakdown = useRevenueBreakdown(organizationId, ALL_TIME_START, DEFAULT_END)
   const buildAdminPath = (path: string) =>
     currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
@@ -694,6 +754,10 @@ export function AdminFinancePage() {
         title="Финансы"
         description="Финансовый центр организации: доходы, расходы, P&L, движение денег и аналитика оплат."
       />
+      <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-900">
+        {t('Текущий расчётный период')}: {currentCycle.start} - {DEFAULT_END}.{' '}
+        {t('Карточки дохода, COGS, прибыли, оплаты картой и cash out считаются внутри этого периода.')}
+      </div>
       <StatGrid
         cardPayment={paymentMethodSummary.data?.card ?? null}
         showCardPayment
@@ -765,10 +829,12 @@ export function AdminFinancePurchasesPage() {
 
 export function AdminFinanceCashFlowPage() {
   const { organizationId } = useAuth()
-  const summary = useFinancePeriodSummary(organizationId, DEFAULT_START, DEFAULT_END)
+  const settings = useFinanceSettings(organizationId)
+  const currentCycle = getFinancialCycle(settings.data?.financial_month_close_day)
+  const summary = useFinancePeriodSummary(organizationId, currentCycle.start, DEFAULT_END)
   return (
     <section className="grid gap-5">
-      <PageHeader description="Движение денег по датам оплаты за текущий месяц." title="Cash flow" />
+      <PageHeader description="Движение денег по датам оплаты за текущий финансовый период." title="Cash flow" />
       <StatGrid summary={summary.data} />
     </section>
   )
@@ -776,7 +842,9 @@ export function AdminFinanceCashFlowPage() {
 
 export function AdminFinanceProfitLossPage() {
   const { organizationId } = useAuth()
-  const summary = useFinancePeriodSummary(organizationId, DEFAULT_START, DEFAULT_END)
+  const settings = useFinanceSettings(organizationId)
+  const currentCycle = getFinancialCycle(settings.data?.financial_month_close_day)
+  const summary = useFinancePeriodSummary(organizationId, currentCycle.start, DEFAULT_END)
   return (
     <section className="grid gap-5">
       <PageHeader description="P&L по начислению: выручка, COGS по snapshots, расходы и чистая прибыль." title="P&L" />
@@ -859,10 +927,32 @@ export function AdminFinanceRecurringPage() {
 
 export function AdminFinancePeriodsPage() {
   const { currentOrganization, organizationId } = useAuth()
+  const { t } = useI18n()
   const rows = useFinancialPeriods(organizationId)
   const mutations = useFinancialPeriodMutations(organizationId)
+  const [periodFilter, setPeriodFilter] = useState<'active' | 'all' | 'cancelled'>('active')
+  const [editingPeriod, setEditingPeriod] = useState<FinancialPeriodRow | null>(null)
+  const [cancellingPeriod, setCancellingPeriod] = useState<FinancialPeriodRow | null>(null)
   const buildAdminPath = (path: string) =>
     currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
+  const periods = rows.data ?? []
+  const visiblePeriods = periods.filter((period) => {
+    if (periodFilter === 'active') return period.status !== 'cancelled'
+    if (periodFilter === 'cancelled') return period.status === 'cancelled'
+    return true
+  })
+  const totals = visiblePeriods.reduce(
+    (result, period) => ({
+      cogs: result.cogs + period.cogs,
+      owner: result.owner + period.organization_owner_amount,
+      platform: result.platform + period.platform_share_amount,
+      profit: result.profit + period.net_profit_before_platform_share,
+      revenue: result.revenue + period.revenue,
+    }),
+    { cogs: 0, owner: 0, platform: 0, profit: 0, revenue: 0 },
+  )
+  const mutationError =
+    mutations.submit.error ?? mutations.update.error ?? mutations.cancel.error
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -872,26 +962,246 @@ export function AdminFinancePeriodsPage() {
       periodEnd: String(form.get('period_end') || DEFAULT_END),
     })
   }
+  const handleEditSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!editingPeriod) return
+    const form = new FormData(event.currentTarget)
+    mutations.update.mutate(
+      {
+        periodId: editingPeriod.id,
+        periodStart: String(form.get('period_start') || editingPeriod.period_start),
+        periodEnd: String(form.get('period_end') || editingPeriod.period_end),
+      },
+      { onSuccess: () => setEditingPeriod(null) },
+    )
+  }
+  const handleCancelSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!cancellingPeriod) return
+    const form = new FormData(event.currentTarget)
+    mutations.cancel.mutate(
+      {
+        periodId: cancellingPeriod.id,
+        comment: String(form.get('comment') || '') || null,
+      },
+      { onSuccess: () => setCancellingPeriod(null) },
+    )
+  }
+  const canChangePeriod = (period: FinancialPeriodRow) =>
+    period.status !== 'locked' && period.status !== 'cancelled'
+  const statusClassName = (period: FinancialPeriodRow) =>
+    cn(
+      'inline-flex rounded-md px-2 py-1 text-xs font-semibold',
+      period.status === 'submitted' && 'bg-amber-50 text-amber-800',
+      period.status === 'clarification_requested' && 'bg-orange-50 text-orange-800',
+      period.status === 'locked' && 'bg-emerald-50 text-emerald-800',
+      period.status === 'rejected' && 'bg-red-50 text-red-700',
+      period.status === 'cancelled' && 'bg-slate-100 text-slate-500',
+      period.status === 'open' && 'bg-slate-100 text-slate-700',
+      period.status === 'approved' && 'bg-emerald-50 text-emerald-800',
+    )
+  const filterClassName = (filter: typeof periodFilter) =>
+    cn(
+      'min-h-10 rounded-md border px-3 text-sm font-medium transition-colors',
+      periodFilter === filter
+        ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+    )
+  const periodActions = (period: FinancialPeriodRow) => (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      <Link
+        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 transition-colors hover:bg-slate-50"
+        to={buildAdminPath(`/admin/finance/periods/${period.id}`)}
+      >
+        <Eye aria-hidden="true" className="size-4" />
+        {t('Открыть')}
+      </Link>
+      <Button
+        disabled={!canChangePeriod(period) || mutations.update.isPending}
+        onClick={() => setEditingPeriod(period)}
+        type="button"
+        variant="secondary"
+      >
+        <Edit3 aria-hidden="true" className="size-4" />
+        {t('Изменить')}
+      </Button>
+      <Button
+        disabled={!canChangePeriod(period) || mutations.cancel.isPending}
+        onClick={() => setCancellingPeriod(period)}
+        type="button"
+        variant="danger"
+      >
+        <Trash2 aria-hidden="true" className="size-4" />
+        {t('Удалить')}
+      </Button>
+    </div>
+  )
 
   return (
     <section className="grid gap-5">
-      <PageHeader description="Закрытие финансовых периодов и отправка на проверку платформе." title="Финансовые периоды" />
-      <form className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white p-4 sm:flex-row sm:items-end" onSubmit={handleSubmit}>
-        <Input defaultValue={DEFAULT_START} label="Начало" name="period_start" type="date" />
-        <Input defaultValue={DEFAULT_END} label="Конец" name="period_end" type="date" />
-        <Button disabled={mutations.submit.isPending} type="submit">
-          <ListChecks aria-hidden="true" className="size-4" />
-          Отправить
-        </Button>
-      </form>
-      <div className="grid gap-2">
-        {rows.data?.map((row) => (
-          <Link className="rounded-md border border-slate-200 bg-white p-4 hover:bg-slate-50" key={row.id} to={buildAdminPath(`/admin/finance/periods/${row.id}`)}>
-            <p className="font-medium text-slate-950">{row.period_start} - {row.period_end}</p>
-            <p className="text-sm text-slate-600">{statusLabel[row.status] ?? row.status} · прибыль {money(row.net_profit_before_platform_share)} · доля {money(row.platform_share_amount)}</p>
-          </Link>
-        ))}
-      </div>
+      <PageHeader description={t('Закрытие финансовых периодов и отправка на проверку платформе.')} title={t('Финансовые периоды')} />
+
+      {mutationError ? (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {mutationError.message}
+        </div>
+      ) : null}
+
+      <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4">
+        <div>
+          <h3 className="font-semibold text-slate-950">{t('Создать период')}</h3>
+          <p className="mt-1 text-sm text-slate-600">
+            {t('Выберите даты, система пересчитает доходы, COGS, расходы, прибыль и отправит период на проверку.')}
+          </p>
+        </div>
+        <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={handleSubmit}>
+          <Input defaultValue={DEFAULT_START} label={t('Начало')} name="period_start" required type="date" />
+          <Input defaultValue={DEFAULT_END} label={t('Конец')} name="period_end" required type="date" />
+          <Button disabled={mutations.submit.isPending} type="submit">
+            <ListChecks aria-hidden="true" className="size-4" />
+            {t('Отправить')}
+          </Button>
+        </form>
+      </section>
+
+      <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h3 className="font-semibold text-slate-950">{t('Список периодов')}</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              {t('Редактирование пересчитывает период. Удаление помечает период как удалённый, закрытые периоды остаются архивом.')}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button className={filterClassName('active')} onClick={() => setPeriodFilter('active')} type="button">{t('Активные')}</button>
+            <button className={filterClassName('all')} onClick={() => setPeriodFilter('all')} type="button">{t('Все')}</button>
+            <button className={filterClassName('cancelled')} onClick={() => setPeriodFilter('cancelled')} type="button">{t('Удалённые')}</button>
+          </div>
+        </div>
+
+        <div className="grid gap-2 md:grid-cols-5">
+          <MetricCard label="Доход" value={totals.revenue} />
+          <MetricCard label="COGS" value={totals.cogs} />
+          <MetricCard label="Чистая прибыль" value={totals.profit} />
+          <MetricCard label="Доля платформы" value={totals.platform} />
+          <MetricCard label="Итого владельцу" value={totals.owner} />
+        </div>
+
+        {rows.isLoading ? (
+          <div className="rounded-md border border-slate-200 p-4 text-sm text-slate-600">{t('Периоды загружаются...')}</div>
+        ) : null}
+
+        <div className="hidden overflow-x-auto rounded-lg border border-slate-200 lg:block">
+          <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+              <tr>
+                <th className="px-3 py-3 font-medium">{t('Период')}</th>
+                <th className="px-3 py-3 font-medium">{t('Статус')}</th>
+                <th className="px-3 py-3 font-medium">{t('Доход')}</th>
+                <th className="px-3 py-3 font-medium">COGS</th>
+                <th className="px-3 py-3 font-medium">{t('Прибыль')}</th>
+                <th className="px-3 py-3 font-medium">{t('Доля')}</th>
+                <th className="px-3 py-3 font-medium">{t('Владельцу')}</th>
+                <th className="px-3 py-3 text-right font-medium">{t('Действия')}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 bg-white">
+              {visiblePeriods.map((period) => (
+                <tr className={period.status === 'cancelled' ? 'bg-slate-50 text-slate-500' : undefined} key={period.id}>
+                  <td className="px-3 py-3 font-medium text-slate-950">{period.period_start} - {period.period_end}</td>
+                  <td className="px-3 py-3"><span className={statusClassName(period)}>{t(periodStatusLabel[period.status] ?? period.status)}</span></td>
+                  <td className="px-3 py-3">{money(period.revenue)}</td>
+                  <td className="px-3 py-3">{money(period.cogs)}</td>
+                  <td className="px-3 py-3 font-semibold text-slate-950">{money(period.net_profit_before_platform_share)}</td>
+                  <td className="px-3 py-3">{money(period.platform_share_amount)}</td>
+                  <td className="px-3 py-3">{money(period.organization_owner_amount)}</td>
+                  <td className="px-3 py-3">{periodActions(period)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="grid gap-2 lg:hidden">
+          {visiblePeriods.map((period) => (
+            <article className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4" key={period.id}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h4 className="font-semibold text-slate-950">{period.period_start} - {period.period_end}</h4>
+                  <span className={statusClassName(period)}>{t(periodStatusLabel[period.status] ?? period.status)}</span>
+                </div>
+                <div className="text-right text-sm font-semibold text-slate-950">{money(period.net_profit_before_platform_share)}</div>
+              </div>
+              <dl className="grid grid-cols-2 gap-2 text-sm">
+                <div><dt className="text-xs uppercase text-slate-500">{t('Доход')}</dt><dd>{money(period.revenue)}</dd></div>
+                <div><dt className="text-xs uppercase text-slate-500">COGS</dt><dd>{money(period.cogs)}</dd></div>
+                <div><dt className="text-xs uppercase text-slate-500">{t('Доля')}</dt><dd>{money(period.platform_share_amount)}</dd></div>
+                <div><dt className="text-xs uppercase text-slate-500">{t('Владельцу')}</dt><dd>{money(period.organization_owner_amount)}</dd></div>
+              </dl>
+              {periodActions(period)}
+            </article>
+          ))}
+        </div>
+
+        {!rows.isLoading && !visiblePeriods.length ? (
+          <div className="rounded-md border border-dashed border-slate-200 p-6 text-sm text-slate-500">
+            {t('Периодов в этом фильтре нет.')}
+          </div>
+        ) : null}
+      </section>
+
+      {editingPeriod ? (
+        <Modal onClose={() => setEditingPeriod(null)}>
+          <form className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-xl" onSubmit={handleEditSubmit}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-950">{t('Изменить период')}</h3>
+                <p className="mt-1 text-sm text-slate-600">{t('После сохранения суммы будут пересчитаны по новым датам.')}</p>
+              </div>
+              <Button className="px-2" onClick={() => setEditingPeriod(null)} type="button" variant="ghost">
+                <X aria-hidden="true" className="size-4" />
+              </Button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Input defaultValue={editingPeriod.period_start} label={t('Начало')} name="period_start" required type="date" />
+              <Input defaultValue={editingPeriod.period_end} label={t('Конец')} name="period_end" required type="date" />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setEditingPeriod(null)} type="button" variant="secondary">{t('Отмена')}</Button>
+              <Button disabled={mutations.update.isPending} type="submit">
+                <Save aria-hidden="true" className="size-4" />
+                {t('Сохранить')}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
+
+      {cancellingPeriod ? (
+        <Modal onClose={() => setCancellingPeriod(null)}>
+          <form className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-xl" onSubmit={handleCancelSubmit}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-950">{t('Удалить период')}</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  {t('Период будет помечен как удалённый. Физически финансовые записи не удаляются.')}
+                </p>
+              </div>
+              <Button className="px-2" onClick={() => setCancellingPeriod(null)} type="button" variant="ghost">
+                <X aria-hidden="true" className="size-4" />
+              </Button>
+            </div>
+            <Input label={t('Комментарий')} name="comment" placeholder={t('Например: неверные даты периода')} />
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setCancellingPeriod(null)} type="button" variant="secondary">{t('Отмена')}</Button>
+              <Button disabled={mutations.cancel.isPending} type="submit" variant="danger">
+                <Trash2 aria-hidden="true" className="size-4" />
+                {t('Удалить')}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
     </section>
   )
 }
@@ -945,37 +1255,169 @@ export function AdminFinancePlatformSharePage() {
 }
 
 export function AdminFinanceSettingsPage() {
-  const { organizationId } = useAuth()
+  const { organizationId, role } = useAuth()
+  const { t } = useI18n()
   const settings = useFinanceSettings(organizationId)
   const mutation = useFinanceSettingsMutation(organizationId)
+  const isPlatformOwner = role === 'platform_owner'
+  const closeDay = settings.data?.financial_month_close_day ?? 15
+  const reportingCurrency = settings.data?.reporting_currency_code || 'AZN'
+  const platformSharePercentage = settings.data?.default_platform_share_percentage ?? 0
+  const ownerSharePercentage = Math.max(0, 100 - platformSharePercentage)
+  const platformPaymentDueDays = settings.data?.platform_share_payment_due_days ?? 10
+  const cycle = getFinancialCycle(closeDay)
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
-    mutation.mutate({
+    const input = {
       large_expense_threshold: Number(form.get('large_expense_threshold') ?? 0) || null,
       require_large_expense_approval: form.get('require_large_expense_approval') === 'on',
       reporting_currency_code: String(form.get('reporting_currency_code') || '') || null,
-      financial_month_close_day: Number(form.get('financial_month_close_day') ?? 0) || null,
-    })
+      financial_month_close_day: Number(form.get('financial_month_close_day') ?? 0) || 15,
+    }
+
+    mutation.mutate(
+      isPlatformOwner
+        ? {
+            ...input,
+            default_platform_share_percentage: Number(form.get('default_platform_share_percentage') ?? 0) || 0,
+            platform_share_payment_due_days: Number(form.get('platform_share_payment_due_days') ?? 0) || 10,
+          }
+        : input,
+    )
   }
 
   return (
     <section className="grid gap-5">
-      <PageHeader description="Финансовые настройки организации. Долю платформы меняет только владелец платформы." title="Настройки финансов" />
-      <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4" onSubmit={handleSubmit}>
+      <PageHeader
+        description={t('Финансовые настройки организации. Долю платформы меняет только владелец платформы.')}
+        title={t('Настройки финансов')}
+      />
+
+      <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4">
+        <div>
+          <h3 className="font-semibold text-slate-950">{t('Текущие правила расчёта')}</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-600">
+            {t('Эти показатели показывают, как сейчас делится чистая прибыль и какой финансовый цикл используется для периодов.')}
+          </p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <InfoCard
+            description="Процент, который будет начислен Freedom Platform после утверждения финансового периода."
+            label="Доля платформы"
+            value={percent(platformSharePercentage)}
+          />
+          <InfoCard
+            description="Оставшаяся часть чистой прибыли после доли платформы."
+            label="Доля владельца"
+            value={percent(ownerSharePercentage)}
+          />
+          <InfoCard
+            description="Если день 15, текущий период идёт с 15-го числа до 14-го числа следующего месяца."
+            label="Текущий финансовый период"
+            value={`${cycle.start} - ${cycle.end}`}
+          />
+          <InfoCard
+            description="После закрытия периода долю платформы нужно оплатить в течение этого количества дней."
+            label="Срок оплаты доли платформы"
+            value={`${platformPaymentDueDays} ${t('дней')}`}
+          />
+        </div>
+        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900">
+          {t('Следующее закрытие финансового месяца')}: {cycle.nextClose}.{' '}
+          {t('Проверьте, что все смены закрыты, расходы внесены, а спорные оплаты исправлены до отправки периода.')}
+        </p>
+      </section>
+
+      <form className="grid gap-4 rounded-md border border-slate-200 bg-white p-4" onSubmit={handleSubmit}>
+        <div>
+          <h3 className="font-semibold text-slate-950">{t('Рабочие настройки организации')}</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-600">
+            {t('Эти параметры влияют на отчёты, создание периодов и проверку крупных расходов.')}
+          </p>
+        </div>
+
         <div className="grid gap-3 md:grid-cols-2">
-          <Input defaultValue={settings.data?.large_expense_threshold ?? ''} label="Порог крупного расхода" name="large_expense_threshold" step="0.01" type="number" />
-          <Input defaultValue={settings.data?.reporting_currency_code ?? ''} label="Валюта отчёта" name="reporting_currency_code" />
-          <Input defaultValue={settings.data?.financial_month_close_day ?? ''} label="День закрытия месяца" max="28" min="1" name="financial_month_close_day" type="number" />
-          <label className="flex min-h-11 items-center gap-2 text-sm font-medium text-slate-700">
+          <Input
+            defaultValue={settings.data?.large_expense_threshold ?? ''}
+            label={t('Порог крупного расхода')}
+            min="0"
+            name="large_expense_threshold"
+            placeholder="Например: 100"
+            step="0.01"
+            type="number"
+          />
+          <Input
+            defaultValue={reportingCurrency}
+            label={t('Валюта отчёта')}
+            maxLength={3}
+            name="reporting_currency_code"
+            placeholder="AZN"
+          />
+          <Input
+            defaultValue={closeDay}
+            label={t('День закрытия месяца')}
+            max="28"
+            min="1"
+            name="financial_month_close_day"
+            type="number"
+          />
+          <label className="flex min-h-11 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700">
             <input defaultChecked={settings.data?.require_large_expense_approval ?? false} name="require_large_expense_approval" type="checkbox" />
-            Требовать approval крупных расходов
+            {t('Требовать подтверждение крупных расходов')}
           </label>
         </div>
+
+        <div className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+          <div>
+            <h4 className="text-sm font-semibold text-slate-950">{t('Настройки владельца платформы')}</h4>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              {isPlatformOwner
+                ? t('Вы можете изменить долю платформы для этой организации.')
+                : t('Эти значения назначает только владелец платформы.')}
+            </p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Input
+              defaultValue={platformSharePercentage}
+              disabled={!isPlatformOwner}
+              label={t('Доля платформы, %')}
+              max="100"
+              min="0"
+              name="default_platform_share_percentage"
+              step="0.01"
+              type="number"
+            />
+            <Input
+              defaultValue={platformPaymentDueDays}
+              disabled={!isPlatformOwner}
+              label={t('Срок оплаты доли платформы, дней')}
+              min="0"
+              name="platform_share_payment_due_days"
+              type="number"
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-600">
+          <p>
+            <span className="font-medium text-slate-800">{t('День закрытия месяца')}:</span>{' '}
+            {t('для The Liga сейчас логично держать 15, потому что организация начала работу 15 августа.')}
+          </p>
+          <p>
+            <span className="font-medium text-slate-800">{t('Порог крупного расхода')}:</span>{' '}
+            {t('если включено подтверждение, расходы от этой суммы будут попадать на проверку перед закрытием периода.')}
+          </p>
+          <p>
+            <span className="font-medium text-slate-800">{t('Валюта отчёта')}:</span>{' '}
+            {t('используется только как валюта отображения финансовых отчётов.')}
+          </p>
+        </div>
+
         <Button className="justify-self-start" disabled={mutation.isPending} type="submit">
           <Settings aria-hidden="true" className="size-4" />
-          Сохранить
+          {t('Сохранить')}
         </Button>
       </form>
     </section>

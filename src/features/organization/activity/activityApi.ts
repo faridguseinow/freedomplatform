@@ -76,6 +76,8 @@ const actionLabels: Record<string, string> = {
   'finance.expense_approved': 'одобрил расход',
   'finance.expense_rejected': 'отклонил расход',
   'finance.period_submitted': 'отправил финансовый период на проверку',
+  'finance.period_updated': 'изменил финансовый период',
+  'finance.period_cancelled': 'удалил финансовый период',
   'finance.period_approved': 'одобрил финансовый период',
   'finance.period_rejected': 'отклонил финансовый период',
   'finance.period_clarification_requested': 'запросил уточнение по периоду',

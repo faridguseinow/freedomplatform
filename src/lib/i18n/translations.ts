@@ -657,7 +657,65 @@ export const azTranslations: Record<string, string> = {
   'Финансовые категории': 'Maliyyə kateqoriyaları',
   'Финансовые настройки организации. Долю платформы меняет только владелец платформы.':
     'Təşkilatın maliyyə ayarları. Platforma payını yalnız platforma sahibi dəyişir.',
+  'Текущие правила расчёта': 'Cari hesablama qaydaları',
+  'Эти показатели показывают, как сейчас делится чистая прибыль и какой финансовый цикл используется для периодов.':
+    'Bu göstəricilər xalis mənfəətin hazırda necə bölündüyünü və dövrlər üçün hansı maliyyə dövrünün istifadə edildiyini göstərir.',
+  'Процент, который будет начислен Freedom Platform после утверждения финансового периода.':
+    'Maliyyə dövrü təsdiqləndikdən sonra Freedom Platform üçün hesablanacaq faiz.',
+  'Доля владельца': 'Sahibin payı',
+  'Оставшаяся часть чистой прибыли после доли платформы.':
+    'Platforma payından sonra qalan xalis mənfəət hissəsi.',
+  'Текущий финансовый период': 'Cari maliyyə dövrü',
+  'Текущий расчётный период': 'Cari hesablama dövrü',
+  'Карточки дохода, COGS, прибыли, оплаты картой и cash out считаются внутри этого периода.':
+    'Gəlir, COGS, mənfəət, kartla ödəniş və cash out kartları bu dövr daxilində hesablanır.',
+  'Если день 15, текущий период идёт с 15-го числа до 14-го числа следующего месяца.':
+    'Gün 15-dirsə, cari dövr ayın 15-dən növbəti ayın 14-nə qədər davam edir.',
+  'Срок оплаты доли платформы': 'Platforma payının ödəniş müddəti',
+  'После закрытия периода долю платформы нужно оплатить в течение этого количества дней.':
+    'Dövr bağlandıqdan sonra platforma payı bu gün sayı ərzində ödənilməlidir.',
+  дней: 'gün',
+  'Следующее закрытие финансового месяца': 'Növbəti maliyyə ayı bağlanışı',
+  'Проверьте, что все смены закрыты, расходы внесены, а спорные оплаты исправлены до отправки периода.':
+    'Dövr göndərilməzdən əvvəl bütün növbələrin bağlandığını, xərclərin daxil edildiyini və mübahisəli ödənişlərin düzəldildiyini yoxlayın.',
+  'Рабочие настройки организации': 'Təşkilatın iş ayarları',
+  'Эти параметры влияют на отчёты, создание периодов и проверку крупных расходов.':
+    'Bu parametrlər hesabatlara, dövrlərin yaradılmasına və böyük xərclərin yoxlanmasına təsir edir.',
+  'Настройки владельца платформы': 'Platforma sahibinin ayarları',
+  'Вы можете изменить долю платформы для этой организации.':
+    'Bu təşkilat üçün platforma payını dəyişə bilərsiniz.',
+  'Эти значения назначает только владелец платформы.':
+    'Bu dəyərləri yalnız platforma sahibi təyin edir.',
+  'Срок оплаты доли платформы, дней': 'Platforma payının ödəniş müddəti, gün',
+  'Требовать подтверждение крупных расходов': 'Böyük xərclər üçün təsdiq tələb et',
+  'для The Liga сейчас логично держать 15, потому что организация начала работу 15 августа.':
+    'The Liga üçün hazırda 15 saxlamaq məntiqlidir, çünki təşkilat 15 avqustda işə başlayıb.',
+  'если включено подтверждение, расходы от этой суммы будут попадать на проверку перед закрытием периода.':
+    'təsdiq aktivdirsə, bu məbləğdən başlayan xərclər dövr bağlanmazdan əvvəl yoxlamaya düşəcək.',
+  'используется только как валюта отображения финансовых отчётов.':
+    'yalnız maliyyə hesabatlarının göstərilmə valyutası kimi istifadə olunur.',
   'Финансовые периоды': 'Maliyyə dövrləri',
+  'Создать период': 'Dövr yarat',
+  'Выберите даты, система пересчитает доходы, COGS, расходы, прибыль и отправит период на проверку.':
+    'Tarixləri seçin, sistem gəlirləri, COGS, xərcləri, mənfəəti yenidən hesablayacaq və dövrü yoxlamaya göndərəcək.',
+  'Список периодов': 'Dövrlər siyahısı',
+  'Редактирование пересчитывает период. Удаление помечает период как удалённый, закрытые периоды остаются архивом.':
+    'Redaktə dövrü yenidən hesablayır. Silmə dövrü silinmiş kimi işarələyir, bağlı dövrlər arxivdə qalır.',
+  Удалённые: 'Silinənlər',
+  'Периоды загружаются...': 'Dövrlər yüklənir...',
+  Период: 'Dövr',
+  Прибыль: 'Mənfəət',
+  Доля: 'Pay',
+  Владельцу: 'Sahibə',
+  Удалён: 'Silinib',
+  'Периодов в этом фильтре нет.': 'Bu filtrdə dövr yoxdur.',
+  'Изменить период': 'Dövrü dəyiş',
+  'После сохранения суммы будут пересчитаны по новым датам.':
+    'Yadda saxladıqdan sonra məbləğlər yeni tarixlər üzrə yenidən hesablanacaq.',
+  'Удалить период': 'Dövrü sil',
+  'Период будет помечен как удалённый. Физически финансовые записи не удаляются.':
+    'Dövr silinmiş kimi işarələnəcək. Maliyyə qeydləri fiziki olaraq silinmir.',
+  'Например: неверные даты периода': 'Məsələn: dövr tarixləri səhvdir',
   'Финансовый период': 'Maliyyə dövrü',
   'Финансовый период закрыт и не может быть изменён.':
     'Maliyyə dövrü bağlanıb və dəyişdirilə bilməz.',
@@ -1093,6 +1151,7 @@ export const azTranslations: Record<string, string> = {
   'Выручка по направлениям (итого)': 'İstiqamətlər üzrə gəlir (cəmi)',
   'Выручка по направлениям (сегодня)': 'İstiqamətlər üzrə gəlir (bugün)',
   'Выручка по направлениям (смена)': 'İstiqamətlər üzrə gəlir (növbə)',
+  'Выручка сегодня (всего)': 'Bugünkü gəlir (cəmi)',
   'Выручка смены (всего)': 'Növbə gəliri (cəmi)',
   'По карте': 'Kartla',
   'Операционный день': 'Əməliyyat günü',
@@ -1183,7 +1242,9 @@ export const azTranslations: Record<string, string> = {
   'создал ручной доход': 'əl ilə gəlir yaratdı',
   'создал запрос на исправление': 'düzəliş sorğusu yaratdı',
   'изменил расход': 'xərci dəyişdi',
+  'изменил финансовый период': 'maliyyə dövrünü dəyişdi',
   'удалил расход': 'xərci sildi',
+  'удалил финансовый период': 'maliyyə dövrünü sildi',
   'удалил товар': 'məhsulu sildi',
   'очистил тестовые заказы': 'test sifarişlərini təmizlədi',
   товар: 'məhsul',
