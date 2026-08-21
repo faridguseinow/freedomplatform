@@ -15,7 +15,7 @@ import {
   X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { EmptyState } from '../../../components/common/EmptyState'
 import { Button } from '../../../components/ui/Button'
@@ -93,6 +93,25 @@ function getFinancialCycle(closeDay: number | null | undefined) {
     nextClose: formatDateInput(nextClose),
     start: formatDateInput(start),
   }
+}
+
+function useCurrentDate() {
+  const [currentDate, setCurrentDate] = useState(() => todayDate())
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setCurrentDate(todayDate()), 60_000)
+    return () => window.clearInterval(intervalId)
+  }, [])
+
+  return currentDate
+}
+
+function financialPeriodMutationMessage(message: string, t: (value: string) => string) {
+  if (message.includes('public.cancel_financial_period')) {
+    return t('Удаление периодов ещё не подключено в базе. Примените последнюю миграцию Supabase и обновите schema cache.')
+  }
+
+  return message
 }
 
 const statusLabel: Record<string, string> = {
@@ -252,10 +271,10 @@ function StatGrid({
         'Валовая прибыль минус операционные расходы. Это прибыль до расчёта доли платформы.',
     },
     {
-      label: 'Итого владельцу',
-      value: summary?.organization_owner_amount,
+      label: 'Доля платформы',
+      value: summary?.platform_share_amount,
       description:
-        'Итоговая сумма для владельца после расчётов периода. Если чистая прибыль отрицательная, сумма тоже может быть отрицательной.',
+        'Считается только если чистая прибыль положительная: чистая прибыль × процент платформы. Если чистая прибыль отрицательная, доля платформы равна 0.',
     },
     showCardPayment
       ? {
@@ -739,12 +758,13 @@ function AdminFinanceShell({
 export function AdminFinancePage() {
   const { currentOrganization, organizationId } = useAuth()
   const { t } = useI18n()
+  const currentDate = useCurrentDate()
   const summary = useFinanceDashboardSummary(organizationId)
   const settings = useFinanceSettings(organizationId)
   const currentCycle = getFinancialCycle(settings.data?.financial_month_close_day)
-  const periodSummary = useFinancePeriodSummary(organizationId, currentCycle.start, DEFAULT_END)
-  const paymentMethodSummary = usePaymentMethodSummary(organizationId, currentCycle.start, DEFAULT_END)
-  const revenueBreakdown = useRevenueBreakdown(organizationId, ALL_TIME_START, DEFAULT_END)
+  const periodSummary = useFinancePeriodSummary(organizationId, currentCycle.start, currentDate)
+  const paymentMethodSummary = usePaymentMethodSummary(organizationId, currentCycle.start, currentDate)
+  const revenueBreakdown = useRevenueBreakdown(organizationId, ALL_TIME_START, currentDate)
   const buildAdminPath = (path: string) =>
     currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
 
@@ -755,8 +775,8 @@ export function AdminFinancePage() {
         description="Финансовый центр организации: доходы, расходы, P&L, движение денег и аналитика оплат."
       />
       <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-900">
-        {t('Текущий расчётный период')}: {currentCycle.start} - {DEFAULT_END}.{' '}
-        {t('Карточки дохода, COGS, прибыли, оплаты картой и cash out считаются внутри этого периода.')}
+        {t('Текущий расчётный период')}: {currentCycle.start} - {currentDate}.{' '}
+        {t('Карточки дохода, COGS, прибыли, доли платформы, оплаты картой и cash out считаются с начала периода до сегодняшнего дня.')}
       </div>
       <StatGrid
         cardPayment={paymentMethodSummary.data?.card ?? null}
@@ -829,9 +849,10 @@ export function AdminFinancePurchasesPage() {
 
 export function AdminFinanceCashFlowPage() {
   const { organizationId } = useAuth()
+  const currentDate = useCurrentDate()
   const settings = useFinanceSettings(organizationId)
   const currentCycle = getFinancialCycle(settings.data?.financial_month_close_day)
-  const summary = useFinancePeriodSummary(organizationId, currentCycle.start, DEFAULT_END)
+  const summary = useFinancePeriodSummary(organizationId, currentCycle.start, currentDate)
   return (
     <section className="grid gap-5">
       <PageHeader description="Движение денег по датам оплаты за текущий финансовый период." title="Cash flow" />
@@ -842,9 +863,10 @@ export function AdminFinanceCashFlowPage() {
 
 export function AdminFinanceProfitLossPage() {
   const { organizationId } = useAuth()
+  const currentDate = useCurrentDate()
   const settings = useFinanceSettings(organizationId)
   const currentCycle = getFinancialCycle(settings.data?.financial_month_close_day)
-  const summary = useFinancePeriodSummary(organizationId, currentCycle.start, DEFAULT_END)
+  const summary = useFinancePeriodSummary(organizationId, currentCycle.start, currentDate)
   return (
     <section className="grid gap-5">
       <PageHeader description="P&L по начислению: выручка, COGS по snapshots, расходы и чистая прибыль." title="P&L" />
@@ -953,6 +975,9 @@ export function AdminFinancePeriodsPage() {
   )
   const mutationError =
     mutations.submit.error ?? mutations.update.error ?? mutations.cancel.error
+  const mutationErrorMessage = mutationError
+    ? financialPeriodMutationMessage(mutationError.message, t)
+    : null
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -1041,9 +1066,9 @@ export function AdminFinancePeriodsPage() {
     <section className="grid gap-5">
       <PageHeader description={t('Закрытие финансовых периодов и отправка на проверку платформе.')} title={t('Финансовые периоды')} />
 
-      {mutationError ? (
+      {mutationErrorMessage ? (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {mutationError.message}
+          {mutationErrorMessage}
         </div>
       ) : null}
 

@@ -669,6 +669,8 @@ export const azTranslations: Record<string, string> = {
   'Текущий расчётный период': 'Cari hesablama dövrü',
   'Карточки дохода, COGS, прибыли, оплаты картой и cash out считаются внутри этого периода.':
     'Gəlir, COGS, mənfəət, kartla ödəniş və cash out kartları bu dövr daxilində hesablanır.',
+  'Карточки дохода, COGS, прибыли, доли платформы, оплаты картой и cash out считаются с начала периода до сегодняшнего дня.':
+    'Gəlir, COGS, mənfəət, platforma payı, kartla ödəniş və cash out kartları dövrün əvvəlindən bu günə qədər hesablanır.',
   'Если день 15, текущий период идёт с 15-го числа до 14-го числа следующего месяца.':
     'Gün 15-dirsə, cari dövr ayın 15-dən növbəti ayın 14-nə qədər davam edir.',
   'Срок оплаты доли платформы': 'Platforma payının ödəniş müddəti',
@@ -1173,8 +1175,14 @@ export const azTranslations: Record<string, string> = {
     'Mənfəətə təsir edən xərclər: ləğv edilməmiş, təsdiq gözləməyən və rədd edilməmiş xərclər, hesablama tarixinə görə.',
   'Валовая прибыль минус операционные расходы. Это прибыль до расчёта доли платформы.':
     'Ümumi mənfəətdən əməliyyat xərcləri çıxılır. Bu, platforma payı hesablanmazdan əvvəlki mənfəətdir.',
+  'Считается только если чистая прибыль положительная: чистая прибыль × процент платформы. Если чистая прибыль отрицательная, доля платформы равна 0.':
+    'Yalnız xalis mənfəət müsbət olduqda hesablanır: xalis mənfəət × platforma faizi. Xalis mənfəət mənfidirsə, platforma payı 0 olur.',
+  'Удаление периодов ещё не подключено в базе. Примените последнюю миграцию Supabase и обновите schema cache.':
+    'Dövrlərin silinməsi bazada hələ qoşulmayıb. Son Supabase miqrasiyasını tətbiq edin və schema cache-i yeniləyin.',
   'Итоговая сумма для владельца после расчётов периода. Если чистая прибыль отрицательная, сумма тоже может быть отрицательной.':
     'Dövr hesablamalarından sonra sahibə qalan yekun məbləğ. Xalis mənfəət mənfidirsə, bu məbləğ də mənfi ola bilər.',
+  'Чистая прибыль минус доля платформы. Если чистая прибыль отрицательная, доля платформы 0, поэтому владельцу показывается тот же минус.':
+    'Xalis mənfəət minus platforma payı. Xalis mənfəət mənfidirsə, platforma payı 0 olur, buna görə sahib üçün eyni mənfi məbləğ göstərilir.',
   'Фактически полученные деньги за текущий период по дате оплаты: оплаченные и частично оплаченные доходы.':
     'Cari dövr üçün ödəniş tarixinə görə faktiki daxil olan pul: ödənilmiş və qismən ödənilmiş gəlirlər.',
   'Фактически потраченные деньги за текущий период по дате оплаты: оплаченные расходы, закупки и платежи платформе.':
