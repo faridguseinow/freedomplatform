@@ -1305,8 +1305,17 @@ export function EmployeeWorkspacePage() {
                             />
                           </label>
                           <div className="grid min-h-0 content-start gap-1.5 overflow-y-auto pr-1">
-                            {pickerTab === 'products'
-                              ? filteredProducts.map((product) => (
+                            {pickerTab === 'products' ? (
+                              productsQuery.isLoading ? (
+                                <div className="rounded-md border border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">
+                                  Məhsullar yüklənir...
+                                </div>
+                              ) : productsQuery.error ? (
+                                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-4 text-sm text-red-700">
+                                  Məhsullar yüklənmədi: {productsQuery.error.message}
+                                </div>
+                              ) : filteredProducts.length ? (
+                                filteredProducts.map((product) => (
                                   <CatalogAddButton
                                     imagePath={product.image_path}
                                     isOpeningDayShift={isOpeningDayShift}
@@ -1317,7 +1326,12 @@ export function EmployeeWorkspacePage() {
                                     price={product.sale_price}
                                   />
                                 ))
-                              : null}
+                              ) : (
+                                <div className="rounded-md border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">
+                                  Məhsul tapılmadı.
+                                </div>
+                              )
+                            ) : null}
                             {pickerTab === 'services'
                               ? filteredServices.map((service) => (
                                   <CatalogAddButton

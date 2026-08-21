@@ -1,9 +1,24 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../../../lib/supabase/client'
+import type { EmployeeProductRow } from '../../../lib/supabase/database.types'
 
 type EmployeeCatalogParams = {
   organizationId: string | null
 }
+
+type EmployeeProductMaybeStock = Omit<
+  EmployeeProductRow,
+  'minimum_stock_quantity' | 'stock_quantity' | 'track_stock'
+> &
+  Partial<Pick<EmployeeProductRow, 'minimum_stock_quantity' | 'stock_quantity' | 'track_stock'>>
+
+const normalizeEmployeeProducts = (rows: EmployeeProductMaybeStock[]): EmployeeProductRow[] =>
+  rows.map((row) => ({
+    ...row,
+    minimum_stock_quantity: row.minimum_stock_quantity ?? 0,
+    stock_quantity: row.stock_quantity ?? 0,
+    track_stock: row.track_stock ?? false,
+  }))
 
 export function useEmployeeCategories({ organizationId }: EmployeeCatalogParams) {
   return useQuery({
@@ -56,47 +71,57 @@ export function useEmployeeProducts({ organizationId }: EmployeeCatalogParams) {
         'id,organization_id,category_id,sku,name,description,characteristics,image_path,sale_price,unit_name,stock_quantity,minimum_stock_quantity,track_stock,sort_order,status'
       const employeeProductBasicSelect =
         'id,organization_id,category_id,sku,name,description,characteristics,image_path,sale_price,unit_name,sort_order,status'
+      const productSelect =
+        'id,organization_id,category_id,sku,name,description,characteristics,image_path,sale_price,unit_name,stock_quantity,minimum_stock_quantity,track_stock,sort_order,status'
+      const productBasicSelect =
+        'id,organization_id,category_id,sku,name,description,characteristics,image_path,sale_price,unit_name,sort_order,status'
 
-      const { data, error } = await supabase
-        .from('employee_products')
-        .select(employeeProductSelect)
-        .eq('organization_id', organizationId!)
-        .order('sort_order', { ascending: true })
+      const attempts = [
+        () =>
+          supabase
+            .from('employee_products')
+            .select(employeeProductSelect)
+            .eq('organization_id', organizationId!)
+            .order('sort_order', { ascending: true }),
+        () =>
+          supabase
+            .from('products')
+            .select(productSelect)
+            .eq('organization_id', organizationId!)
+            .eq('status', 'active')
+            .order('sort_order', { ascending: true }),
+        () =>
+          supabase
+            .from('employee_products')
+            .select(employeeProductBasicSelect)
+            .eq('organization_id', organizationId!)
+            .order('sort_order', { ascending: true }),
+        () =>
+          supabase
+            .from('products')
+            .select(productBasicSelect)
+            .eq('organization_id', organizationId!)
+            .eq('status', 'active')
+            .order('sort_order', { ascending: true }),
+      ]
 
-      if (!error && data.length) {
-        return data
-      }
-
-      const fallback = await supabase
-        .from('products')
-        .select(
-          'id,organization_id,category_id,sku,name,description,characteristics,image_path,sale_price,unit_name,stock_quantity,minimum_stock_quantity,track_stock,sort_order,status',
-        )
-        .eq('organization_id', organizationId!)
-        .eq('status', 'active')
-        .order('sort_order', { ascending: true })
-
-      if (!fallback.error) {
-        return fallback.data
-      }
-
-      if (error) {
-        const basic = await supabase
-          .from('employee_products')
-          .select(employeeProductBasicSelect)
-          .eq('organization_id', organizationId!)
-          .order('sort_order', { ascending: true })
-
-        if (!basic.error) {
-          return basic.data
+      let lastError: Error | null = null
+      let firstEmptyResult: EmployeeProductRow[] | null = null
+      for (const attempt of attempts) {
+        const { data, error } = await attempt()
+        if (error) {
+          lastError = new Error(error.message)
+          continue
         }
+        const rows = normalizeEmployeeProducts((data ?? []) as EmployeeProductMaybeStock[])
+        if (rows.length) {
+          return rows
+        }
+        firstEmptyResult ??= rows
       }
 
-      if (error) {
-        throw new Error(error.message)
-      }
-
-      throw new Error(fallback.error.message)
+      if (firstEmptyResult) return firstEmptyResult
+      throw lastError ?? new Error('Məhsullar yüklənmədi.')
     },
   })
 }
