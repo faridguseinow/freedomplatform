@@ -156,9 +156,15 @@ begin
     status = 'accepted',
     accepted_by = auth.uid(),
     accepted_at = now()
-  where organization_id = shift_row.organization_id
-    and operational_day_id = shift_row.operational_day_id
-    and status = 'pending'
+  where id = (
+    select sh.id
+    from public.shift_handovers sh
+    where sh.organization_id = shift_row.organization_id
+      and sh.operational_day_id = shift_row.operational_day_id
+      and sh.status = 'pending'
+    order by sh.created_at desc, sh.id desc
+    limit 1
+  )
   returning * into accepted_handover;
 
   perform public.log_audit(

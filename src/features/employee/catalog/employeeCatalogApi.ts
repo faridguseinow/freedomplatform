@@ -50,13 +50,16 @@ export function useEmployeePlaces({ organizationId }: EmployeeCatalogParams) {
 export function useEmployeeProducts({ organizationId }: EmployeeCatalogParams) {
   return useQuery({
     enabled: Boolean(organizationId),
-    queryKey: ['employee', 'catalog', 'products', organizationId],
+    queryKey: ['employee', 'catalog', 'products', 'stock-v2', organizationId],
     queryFn: async () => {
+      const employeeProductSelect =
+        'id,organization_id,category_id,sku,name,description,characteristics,image_path,sale_price,unit_name,stock_quantity,minimum_stock_quantity,track_stock,sort_order,status'
+      const employeeProductBasicSelect =
+        'id,organization_id,category_id,sku,name,description,characteristics,image_path,sale_price,unit_name,sort_order,status'
+
       const { data, error } = await supabase
         .from('employee_products')
-        .select(
-          'id,organization_id,category_id,sku,name,description,characteristics,image_path,sale_price,unit_name,sort_order,status',
-        )
+        .select(employeeProductSelect)
         .eq('organization_id', organizationId!)
         .order('sort_order', { ascending: true })
 
@@ -67,7 +70,7 @@ export function useEmployeeProducts({ organizationId }: EmployeeCatalogParams) {
       const fallback = await supabase
         .from('products')
         .select(
-          'id,organization_id,category_id,sku,name,description,characteristics,image_path,sale_price,unit_name,sort_order,status',
+          'id,organization_id,category_id,sku,name,description,characteristics,image_path,sale_price,unit_name,stock_quantity,minimum_stock_quantity,track_stock,sort_order,status',
         )
         .eq('organization_id', organizationId!)
         .eq('status', 'active')
@@ -75,6 +78,18 @@ export function useEmployeeProducts({ organizationId }: EmployeeCatalogParams) {
 
       if (!fallback.error) {
         return fallback.data
+      }
+
+      if (error) {
+        const basic = await supabase
+          .from('employee_products')
+          .select(employeeProductBasicSelect)
+          .eq('organization_id', organizationId!)
+          .order('sort_order', { ascending: true })
+
+        if (!basic.error) {
+          return basic.data
+        }
       }
 
       if (error) {

@@ -340,6 +340,9 @@ export type EmployeeProductRow = Pick<
   | 'image_path'
   | 'sale_price'
   | 'unit_name'
+  | 'stock_quantity'
+  | 'minimum_stock_quantity'
+  | 'track_stock'
   | 'sort_order'
   | 'status'
 >
@@ -1113,6 +1116,7 @@ export type AdminShiftReportRow = EmployeeShiftRow & {
   shift_template_name: string | null
   employee_email: string | null
   employee_full_name: string | null
+  employee_role: AppRole | null
 }
 
 export type AdminOperationalDayReportRow = OperationalDayRow & {

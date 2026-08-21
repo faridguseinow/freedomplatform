@@ -20,6 +20,11 @@ const AdminDashboardPage = lazy(() =>
     default: module.AdminDashboardPage,
   })),
 )
+const AdminLiveMonitorPage = lazy(() =>
+  import('../../features/organization/pages/AdminLiveMonitorPage').then((module) => ({
+    default: module.AdminLiveMonitorPage,
+  })),
+)
 const AdminEmployeesPage = lazy(() =>
   import('../../features/organization/pages/AdminEmployeesPage').then((module) => ({
     default: module.AdminEmployeesPage,
@@ -288,6 +293,7 @@ export function AppRouter() {
               <Route element={<AdminLayout />} path="/:organizationSlug/admin">
               <Route element={lazyPage(<AdminDashboardPage />)} index />
               <Route element={lazyPage(<AdminDashboardPage />)} path="dashboard" />
+              <Route element={lazyPage(<AdminLiveMonitorPage />)} path="live" />
               <Route element={lazyPage(<AdminEmployeesPage />)} path="employees" />
               <Route element={lazyPage(<AdminCatalogPage />)} path="catalog" />
               <Route element={lazyPage(<AdminCategoriesPage />)} path="categories" />

@@ -11,6 +11,11 @@ import {
 import { formatAzn } from './helpers/format'
 import { CatalogImage } from '../../../components/common/CatalogImage'
 
+const formatQuantity = (value: number | null | undefined) => {
+  if (value === null || value === undefined) return null
+  return new Intl.NumberFormat('ru', { maximumFractionDigits: 3 }).format(value)
+}
+
 export function EmployeeMenuPage() {
   const { t } = useI18n()
   const { currentOrganization } = useAuth()
@@ -19,6 +24,8 @@ export function EmployeeMenuPage() {
   const productsQuery = useEmployeeProducts({ organizationId })
   const servicesQuery = useEmployeeServices({ organizationId })
   const combosQuery = useEmployeeCombos({ organizationId })
+  const [expandedIds, setExpandedIds] = React.useState<Record<string, boolean>>({})
+  const toggleExpanded = (id: string) => setExpandedIds((s) => ({ ...s, [id]: !s[id] }))
 
   const loading = productsQuery.isLoading || servicesQuery.isLoading || combosQuery.isLoading
   const error = productsQuery.error || servicesQuery.error || combosQuery.error
@@ -41,6 +48,9 @@ export function EmployeeMenuPage() {
       type: 'product',
       imagePath: p.image_path ?? null,
       categoryId: p.category_id ?? null,
+      stockQuantity: p.stock_quantity ?? null,
+      trackStock: p.track_stock ?? null,
+      unitName: p.unit_name ?? null,
       sortOrder: p.sort_order ?? 0,
     })),
     ...services.map((s: any) => ({
@@ -122,8 +132,6 @@ export function EmployeeMenuPage() {
   const orderedCategoryKeys = categories.map((c: any) => String(c.id))
   if (comboCategoryKey) orderedCategoryKeys.push(comboCategoryKey)
   if (itemsByCategory['uncategorized'] && itemsByCategory['uncategorized'].length) orderedCategoryKeys.push('uncategorized')
-  const [expandedIds, setExpandedIds] = React.useState<Record<string, boolean>>({})
-  const toggleExpanded = (id: string) => setExpandedIds((s) => ({ ...s, [id]: !s[id] }))
 
   return (
     <div className="p-4">
@@ -148,30 +156,39 @@ export function EmployeeMenuPage() {
                 </h2>
               </div>
 
-              <ul className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+              <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                 {list.map((it: any) => {
                   const isCombo = it.type === 'combo'
                   const isExpanded = Boolean(expandedIds[it.id])
-                  // short preview
-                  const ingredientsPreview = (it.componentsNames && it.componentsNames.length)
-                    ? it.componentsNames.slice(0, 5).join(', ') + (it.componentsNames.length > 5 ? '…' : '')
-                    : null
+                  const quantity = formatQuantity(it.type === 'combo' ? it.availableQuantity : it.stockQuantity)
+                  const hasCountedStock = (it.type === 'product' && it.trackStock !== false && quantity != null) || (isCombo && quantity != null)
+                  const isOutOfStock = hasCountedStock && Number(it.type === 'combo' ? it.availableQuantity : it.stockQuantity) <= 0
+                  const stockLabel =
+                    it.type === 'service'
+                      ? t('Услуга')
+                      : hasCountedStock
+                        ? `${t('Осталось')}: ${quantity}${it.unitName ? ` ${it.unitName}` : ''}`
+                        : null
 
                   return (
-                    <li key={it.id} className="flex flex-col gap-3 p-3 rounded-md border bg-white">
-                      <div className="flex items-center gap-3 w-full">
-                        <CatalogImage alt={it.name} imagePath={it.imagePath} className="w-20 h-20 rounded" />
+                    <li
+                      key={it.id}
+                      className="grid gap-2 rounded-md border border-slate-200 bg-white p-2 shadow-sm transition hover:border-emerald-200 hover:shadow-md"
+                    >
+                      <div className="grid grid-cols-[3.25rem_1fr] gap-2">
+                        <CatalogImage alt={it.name} imagePath={it.imagePath} className="size-[3.25rem] rounded-md object-contain" />
 
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate font-medium">
+                        <div className="grid min-w-0 content-start gap-1">
+                          <div className="truncate text-sm font-semibold text-slate-950" title={it.name}>
                             {it.name}
-                            {it.availableQuantity != null ? ` · ${it.availableQuantity}` : ''}
-                            {ingredientsPreview ? ` — ${ingredientsPreview}` : ''}
                           </div>
-                          <div className="text-xs text-slate-500">{t(it.type)}</div>
+                          <div className="text-sm font-semibold text-slate-950">{formatAzn(it.price)}</div>
+                          {stockLabel ? (
+                            <div className={isOutOfStock ? 'text-xs font-medium text-red-600' : 'text-xs text-slate-500'}>
+                              {isOutOfStock ? t('Нет в наличии') : stockLabel}
+                            </div>
+                          ) : null}
                         </div>
-
-                        <div className="ml-4 font-semibold whitespace-nowrap">{formatAzn(it.price)}</div>
                       </div>
 
                       {isCombo && it.componentsNames && it.componentsNames.length ? (

@@ -11,6 +11,7 @@ export type ActivityEvent = {
   actorUserId: string | null
   actorName: string
   action: string
+  actionLabel: string
   entityType: string
   entityId: string | null
   title: string
@@ -57,6 +58,7 @@ const actionLabels: Record<string, string> = {
   'session.started': 'запустил сессию',
   'session.completed': 'завершил сессию',
   'payment.completed': 'принял оплату',
+  'payment.tip_recorded': 'записал чаевые',
   'payment.refused': 'оформил отказ от оплаты',
   'shift.opened': 'открыл смену',
   'shift.closed': 'закрыл смену',
@@ -124,12 +126,20 @@ function buildDetails(metadata: RawMetadata) {
   const details: string[] = []
   const section = getSectionLabel(metadata.path)
   const amount = formatMoney(metadata.amount)
+  const tipAmount = formatMoney(metadata.tip_amount)
+  const totalAmount = formatMoney(metadata.total_amount)
+  const paymentMethodLabels: Record<string, string> = {
+    cash: 'Наличными',
+    card_transfer: 'Перевод на карту',
+  }
 
   if (section) details.push(`Раздел: ${section}`)
   if (typeof metadata.order_number === 'number') details.push(`Заказ #${metadata.order_number}`)
   if (typeof metadata.type === 'string') details.push(`Тип: ${metadata.type}`)
-  if (typeof metadata.method === 'string') details.push(`Метод оплаты: ${metadata.method}`)
+  if (typeof metadata.method === 'string') details.push(`Метод оплаты: ${paymentMethodLabels[metadata.method] ?? metadata.method}`)
   if (amount) details.push(`Сумма: ${amount}`)
+  if (tipAmount) details.push(`Чаевые: ${tipAmount}`)
+  if (totalAmount) details.push(`Сумма заказа: ${totalAmount}`)
   if (typeof metadata.quantity === 'number') details.push(`Количество: ${metadata.quantity}`)
   if (typeof metadata.billable_minutes === 'number') details.push(`Минуты: ${metadata.billable_minutes}`)
   if (typeof metadata.reason === 'string') details.push(`Причина: ${metadata.reason}`)
@@ -148,11 +158,29 @@ function buildFinanceDetails(log: FinanceAuditLogRow) {
   const details: string[] = []
   const afterData = asRecord(log.after_data)
   const amount = formatMoney(afterData.amount ?? afterData.accrued_amount ?? afterData.paid_amount)
+  const statusLabels: Record<string, string> = {
+    paid: 'Оплачено',
+    unpaid: 'Не оплачено',
+    pending: 'Ожидает оплату',
+    approved: 'Одобрено',
+    rejected: 'Отклонено',
+    cancelled: 'Отменено',
+    locked: 'Закрыт',
+    draft: 'Черновик',
+  }
+  const transactionTypeLabels: Record<string, string> = {
+    income: 'Доход',
+    expense: 'Расход',
+    purchase: 'Закупка',
+    platform_share_payment: 'Оплата доли платформы',
+  }
 
   if (amount) details.push(`Сумма: ${amount}`)
   if (typeof afterData.title === 'string') details.push(`Название: ${afterData.title}`)
-  if (typeof afterData.status === 'string') details.push(`Статус: ${afterData.status}`)
-  if (typeof afterData.transaction_type === 'string') details.push(`Тип операции: ${afterData.transaction_type}`)
+  if (typeof afterData.status === 'string') details.push(`Статус: ${statusLabels[afterData.status] ?? afterData.status}`)
+  if (typeof afterData.transaction_type === 'string') {
+    details.push(`Тип операции: ${transactionTypeLabels[afterData.transaction_type] ?? afterData.transaction_type}`)
+  }
   if (log.reason) details.push(`Комментарий: ${log.reason}`)
 
   return details
@@ -178,6 +206,7 @@ function toActivityEvent(
     actorUserId: log.actor_user_id,
     actorName: getProfileName(log.actor_user_id ? profiles.get(log.actor_user_id) : undefined, log.actor_user_id),
     action: log.action,
+    actionLabel,
     entityType: entityLabel,
     entityId: log.entity_id,
     title,
@@ -200,6 +229,7 @@ function toFinanceActivityEvent(
     actorUserId: log.actor_user_id,
     actorName,
     action: log.action,
+    actionLabel,
     entityType: entityLabels[log.entity_type] ?? log.entity_type,
     entityId: log.entity_id,
     title: `${actorName} ${actionLabel}`,

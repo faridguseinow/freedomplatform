@@ -4,7 +4,7 @@ import {
   CalendarCheck,
   Edit3,
   Eye,
-  Landmark,
+  HelpCircle,
   ListChecks,
   Loader2,
   ReceiptText,
@@ -12,7 +12,6 @@ import {
   Save,
   Settings,
   Trash2,
-  WalletCards,
   X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -23,6 +22,7 @@ import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
 import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
+import { useI18n } from '../../../lib/i18n/I18nContext'
 import type {
   FinancePaymentMethod,
   FinanceTransactionRow,
@@ -47,6 +47,11 @@ import {
 } from '../financialPeriodsApi'
 import { useIncomeMutations } from '../incomeApi'
 import {
+  usePaymentMethodSummary,
+  usePaymentTrafficAnalytics,
+  useRevenueBreakdown,
+} from '../../orders/paymentsApi'
+import {
   useRecurringExpenseMutations,
   useRecurringExpenses,
   type RecurringExpenseInput,
@@ -55,6 +60,7 @@ import { usePlatformShareAccruals, usePlatformShareMutations } from '../platform
 
 const DEFAULT_START = monthStartDate()
 const DEFAULT_END = todayDate()
+const ALL_TIME_START = '1970-01-01'
 
 const money = (value: number | null | undefined) =>
   new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(
@@ -87,9 +93,7 @@ const methodOptions: { value: FinancePaymentMethod; label: string }[] = [
 const financeLinks: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: '/admin/finance/income', label: 'Доходы', Icon: Banknote },
   { href: '/admin/finance/expenses', label: 'Расходы', Icon: ReceiptText },
-  { href: '/admin/finance/purchases', label: 'Закупки', Icon: WalletCards },
   { href: '/admin/finance/periods', label: 'Периоды', Icon: CalendarCheck },
-  { href: '/admin/finance/platform-share', label: 'Доля платформы', Icon: Landmark },
   { href: '/admin/finance/settings', label: 'Настройки', Icon: Settings },
 ]
 
@@ -115,27 +119,232 @@ function PageHeader({
   )
 }
 
-function StatGrid({ summary }: { summary: FinancialPeriodSummary | null | undefined }) {
+function MetricCard({
+  description,
+  label,
+  value,
+}: {
+  description?: string
+  label: string
+  value: number | null | undefined
+}) {
+  const { t } = useI18n()
+  return (
+    <div className="relative rounded-md border border-slate-200 bg-white p-4">
+      <div className="flex items-center gap-2">
+        <p className="text-xs font-medium uppercase text-slate-500">{t(label)}</p>
+        {description ? (
+          <div className="group relative">
+            <button
+              aria-label={t(`Как считается: ${label}`)}
+              className="flex size-5 items-center justify-center rounded-full text-slate-400 outline-none hover:text-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
+              title={t(description)}
+              type="button"
+            >
+              <HelpCircle aria-hidden="true" className="size-4" />
+            </button>
+            <div className="pointer-events-none absolute left-1/2 top-7 z-20 hidden w-72 -translate-x-1/2 rounded-md border border-slate-200 bg-white p-3 text-xs font-normal leading-5 text-slate-700 shadow-lg group-hover:block group-focus-within:block">
+              {t(description)}
+            </div>
+          </div>
+        ) : null}
+      </div>
+      <p className="mt-2 text-xl font-semibold text-slate-950">{money(Number(value ?? 0))}</p>
+    </div>
+  )
+}
+
+function StatGrid({
+  cardPayment,
+  showCardPayment = false,
+  summary,
+}: {
+  cardPayment?: number | null
+  showCardPayment?: boolean
+  summary: FinancialPeriodSummary | null | undefined
+}) {
   const items = [
-    ['Доход', summary?.revenue],
-    ['COGS', summary?.cogs],
-    ['Валовая прибыль', summary?.gross_profit],
-    ['Опер. расходы', summary?.operating_expenses],
-    ['Чистая прибыль', summary?.net_profit_before_platform_share],
-    ['Доля платформы', summary?.platform_share_amount],
-    ['Cash in', summary?.cash_inflow],
-    ['Cash out', summary?.cash_outflow],
+    {
+      label: 'Доход',
+      value: summary?.revenue,
+      description:
+        'Все оплаченные и частично оплаченные доходы за текущий период по дате начисления: доходы из заказов и ручные доходы.',
+    },
+    {
+      label: 'COGS',
+      value: summary?.cogs,
+      description:
+        'Себестоимость проданного за текущий период: сумма snapshot-себестоимости товаров и компонентов комбо в оплаченных заказах.',
+    },
+    {
+      label: 'Валовая прибыль',
+      value: summary?.gross_profit,
+      description:
+        'Доход минус COGS. Показывает прибыль после себестоимости проданного, до операционных расходов.',
+    },
+    {
+      label: 'Опер. расходы',
+      value: summary?.operating_expenses,
+      description:
+        'Расходы, которые влияют на прибыль: не отменённые, не ожидающие подтверждения и не отклонённые, по дате начисления.',
+    },
+    {
+      label: 'Чистая прибыль',
+      value: summary?.net_profit_before_platform_share,
+      description:
+        'Валовая прибыль минус операционные расходы. Это прибыль до расчёта доли платформы.',
+    },
+    {
+      label: 'Итого владельцу',
+      value: summary?.organization_owner_amount,
+      description:
+        'Итоговая сумма для владельца после расчётов периода. Если чистая прибыль отрицательная, сумма тоже может быть отрицательной.',
+    },
+    showCardPayment
+      ? {
+          label: 'Оплата картой',
+          value: cardPayment,
+          description:
+            'Сумма завершённых платежей по карте за текущий период. Считается напрямую из платежей, чтобы видеть безналичный оборот.',
+        }
+      : {
+          label: 'Cash in',
+          value: summary?.cash_inflow,
+          description:
+            'Фактически полученные деньги за текущий период по дате оплаты: оплаченные и частично оплаченные доходы.',
+        },
+    {
+      label: 'Cash out',
+      value: summary?.cash_outflow,
+      description:
+        'Фактически потраченные деньги за текущий период по дате оплаты: оплаченные расходы, закупки и платежи платформе.',
+    },
   ]
 
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      {items.map(([label, value]) => (
-        <div className="rounded-md border border-slate-200 bg-white p-4" key={label}>
-          <p className="text-xs font-medium uppercase text-slate-500">{label}</p>
-          <p className="mt-2 text-xl font-semibold text-slate-950">{money(Number(value ?? 0))}</p>
-        </div>
+      {items.map(({ description, label, value }) => (
+        <MetricCard description={description} key={label} label={label} value={value} />
       ))}
     </div>
+  )
+}
+
+function RevenueBreakdownGrid({
+  billiard,
+  goods,
+  other,
+  playstation,
+  tables,
+}: {
+  billiard: number | undefined
+  goods: number | undefined
+  other?: number | undefined
+  playstation: number | undefined
+  tables: number | undefined
+}) {
+  const items = [
+    {
+      label: 'PlayStation',
+      value: playstation,
+      description:
+        'Выручка по заказам PlayStation без товарных позиций. Товары из этих заказов считаются отдельно в карточке Товары.',
+    },
+    {
+      label: 'Бильярд',
+      value: billiard,
+      description:
+        'Выручка по заказам бильярда без товарных позиций. Товары из этих заказов считаются отдельно в карточке Товары.',
+    },
+    {
+      label: 'Столы',
+      value: tables,
+      description:
+        'Вся оплаченная выручка заказов со столов и VIP-комнат: услуги, товары, комбо и ручные позиции внутри этих заказов.',
+    },
+    {
+      label: 'Прибыль товаров',
+      value: goods,
+      description:
+        'Чистая прибыль по товарным позициям: сумма продаж товаров минус snapshot-себестоимость этих товаров в заказах.',
+    },
+  ]
+
+  if ((other ?? 0) > 0) {
+    items.push({
+      label: 'Другое',
+      value: other,
+      description: 'Оплаченная выручка, которая не относится к PlayStation, бильярду, столам или товарам.',
+    })
+  }
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {items.map((item) => (
+        <MetricCard
+          description={item.description}
+          key={item.label}
+          label={item.label}
+          value={item.value}
+        />
+      ))}
+    </div>
+  )
+}
+
+function PaymentTrafficAnalytics({ organizationId }: { organizationId: string | null }) {
+  const { t } = useI18n()
+  const analytics = usePaymentTrafficAnalytics(organizationId)
+  const points = analytics.data?.points ?? []
+  const peakHour = analytics.data?.peakHour
+  const peakMinute = analytics.data?.peakMinute
+  const maxAmount = Math.max(...points.map((point) => point.amount), 0)
+
+  return (
+    <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-950">{t('Финансовая аналитика')}</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-600">
+            {t('Все завершённые платежи до сегодняшнего дня: распределение по 24 часам и шкала трафика от 1 до 10.')}
+          </p>
+        </div>
+        <div className="grid gap-1 text-sm text-slate-700 sm:text-right">
+          <span>
+            {t('Час пик')}: {peakHour ? `${String(peakHour.hour).padStart(2, '0')}:00` : '—'}
+          </span>
+          <span>
+            {t('Самая частая минута')}: {peakMinute === null || peakMinute === undefined ? '—' : `:${String(peakMinute).padStart(2, '0')}`}
+          </span>
+        </div>
+      </div>
+
+      {analytics.isLoading ? (
+        <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+          {t('Загрузка аналитики...')}
+        </div>
+      ) : null}
+
+      <div className="grid gap-2">
+        {points.map((point) => {
+          const amountWidth = maxAmount > 0 ? Math.max((point.amount / maxAmount) * 100, point.amount > 0 ? 4 : 0) : 0
+          return (
+            <div className="grid grid-cols-[3.5rem_1fr_7rem] items-center gap-3 text-sm" key={point.hour}>
+              <span className="font-medium text-slate-700">{String(point.hour).padStart(2, '0')}:00</span>
+              <div className="h-4 overflow-hidden rounded-sm bg-slate-100">
+                <div
+                  className="h-full rounded-sm bg-emerald-600"
+                  style={{ width: `${amountWidth}%` }}
+                />
+              </div>
+              <span className="text-right text-xs text-slate-600">
+                {money(point.amount)} · {point.count} {t('оплат')} · {point.trafficScore}/10
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 
@@ -474,6 +683,8 @@ export function AdminFinancePage() {
   const { currentOrganization, organizationId } = useAuth()
   const summary = useFinanceDashboardSummary(organizationId)
   const periodSummary = useFinancePeriodSummary(organizationId, DEFAULT_START, DEFAULT_END)
+  const paymentMethodSummary = usePaymentMethodSummary(organizationId, DEFAULT_START, DEFAULT_END)
+  const revenueBreakdown = useRevenueBreakdown(organizationId, ALL_TIME_START, DEFAULT_END)
   const buildAdminPath = (path: string) =>
     currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
 
@@ -481,30 +692,23 @@ export function AdminFinancePage() {
     <section className="grid gap-5">
       <PageHeader
         title="Финансы"
-        description="Финансовый центр организации: доходы, расходы, закупки, cash flow, P&L и доля Freedom Platform."
+        description="Финансовый центр организации: доходы, расходы, P&L, движение денег и аналитика оплат."
       />
-      <StatGrid summary={periodSummary.data} />
-      {summary.data ? (
+      <StatGrid
+        cardPayment={paymentMethodSummary.data?.card ?? null}
+        showCardPayment
+        summary={periodSummary.data}
+      />
+      {revenueBreakdown.data ? (
         <section className="grid gap-3">
-          <h3 className="text-lg font-semibold text-slate-950">Выручка по площадкам (итого)</h3>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-md border border-slate-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase text-slate-500">Playstation</p>
-              <p className="mt-2 text-xl font-semibold text-slate-950">{money(summary.data.playstation_revenue)}</p>
-            </div>
-            <div className="rounded-md border border-slate-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase text-slate-500">Billiard</p>
-              <p className="mt-2 text-xl font-semibold text-slate-950">{money(summary.data.billiard_revenue)}</p>
-            </div>
-            <div className="rounded-md border border-slate-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase text-slate-500">Tables</p>
-              <p className="mt-2 text-xl font-semibold text-slate-950">{money(summary.data.table_revenue)}</p>
-            </div>
-            <div className="rounded-md border border-slate-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase text-slate-500">Goods</p>
-              <p className="mt-2 text-xl font-semibold text-slate-950">{money(summary.data.goods_revenue)}</p>
-            </div>
-          </div>
+          <h3 className="text-lg font-semibold text-slate-950">Выручка по направлениям (итого)</h3>
+          <RevenueBreakdownGrid
+            billiard={revenueBreakdown.data.billiard}
+            goods={revenueBreakdown.data.goods}
+            other={revenueBreakdown.data.other}
+            playstation={revenueBreakdown.data.playstation}
+            tables={revenueBreakdown.data.tables}
+          />
         </section>
       ) : null}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -524,6 +728,7 @@ export function AdminFinancePage() {
           Ожидают подтверждения расходов: {summary.data?.pending_expense_approvals ?? 0}. Периоды на проверке: {summary.data?.periods_waiting_review ?? 0}.
         </p>
       </div>
+      <PaymentTrafficAnalytics organizationId={organizationId} />
     </section>
   )
 }

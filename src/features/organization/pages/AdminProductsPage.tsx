@@ -43,6 +43,7 @@ const productSchema = z.object({
 
 type ProductFormValues = z.infer<typeof productSchema>
 type StatusFilter = CatalogItemStatus | 'all'
+type CategoryFilter = 'all' | 'uncategorized' | string
 
 const statusLabel: Record<CatalogItemStatus, string> = {
   active: 'Активен',
@@ -67,6 +68,11 @@ const parseStockInputValue = (value: string) => Number(value.trim().replace(',',
 
 const roundStockQuantity = (value: number) => Number(value.toFixed(3))
 
+const productNameCollator = new Intl.Collator('az-Latn', {
+  numeric: true,
+  sensitivity: 'base',
+})
+
 export function AdminProductsPage() {
   const { organizationId, user } = useAuth()
   const { t } = useI18n()
@@ -76,6 +82,7 @@ export function AdminProductsPage() {
   const inventoryMutations = useInventoryMutations(organizationId)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active')
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
   const [editingProduct, setEditingProduct] = useState<ProductRow | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -124,14 +131,23 @@ export function AdminProductsPage() {
     return products.filter((product) => {
       const matchesStatus = statusFilter === 'all' || product.status === statusFilter
       if (!matchesStatus) return false
+      const matchesCategory =
+        categoryFilter === 'all' ||
+        (categoryFilter === 'uncategorized' && !product.category_id) ||
+        product.category_id === categoryFilter
+      if (!matchesCategory) return false
       if (!needle) return true
       return [product.name, product.sku, product.characteristics, product.description]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
         .includes(needle)
+    }).sort((first, second) => {
+      const nameCompare = productNameCollator.compare(first.name, second.name)
+      if (nameCompare !== 0) return nameCompare
+      return productNameCollator.compare(first.sku ?? '', second.sku ?? '')
     })
-  }, [products, search, statusFilter])
+  }, [categoryFilter, products, search, statusFilter])
 
   const openCreate = () => {
     setEditingProduct(null)
@@ -379,7 +395,7 @@ export function AdminProductsPage() {
         </Button>
       </header>
 
-      <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_auto]">
+      <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[minmax(220px,1fr)_minmax(170px,240px)_auto] lg:items-end">
         <label className="grid gap-1.5 text-sm font-medium text-slate-700">
           <span>Поиск</span>
           <span className="relative">
@@ -392,6 +408,20 @@ export function AdminProductsPage() {
               value={search}
             />
           </span>
+        </label>
+        <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+          <span>{t('Категория')}</span>
+          <select
+            className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+            onChange={(event) => setCategoryFilter(event.target.value)}
+            value={categoryFilter}
+          >
+            <option value="all">{t('Все категории')}</option>
+            <option value="uncategorized">{t('Без категории')}</option>
+            {productCategories.map((category) => (
+              <option key={category.id} value={category.id}>{category.name}</option>
+            ))}
+          </select>
         </label>
         <div className="flex flex-wrap items-end gap-2">
           {(['all', 'active', 'inactive', 'archived'] as const).map((item) => (
@@ -433,13 +463,13 @@ export function AdminProductsPage() {
       ) : null}
 
       {visibleProducts.length ? (
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-1">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
           {visibleProducts.map((product) => (
             <article
-              className="grid gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-sm sm:gap-3 sm:p-4 lg:grid-cols-[88px_1fr_auto]"
+              className="grid min-h-[310px] gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
               key={product.id}
             >
-              <CatalogImage alt={product.name} className="size-20 self-start sm:size-22" imagePath={product.image_path} />
+              <CatalogImage alt={product.name} className="h-28 w-full self-start rounded-md object-contain sm:h-32" imagePath={product.image_path} />
               <div className="min-w-0">
                 <div className="grid gap-1 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
                   <h3 className="truncate text-sm font-semibold text-slate-950 sm:text-base">{product.name}</h3>
@@ -447,36 +477,26 @@ export function AdminProductsPage() {
                     {statusLabel[product.status]}
                   </span>
                 </div>
-                <p className="mt-1 hidden text-sm text-slate-600 sm:block">{product.characteristics || 'Характеристики не заполнены.'}</p>
-                <dl className="mt-2 grid grid-cols-2 gap-1 text-xs sm:mt-3 sm:grid-cols-5 sm:gap-2 sm:text-sm">
-                  <div className="hidden sm:block"><dt className="text-xs uppercase text-slate-500">SKU</dt><dd>{product.sku || '-'}</dd></div>
-                  <div><dt className="text-xs uppercase text-slate-500">Продажа</dt><dd>{formatMoney(product.sale_price)}</dd></div>
-                  <div><dt className="text-xs uppercase text-slate-500">Закупка</dt><dd>{formatMoney(product.purchase_price)}</dd></div>
-                  <div><dt className="text-xs uppercase text-slate-500">Остаток</dt><dd>{product.track_stock ? `${product.stock_quantity} ${product.unit_name}` : 'Не ведется'}</dd></div>
-                  <div className="hidden sm:block"><dt className="text-xs uppercase text-slate-500">Минимум</dt><dd>{product.minimum_stock_quantity}</dd></div>
+                <dl className="mt-3 grid grid-cols-3 gap-2 text-xs sm:text-sm">
+                  <div><dt className="text-xs uppercase text-slate-500">{t('Продажа')}</dt><dd className="font-semibold text-slate-950">{formatMoney(product.sale_price)}</dd></div>
+                  <div><dt className="text-xs uppercase text-slate-500">{t('Закупка')}</dt><dd className="font-semibold text-slate-950">{formatMoney(product.purchase_price)}</dd></div>
+                  <div><dt className="text-xs uppercase text-slate-500">{t('Остаток')}</dt><dd className="font-semibold text-slate-950">{product.track_stock ? `${product.stock_quantity} ${product.unit_name}` : '—'}</dd></div>
                 </dl>
               </div>
-              <div className="flex flex-wrap gap-2 lg:justify-end">
-                <Button className="min-h-9 w-full px-2 text-xs sm:min-h-10 sm:w-auto sm:px-4 sm:text-sm" onClick={() => openEdit(product)} type="button" variant="secondary">
-                  <Edit3 className="size-4" /> Редактировать
+              <div className="mt-auto grid grid-cols-4 gap-2">
+                <Button aria-label={t('Редактировать')} className="min-h-10 px-2" onClick={() => openEdit(product)} type="button" variant="secondary">
+                  <Edit3 className="size-4" />
                 </Button>
                 <Link
-                  className="hidden min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2 sm:inline-flex"
+                  aria-label={t('История')}
+                  className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-2 text-sm font-medium text-slate-800 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
                   to={`/admin/inventory/products/${product.id}`}
                 >
-                  <History className="size-4" /> История
+                  <History className="size-4" />
                 </Link>
                 <Button
-                  className="min-h-9 w-full px-2 text-xs sm:min-h-10 sm:w-auto sm:px-4 sm:text-sm"
-                  disabled={productMutations.deleteUnused.isPending}
-                  onClick={() => deleteProduct(product)}
-                  type="button"
-                  variant="danger"
-                >
-                  <Trash2 className="size-4" /> Удалить
-                </Button>
-                <Button
-                  className="hidden sm:inline-flex"
+                  aria-label={product.status === 'archived' ? t('Восстановить') : t('Архивировать')}
+                  className="min-h-10 px-2"
                   onClick={() =>
                     productMutations.setStatus.mutate({
                       id: product.id,
@@ -487,7 +507,16 @@ export function AdminProductsPage() {
                   variant={product.status === 'archived' ? 'secondary' : 'danger'}
                 >
                   {product.status === 'archived' ? <RotateCcw className="size-4" /> : <Archive className="size-4" />}
-                  {product.status === 'archived' ? 'Восстановить' : 'Архивировать'}
+                </Button>
+                <Button
+                  aria-label={t('Удалить')}
+                  className="min-h-10 px-2"
+                  disabled={productMutations.deleteUnused.isPending}
+                  onClick={() => deleteProduct(product)}
+                  type="button"
+                  variant="danger"
+                >
+                  <Trash2 className="size-4" />
                 </Button>
               </div>
             </article>
