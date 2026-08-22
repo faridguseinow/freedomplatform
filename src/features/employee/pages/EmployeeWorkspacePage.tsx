@@ -973,7 +973,7 @@ export function EmployeeWorkspacePage() {
                       ) : (
                         <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
                           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                            <span>Çəp</span>
+                            <span>Çayevoy</span>
                             <input
                               className={cn(
                                 'min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15',
@@ -988,12 +988,12 @@ export function EmployeeWorkspacePage() {
                             />
                             <span className={cn('text-xs font-normal text-slate-500', !hasValidTipAmount && 'text-red-700')}>
                               {hasValidTipAmount
-                                ? 'Çəp yoxdur, 0 və ya boş qoyun.'
-                                : 'Çəp mənfi ola bilməz.'}
+                                ? 'Çayevoy yoxdur, 0 və ya boş qoyun.'
+                                : 'Çayevoy mənfi ola bilməz.'}
                             </span>
                           </label>
                           <div className="grid min-h-5 content-center rounded-md bg-green-900 px-2 py-2 text-sm text-white">
-                            <span className="text-xs text-slate-300">Çəplə cəmi</span>
+                            <span className="text-xs text-slate-300">Çayevoy cəmi</span>
                             <span className="text-base font-semibold">{formatAzn(selectedOrderTotalWithTip)}</span>
                           </div>
                         </div>

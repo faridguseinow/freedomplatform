@@ -251,11 +251,10 @@ export function EmployeeShiftPage() {
               value={formatMoney(summary?.card_transfer_sales_total)}
             />
             <ShiftMetric
-              description="Ожидаемая наличность в кассе: начальная наличность при открытии смены плюс наличные продажи текущей смены."
+              description="Сумма наличных, которую указали при открытии этой смены. Она используется как база для расчёта ожидаемой кассы."
               icon={Wallet}
-              label="Касса"
-              tone={hasVariance ? 'orange' : 'green'}
-              value={formatMoney(expectedCash)}
+              label="Начальная наличность"
+              value={formatMoney(shift.opening_cash_amount)}
             />
             <ShiftMetric
               description="Количество заказов организации, которые ещё открыты или ожидают оплату. При закрытии смены они переходят в передачу следующей смене."

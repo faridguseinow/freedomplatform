@@ -959,6 +959,8 @@ export const azTranslations: Record<string, string> = {
     'Bu növbədə kart və ya köçürmə ilə tamamlanmış ödənişlərin cəmi. Bu məbləğ fiziki kassaya daxil edilmir.',
   'Ожидаемая наличность в кассе: начальная наличность при открытии смены плюс наличные продажи текущей смены.':
     'Kassada gözlənilən nağd məbləğ: növbə açılarkən daxil edilən ilkin nağd pul üstəgəl cari növbənin nağd satışları.',
+  'Сумма наличных, которую указали при открытии этой смены. Она используется как база для расчёта ожидаемой кассы.':
+    'Bu növbə açılarkən qeyd edilən nağd pul məbləği. Gözlənilən kassanın hesablanması üçün baza kimi istifadə olunur.',
   'Количество заказов организации, которые ещё открыты или ожидают оплату. При закрытии смены они переходят в передачу следующей смене.':
     'Təşkilatda hələ açıq olan və ya ödəniş gözləyən sifarişlərin sayı. Növbə bağlananda onlar növbəti növbəyə təhvil verilir.',
   'Количество таймерных сессий, которые сейчас продолжаются. При закрытии смены они переходят в передачу следующей смене.':
