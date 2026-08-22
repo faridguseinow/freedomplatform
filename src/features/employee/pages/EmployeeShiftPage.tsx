@@ -3,6 +3,7 @@ import {
   Banknote,
   Clock3,
   CreditCard,
+  Info,
   Loader2,
   LogOut,
   Play,
@@ -15,6 +16,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
 import { useAuth } from '../../../hooks/useAuth'
+import { useI18n } from '../../../lib/i18n/I18nContext'
 import { useShiftTemplates } from '../../shifts/shiftTemplatesApi'
 import {
   isOpeningDayShiftName,
@@ -42,6 +44,7 @@ const formatDuration = (openedAt: string | undefined, nowMs: number) => {
 }
 
 type ShiftMetricProps = {
+  description?: string
   label: string
   value: string | number
   icon: typeof Clock3
@@ -55,12 +58,28 @@ const metricToneClassName: Record<NonNullable<ShiftMetricProps['tone']>, string>
   red: 'bg-red-50 text-red-950 ring-red-100',
 }
 
-function ShiftMetric({ icon: Icon, label, tone = 'default', value }: ShiftMetricProps) {
+function ShiftMetric({ description, icon: Icon, label, tone = 'default', value }: ShiftMetricProps) {
+  const { t } = useI18n()
   return (
     <div className={`grid gap-1.5 rounded-lg px-3 py-2 ring-1 ${metricToneClassName[tone]}`}>
       <div className="flex items-center gap-2 text-xs font-medium uppercase text-slate-500">
         <Icon className="size-3.5" />
-        {label}
+        <span>{t(label)}</span>
+        {description ? (
+          <div className="group relative">
+            <button
+              aria-label={`${t('Как считается:')} ${t(label)}`}
+              className="flex size-5 items-center justify-center rounded-full text-slate-400 outline-none hover:text-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
+              title={t(description)}
+              type="button"
+            >
+              <Info aria-hidden="true" className="size-3.5" />
+            </button>
+            <div className="pointer-events-none absolute left-1/2 top-7 z-20 hidden w-72 -translate-x-1/2 rounded-md border border-slate-200 bg-white p-3 text-xs font-normal normal-case leading-5 text-slate-700 shadow-lg group-hover:block group-focus-within:block">
+              {t(description)}
+            </div>
+          </div>
+        ) : null}
       </div>
       <div className="text-lg font-semibold leading-none">{value}</div>
     </div>
@@ -69,6 +88,7 @@ function ShiftMetric({ icon: Icon, label, tone = 'default', value }: ShiftMetric
 
 export function EmployeeShiftPage() {
   const { currentOrganization, organizationId, profile } = useAuth()
+  const { t } = useI18n()
   const currentShiftQuery = useCurrentEmployeeShift(organizationId)
   const templatesQuery = useShiftTemplates(organizationId, true)
   const mutations = useEmployeeShiftMutations(organizationId)
@@ -218,40 +238,58 @@ export function EmployeeShiftPage() {
         <div className="grid content-start gap-3">
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             <ShiftMetric
+              description="Сумма завершённых оплат наличными в этой смене. Считаются только платежи со статусом «завершён». Эта сумма добавляется к ожидаемой кассе."
               icon={Banknote}
               label="Наличные"
               tone="green"
               value={formatMoney(summary?.cash_sales_total)}
             />
             <ShiftMetric
+              description="Сумма завершённых оплат картой или переводом в этой смене. В физическую кассу эта сумма не входит."
               icon={CreditCard}
               label="Картой"
               value={formatMoney(summary?.card_transfer_sales_total)}
             />
             <ShiftMetric
+              description="Ожидаемая наличность в кассе: начальная наличность при открытии смены плюс наличные продажи текущей смены."
               icon={Wallet}
               label="Касса"
               tone={hasVariance ? 'orange' : 'green'}
               value={formatMoney(expectedCash)}
             />
             <ShiftMetric
+              description="Количество заказов организации, которые ещё открыты или ожидают оплату. При закрытии смены они переходят в передачу следующей смене."
               icon={ReceiptText}
               label="Открытые заказы"
               value={summary?.open_orders_count ?? 0}
             />
             <ShiftMetric
+              description="Количество таймерных сессий, которые сейчас продолжаются. При закрытии смены они переходят в передачу следующей смене."
               icon={Timer}
               label="Активные сессии"
               tone={(summary?.active_sessions_count ?? 0) > 0 ? 'orange' : 'default'}
               value={summary?.active_sessions_count ?? 0}
             />
             <ShiftMetric
+              description="Количество заказов, закрытых в этой смене как отказ от оплаты. Если число больше нуля, администратору нужно проверить причину."
               icon={AlertTriangle}
               label="Отказы"
               tone={(summary?.payment_refused_count ?? 0) > 0 ? 'red' : 'default'}
               value={summary?.payment_refused_count ?? 0}
             />
           </div>
+
+          <section className="rounded-lg border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700 shadow-sm">
+            <h3 className="font-semibold text-slate-950">{t('Инструкция закрытия смены')}</h3>
+            <ol className="mt-2 grid list-decimal gap-1 pl-5">
+              <li>{t('Пересчитайте реальные наличные в кассе.')}</li>
+              <li>{t('Введите эту сумму в поле «Фактическая наличность».')}</li>
+              <li>{t('Сравните фактическую сумму с ожидаемой кассой.')}</li>
+              <li>{t('Если суммы совпадают, смену можно закрыть без комментария.')}</li>
+              <li>{t('Если есть расхождение, обязательно напишите короткий комментарий с причиной.')}</li>
+              <li>{t('Нажмите «Завершить смену». Открытые заказы и активные сессии будут переданы следующей смене.')}</li>
+            </ol>
+          </section>
 
           {shift.status !== 'open' ? (
             <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">

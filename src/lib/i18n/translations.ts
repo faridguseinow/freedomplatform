@@ -953,6 +953,27 @@ export const azTranslations: Record<string, string> = {
     'Bu səhifəni kompüterdə və ya planşeti üfüqi rejimdə açın.',
   'Открытые заказы и активные сессии уйдут в передачу следующей смене.':
     'Açıq sifarişlər və aktiv sessiyalar növbəti növbəyə təhvil veriləcək.',
+  'Сумма завершённых оплат наличными в этой смене. Считаются только платежи со статусом «завершён». Эта сумма добавляется к ожидаемой кассе.':
+    'Bu növbədə nağd şəkildə tamamlanmış ödənişlərin cəmi. Yalnız “tamamlandı” statuslu ödənişlər hesablanır. Bu məbləğ gözlənilən kassaya əlavə olunur.',
+  'Сумма завершённых оплат картой или переводом в этой смене. В физическую кассу эта сумма не входит.':
+    'Bu növbədə kart və ya köçürmə ilə tamamlanmış ödənişlərin cəmi. Bu məbləğ fiziki kassaya daxil edilmir.',
+  'Ожидаемая наличность в кассе: начальная наличность при открытии смены плюс наличные продажи текущей смены.':
+    'Kassada gözlənilən nağd məbləğ: növbə açılarkən daxil edilən ilkin nağd pul üstəgəl cari növbənin nağd satışları.',
+  'Количество заказов организации, которые ещё открыты или ожидают оплату. При закрытии смены они переходят в передачу следующей смене.':
+    'Təşkilatda hələ açıq olan və ya ödəniş gözləyən sifarişlərin sayı. Növbə bağlananda onlar növbəti növbəyə təhvil verilir.',
+  'Количество таймерных сессий, которые сейчас продолжаются. При закрытии смены они переходят в передачу следующей смене.':
+    'Hazırda davam edən taymer sessiyalarının sayı. Növbə bağlananda onlar növbəti növbəyə təhvil verilir.',
+  'Количество заказов, закрытых в этой смене как отказ от оплаты. Если число больше нуля, администратору нужно проверить причину.':
+    'Bu növbədə ödənişdən imtina kimi bağlanmış sifarişlərin sayı. Say sıfırdan çoxdursa, administrator səbəbi yoxlamalıdır.',
+  'Инструкция закрытия смены': 'Növbənin bağlanması təlimatı',
+  'Пересчитайте реальные наличные в кассе.': 'Kassadakı real nağd pulu yenidən sayın.',
+  'Введите эту сумму в поле «Фактическая наличность».': 'Bu məbləği “Faktiki nağd pul” sahəsinə daxil edin.',
+  'Сравните фактическую сумму с ожидаемой кассой.': 'Faktiki məbləği gözlənilən kassa ilə müqayisə edin.',
+  'Если суммы совпадают, смену можно закрыть без комментария.': 'Məbləğlər üst-üstə düşürsə, növbəni şərhsiz bağlamaq olar.',
+  'Если есть расхождение, обязательно напишите короткий комментарий с причиной.':
+    'Fərq varsa, səbəbi qısa şərh kimi mütləq yazın.',
+  'Нажмите «Завершить смену». Открытые заказы и активные сессии будут переданы следующей смене.':
+    '“Növbəni tamamla” düyməsinə basın. Açıq sifarişlər və aktiv sessiyalar növbəti növbəyə təhvil veriləcək.',
   'Открыть смену': 'Növbəni aç',
   Отмена: 'İmtina',
   'Отменить заказ': 'Sifarişi ləğv et',
