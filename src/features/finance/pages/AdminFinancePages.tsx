@@ -35,7 +35,6 @@ import {
   monthStartDate,
   todayDate,
   useFinanceCategories,
-  useFinanceDashboardSummary,
   useFinancePeriodSummary,
   useFinanceSettings,
   useFinanceSettingsMutation,
@@ -93,6 +92,18 @@ function getFinancialCycle(closeDay: number | null | undefined) {
     nextClose: formatDateInput(nextClose),
     start: formatDateInput(start),
   }
+}
+
+function parseLocalDate(value: string) {
+  const [year = 1970, month = 1, day = 1] = value.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
+function daysInclusive(start: string, end: string) {
+  const startDate = parseLocalDate(start)
+  const endDate = parseLocalDate(end)
+  const dayMs = 24 * 60 * 60 * 1000
+  return Math.max(1, Math.floor((endDate.getTime() - startDate.getTime()) / dayMs) + 1)
 }
 
 function useCurrentDate() {
@@ -419,6 +430,99 @@ function PaymentTrafficAnalytics({ organizationId }: { organizationId: string | 
             </div>
           )
         })}
+      </div>
+    </section>
+  )
+}
+
+function MonthlyForecastAnalytics({
+  cycleEnd,
+  cycleStart,
+  currentDate,
+  summary,
+}: {
+  cycleEnd: string
+  cycleStart: string
+  currentDate: string
+  summary: FinancialPeriodSummary | null | undefined
+}) {
+  const { t } = useI18n()
+  const elapsedDays = daysInclusive(cycleStart, currentDate)
+  const cycleDays = daysInclusive(cycleStart, cycleEnd)
+  const remainingDays = Math.max(cycleDays - elapsedDays, 0)
+  const grossRevenue = summary?.revenue ?? 0
+  const netProfit = summary?.net_profit_before_platform_share ?? 0
+  const averageGrossPerDay = grossRevenue / elapsedDays
+  const averageNetPerDay = netProfit / elapsedDays
+  const projectedGross = averageGrossPerDay * cycleDays
+  const projectedNet = averageNetPerDay * cycleDays
+  const progress = Math.min(100, Math.round((elapsedDays / cycleDays) * 100))
+
+  const cards = [
+    {
+      description: 'Факт грязного дохода с начала текущего расчётного периода.',
+      label: 'Факт дохода',
+      value: grossRevenue,
+    },
+    {
+      description: 'Средний грязный доход в день: факт дохода делится на прошедшие дни периода.',
+      label: 'Средний доход в день',
+      value: averageGrossPerDay,
+    },
+    {
+      description: 'Примерный грязный доход за полный месяц: средний доход в день умножается на все дни периода.',
+      label: 'Прогноз дохода за месяц',
+      value: projectedGross,
+    },
+    {
+      description: 'Примерная прибыль за месяц с учётом COGS и операционных расходов, без вычитания доли платформы.',
+      label: 'Прогноз с расходами',
+      value: projectedNet,
+    },
+  ]
+
+  return (
+    <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-950">{t('Прогноз месяца')}</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-600">
+            {t('Оценка не попадает в финансовые периоды: она только показывает ожидание по текущему месячному циклу на основе факта с начала периода.')}
+          </p>
+        </div>
+        <div className="grid gap-1 text-sm text-slate-700 sm:text-right">
+          <span>
+            {t('Период')}: {cycleStart} - {cycleEnd}
+          </span>
+          <span>
+            {t('Прошло дней')}: {elapsedDays}/{cycleDays} · {progress}%
+          </span>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {cards.map((card) => (
+          <MetricCard
+            description={card.description}
+            key={card.label}
+            label={card.label}
+            value={card.value}
+          />
+        ))}
+      </div>
+
+      <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700 sm:grid-cols-3">
+        <div>
+          <span className="font-medium text-slate-950">{t('Осталось дней')}:</span> {remainingDays}
+        </div>
+        <div>
+          <span className="font-medium text-slate-950">{t('Текущая чистая прибыль')}:</span>{' '}
+          {money(netProfit)}
+        </div>
+        <div>
+          <span className="font-medium text-slate-950">{t('Метод')}:</span>{' '}
+          {t('среднее за день × дней в периоде')}
+        </div>
       </div>
     </section>
   )
@@ -759,7 +863,6 @@ export function AdminFinancePage() {
   const { currentOrganization, organizationId } = useAuth()
   const { t } = useI18n()
   const currentDate = useCurrentDate()
-  const summary = useFinanceDashboardSummary(organizationId)
   const settings = useFinanceSettings(organizationId)
   const currentCycle = getFinancialCycle(settings.data?.financial_month_close_day)
   const periodSummary = useFinancePeriodSummary(organizationId, currentCycle.start, currentDate)
@@ -807,12 +910,13 @@ export function AdminFinancePage() {
           </Link>
         ))}
       </div>
-      <div className="rounded-md border border-slate-200 bg-white p-4">
-        <p className="text-sm text-slate-600">
-          Ожидают подтверждения расходов: {summary.data?.pending_expense_approvals ?? 0}. Периоды на проверке: {summary.data?.periods_waiting_review ?? 0}.
-        </p>
-      </div>
       <PaymentTrafficAnalytics organizationId={organizationId} />
+      <MonthlyForecastAnalytics
+        currentDate={currentDate}
+        cycleEnd={currentCycle.end}
+        cycleStart={currentCycle.start}
+        summary={periodSummary.data}
+      />
     </section>
   )
 }

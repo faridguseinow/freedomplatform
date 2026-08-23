@@ -43,6 +43,7 @@ export function useFinancialPeriodMutations(organizationId: string | null) {
   const queryClient = useQueryClient()
   const invalidate = async (periodId?: string) => {
     await queryClient.invalidateQueries({ queryKey: ['finance'] })
+    await queryClient.invalidateQueries({ queryKey: ['platform', 'finance'] })
     if (periodId) await queryClient.invalidateQueries({ queryKey: ['finance', 'period', periodId] })
   }
 
@@ -112,6 +113,18 @@ export function useFinancialPeriodMutations(organizationId: string | null) {
         return data as FinancialPeriodRow
       },
       onSuccess: (period) => invalidate(period.id),
+    }),
+    delete: useMutation({
+      mutationFn: async ({ periodId, comment }: { periodId: string; comment?: string | null }) => {
+        const { data, error } = await supabase.rpc('delete_financial_period', {
+          target_period_id: periodId,
+          target_comment: comment ?? null,
+        })
+
+        if (error) throw new Error(error.message)
+        return data as string
+      },
+      onSuccess: (periodId) => invalidate(periodId),
     }),
     organizationId,
   }

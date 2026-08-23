@@ -1,10 +1,11 @@
 import { ArrowLeft, Banknote, Clock3, CreditCard, Loader2, ReceiptText, Timer } from 'lucide-react'
 import type { ComponentType } from 'react'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Button } from '../../../components/ui/Button'
 import { useAuth } from '../../../hooks/useAuth'
 import { useI18n } from '../../../lib/i18n/I18nContext'
-import type { PaymentMethod, PaymentStatus, TimedSessionStatus } from '../../../lib/supabase/database.types'
+import type { OrderRow, PaymentMethod, PaymentStatus, TimedSessionStatus } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
 import { orderStatusLabel } from '../../orders/employeeOrdersApi'
 import { shiftStatusLabel, useAdminShiftDetail, useAdminShiftMutations } from '../../shifts/shiftsApi'
@@ -49,6 +50,14 @@ const sessionStatusLabel: Record<TimedSessionStatus, string> = {
   cancelled: 'Отменена',
 }
 
+type OrderSortKey = 'order_number' | 'opened_at' | 'closed_at'
+
+const orderSortOptions: Array<{ key: OrderSortKey; label: string }> = [
+  { key: 'order_number', label: 'Номер' },
+  { key: 'opened_at', label: 'Открытие' },
+  { key: 'closed_at', label: 'Закрытие' },
+]
+
 type StatCardProps = {
   icon?: ComponentType<{ className?: string }>
   label: string
@@ -86,12 +95,29 @@ const statusTone = (status: string) =>
     (status === 'cancelled' || status === 'payment_refused' || status === 'force_closed') && 'bg-red-50 text-red-700',
   )
 
+const dateSortValue = (value: string | null | undefined) => (value ? new Date(value).getTime() : Number.POSITIVE_INFINITY)
+
+function sortOrders(orders: OrderRow[], sortKey: OrderSortKey) {
+  return [...orders].sort((left, right) => {
+    if (sortKey === 'order_number') {
+      return left.order_number - right.order_number
+    }
+
+    const leftTime = dateSortValue(sortKey === 'closed_at' ? left.closed_at ?? left.opened_at : left.opened_at)
+    const rightTime = dateSortValue(sortKey === 'closed_at' ? right.closed_at ?? right.opened_at : right.opened_at)
+
+    if (leftTime !== rightTime) return leftTime - rightTime
+    return left.order_number - right.order_number
+  })
+}
+
 export function AdminShiftDetailPage() {
   const { currentOrganization, organizationId } = useAuth()
   const { t } = useI18n()
   const { shiftId } = useParams()
   const detailQuery = useAdminShiftDetail(shiftId ?? null)
   const mutations = useAdminShiftMutations(organizationId)
+  const [orderSort, setOrderSort] = useState<OrderSortKey>('closed_at')
   const buildAdminPath = (path: string) =>
     currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
 
@@ -112,6 +138,7 @@ export function AdminShiftDetailPage() {
   const paidOrders = orders.filter((order) => order.status === 'paid')
   const cancelledOrders = orders.filter((order) => order.status === 'cancelled')
   const openOrders = orders.filter((order) => order.status === 'open' || order.status === 'waiting_payment')
+  const sortedOrders = sortOrders(orders as OrderRow[], orderSort)
   const completedPayments = payments.filter((payment) => payment.status === 'completed')
   const completedPaymentsTotal = completedPayments.reduce((sum, payment) => sum + (payment.amount ?? 0), 0)
   const variance = shift.cash_variance ?? 0
@@ -180,14 +207,34 @@ export function AdminShiftDetailPage() {
       ) : null}
 
       <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="inline-flex items-center gap-2 text-lg font-semibold text-slate-950">
-            <ReceiptText aria-hidden="true" className="size-5 text-emerald-700" />
-            {t('Заказы')}
-          </h3>
-          <span className="text-sm font-medium text-slate-500">
-            {orders.length} · {t('Открытые')}: {openOrders.length} · {t('Отменено')}: {cancelledOrders.length}
-          </span>
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="inline-flex items-center gap-2 text-lg font-semibold text-slate-950">
+              <ReceiptText aria-hidden="true" className="size-5 text-emerald-700" />
+              {t('Заказы')}
+            </h3>
+            <span className="text-sm font-medium text-slate-500">
+              {orders.length} · {t('Открытые')}: {openOrders.length} · {t('Отменено')}: {cancelledOrders.length}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium uppercase text-slate-500">{t('Сортировка')}</span>
+            {orderSortOptions.map((option) => (
+              <button
+                className={cn(
+                  'min-h-9 rounded-md border px-3 text-sm font-medium transition-colors',
+                  orderSort === option.key
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+                )}
+                key={option.key}
+                onClick={() => setOrderSort(option.key)}
+                type="button"
+              >
+                {t(option.label)}
+              </button>
+            ))}
+          </div>
         </div>
         {orders.length ? (
           <div className="overflow-x-auto">
@@ -198,16 +245,18 @@ export function AdminShiftDetailPage() {
                   <th className="py-2 pr-3">{t('Место')}</th>
                   <th className="py-2 pr-3">{t('Статус')}</th>
                   <th className="py-2 pr-3">{t('Открыт')}</th>
+                  <th className="py-2 pr-3">{t('Закрыт / оплачен')}</th>
                   <th className="py-2 text-right">{t('Сумма')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {orders.map((order) => (
+                {sortedOrders.map((order) => (
                   <tr key={order.id}>
                     <td className="py-2 pr-3 font-semibold text-slate-950">#{order.order_number}</td>
                     <td className="py-2 pr-3 text-slate-600">{order.current_place_name_snapshot ?? t('Без места')}</td>
                     <td className="py-2 pr-3"><span className={statusTone(order.status)}>{t(orderStatusLabel[order.status] ?? order.status)}</span></td>
                     <td className="py-2 pr-3 text-slate-600">{formatDateTime(order.opened_at)}</td>
+                    <td className="py-2 pr-3 text-slate-600">{formatDateTime(order.closed_at)}</td>
                     <td className="py-2 text-right font-semibold text-slate-950">{formatMoney(order.total_amount)}</td>
                   </tr>
                 ))}

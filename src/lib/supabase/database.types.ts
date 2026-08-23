@@ -1939,6 +1939,13 @@ export type Database = {
         }
         Returns: FinancialPeriodRow
       }
+      delete_financial_period: {
+        Args: {
+          target_period_id: string
+          target_comment?: string | null
+        }
+        Returns: string
+      }
       set_platform_share_rate: {
         Args: {
           target_organization_id: string

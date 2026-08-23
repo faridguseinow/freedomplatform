@@ -14,6 +14,8 @@ import {
 import { useMemo, useState } from 'react'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
+import { useI18n } from '../../../lib/i18n/I18nContext'
+import { languageLabels, supportedLanguages, type SystemLanguage } from '../../../lib/i18n/translations'
 
 type PlatformSettings = {
   publicBaseUrl: string
@@ -84,8 +86,6 @@ const loadStoredSettings = () => {
   }
 }
 
-const booleanLabel = (value: boolean) => (value ? 'Включено' : 'Выключено')
-
 function SettingSection({ children, description, icon: Icon, title }: SettingSectionProps) {
   return (
     <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -105,37 +105,56 @@ function SettingSection({ children, description, icon: Icon, title }: SettingSec
 
 function ToggleSetting({
   checked,
+  description,
   label,
   onChange,
 }: {
   checked: boolean
+  description?: string
   label: string
   onChange: (value: boolean) => void
 }) {
+  const statusText = checked ? 'Активно' : 'Выключено'
+
   return (
-    <label className="flex min-h-11 items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
-      <span>{label}</span>
-      <button
-        aria-pressed={checked}
-        className={[
-          'relative h-6 w-11 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700',
-          checked ? 'bg-emerald-700' : 'bg-slate-300',
-        ].join(' ')}
-        onClick={() => onChange(!checked)}
-        type="button"
-      >
+    <div className="flex min-h-14 items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+      <div className="min-w-0">
+        <p className="font-medium text-slate-900">{label}</p>
+        {description ? <p className="mt-0.5 text-xs leading-5 text-slate-500">{description}</p> : null}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
         <span
           className={[
-            'absolute top-1 size-4 rounded-full bg-white transition-transform',
-            checked ? 'translate-x-6' : 'translate-x-1',
+            'rounded-full px-2 py-1 text-xs font-semibold',
+            checked ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500',
           ].join(' ')}
-        />
-      </button>
-    </label>
+        >
+          {statusText}
+        </span>
+        <button
+          aria-label={`${label}: ${statusText}`}
+          aria-pressed={checked}
+          className={[
+            'relative h-6 w-11 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700',
+            checked ? 'bg-emerald-700' : 'bg-slate-300',
+          ].join(' ')}
+          onClick={() => onChange(!checked)}
+          type="button"
+        >
+          <span
+            className={[
+              'absolute top-1 size-4 rounded-full bg-white transition-transform',
+              checked ? 'translate-x-6' : 'translate-x-1',
+            ].join(' ')}
+          />
+        </button>
+      </div>
+    </div>
   )
 }
 
 export function PlatformSettingsPage() {
+  const { language, setLanguage } = useI18n()
   const [settings, setSettings] = useState<PlatformSettings>(loadStoredSettings)
   const [savedAt, setSavedAt] = useState<string | null>(null)
 
@@ -151,6 +170,10 @@ export function PlatformSettingsPage() {
   const saveSettings = () => {
     window.localStorage.setItem(storageKey, JSON.stringify(settings))
     setSavedAt(new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }))
+  }
+
+  const handleLanguageChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setLanguage(event.target.value as SystemLanguage)
   }
 
   return (
@@ -204,7 +227,8 @@ export function PlatformSettingsPage() {
           </div>
           <ToggleSetting
             checked={settings.requireOrganizationSlug}
-            label={`Slug обязателен: ${booleanLabel(settings.requireOrganizationSlug)}`}
+            description="Организация должна иметь короткую ссылку вида /the-liga."
+            label="Slug обязателен"
             onChange={(value) => updateSetting('requireOrganizationSlug', value)}
           />
         </SettingSection>
@@ -233,12 +257,14 @@ export function PlatformSettingsPage() {
           />
           <ToggleSetting
             checked={settings.requireEmployeePin}
-            label={`PIN рабочего экрана: ${booleanLabel(settings.requireEmployeePin)}`}
+            description="Сотрудник блокирует и открывает рабочий экран PIN-кодом."
+            label="PIN рабочего экрана"
             onChange={(value) => updateSetting('requireEmployeePin', value)}
           />
           <ToggleSetting
             checked={settings.requireAdminPinApproval}
-            label={`Одобрение смены PIN: ${booleanLabel(settings.requireAdminPinApproval)}`}
+            description="Критичные действия по смене требуют PIN администратора."
+            label="PIN подтверждения смены"
             onChange={(value) => updateSetting('requireAdminPinApproval', value)}
           />
         </SettingSection>
@@ -329,7 +355,21 @@ export function PlatformSettingsPage() {
           title="Региональные параметры"
         >
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-            <span>Язык по умолчанию</span>
+            <span>Язык интерфейса</span>
+            <select
+              className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+              onChange={handleLanguageChange}
+              value={language}
+            >
+              {supportedLanguages.map((option) => (
+                <option key={option} value={option}>
+                  {languageLabels[option]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+            <span>Язык новых организаций по умолчанию</span>
             <select
               className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
               onChange={(event) =>
@@ -357,17 +397,20 @@ export function PlatformSettingsPage() {
         >
           <ToggleSetting
             checked={settings.telegramWorkerEnabled}
-            label={`Telegram worker: ${booleanLabel(settings.telegramWorkerEnabled)}`}
+            description="Интеграция отправки служебных сообщений в Telegram."
+            label="Telegram worker"
             onChange={(value) => updateSetting('telegramWorkerEnabled', value)}
           />
           <ToggleSetting
             checked={settings.emailNotificationsEnabled}
-            label={`Email-уведомления: ${booleanLabel(settings.emailNotificationsEnabled)}`}
+            description="Email для системных уведомлений и важных событий."
+            label="Email-уведомления"
             onChange={(value) => updateSetting('emailNotificationsEnabled', value)}
           />
           <ToggleSetting
             checked={settings.maintenanceMode}
-            label={`Maintenance mode: ${booleanLabel(settings.maintenanceMode)}`}
+            description="Технический режим, когда платформу нужно временно ограничить."
+            label="Режим обслуживания"
             onChange={(value) => updateSetting('maintenanceMode', value)}
           />
         </SettingSection>

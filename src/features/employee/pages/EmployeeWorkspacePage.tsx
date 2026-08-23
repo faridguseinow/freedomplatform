@@ -332,15 +332,15 @@ export function EmployeeWorkspacePage() {
           <header className="min-w-0">
             <h2 className="text-xl font-semibold text-slate-950">İş paneli</h2>
             <p className="mt-1 text-sm leading-5 text-amber-900">
-              Satışlar, sessiyalar və ödənişlər üçün açıq dəyişiklik tələb olunur.
+              Satışlar, sessiyalar və ödənişlər üçün açıq Növbə tələb olunur.
             </p>
             <p className="mt-1 text-xs leading-5 text-amber-800">
-              Dəyişiklik açılmayıb. Sifarişlərlə işə başlamaq üçün dəyişikliyi açın.
+              Növbə açılmayıb. Sifarişlərlə işə başlamaq üçün növbəni açın.
             </p>
           </header>
           <Button type="button">
             <Link className="inline-flex items-center gap-2" to="/employee/shift">
-              <Clock3 className="size-4" /> Dəyişiklik aç
+              <Clock3 className="size-4" /> Növbə aç
             </Link>
           </Button>
         </div>
@@ -353,10 +353,10 @@ export function EmployeeWorkspacePage() {
       if (!currentShiftQuery.data?.shift) {
         if (role === 'organization_admin') {
           // Admins can view workspace without opening a shift, but should not create orders.
-          setError('Dəyişiklik açılmayıb. Sifarişlərlə işə başlamaq üçün dəyişikliyi açın.')
+          setError('Növbə açılmayıb. Sifarişlərlə işə başlamaq üçün növbəni açın.')
           return
         }
-        throw new Error('Dəyişiklik açılmayıb. Sifarişlərlə işə başlamaq üçün dəyişikliyi açın.')
+        throw new Error('Növbə açılmayıb. Sifarişlərlə işə başlamaq üçün növbəni açın.')
       }
       const order = await orderMutations.createOrder.mutateAsync({ placeId: place.id })
       selectOrder(order.id)
@@ -366,10 +366,10 @@ export function EmployeeWorkspacePage() {
     runAction(async () => {
       if (!currentShiftQuery.data?.shift) {
         if (role === 'organization_admin') {
-          setError('Dəyişiklik açılmayıb. Sifarişlərlə işə başlamaq üçün dəyişikliyi açın.')
+          setError('Növbə açılmayıb. Sifarişlərlə işə başlamaq üçün növbəni açın.')
           return
         }
-        throw new Error('Dəyişiklik açılmayıb. Sifarişlərlə işə başlamaq üçün dəyişikliyi açın.')
+        throw new Error('Növbə açılmayıb. Sifarişlərlə işə başlamaq üçün növbəni açın.')
       }
       const session = await orderMutations.startSession.mutateAsync({ placeId: place.id })
       selectOrder(session.order_id)
@@ -379,10 +379,10 @@ export function EmployeeWorkspacePage() {
     runAction(async () => {
       if (!currentShiftQuery.data?.shift) {
         if (role === 'organization_admin') {
-          setError('Dəyişiklik açılmayıb. Sifarişlərlə işə başlamaq üçün dəyişikliyi açın.')
+          setError('Növbə açılmayıb. Sifarişlərlə işə başlamaq üçün növbəni açın.')
           return
         }
-        throw new Error('Dəyişiklik açılmayıb. Sifarişlərlə işə başlamaq üçün dəyişikliyi açın.')
+        throw new Error('Növbə açılmayıb. Sifarişlərlə işə başlamaq üçün növbəni açın.')
       }
       await orderMutations.startSession.mutateAsync({ placeId: place.id, orderId })
     })
@@ -595,10 +595,10 @@ export function EmployeeWorkspacePage() {
     runAction(async () => {
       if (!currentShiftQuery.data?.shift) {
         if (role === 'organization_admin') {
-          setError('Dəyişiklik açılmayıb. Sifarişlərlə işə başlamaq üçün dəyişikliyi açın.')
+          setError('Növbə açılmayıb. Sifarişlərlə işə başlamaq üçün növbəni açın.')
           return
         }
-        throw new Error('Dəyişiklik açılmayıb. Sifarişlərlə işə başlamaq üçün dəyişikliyi açın.')
+        throw new Error('Növbə açılmayıb. Sifarişlərlə işə başlamaq üçün növbəni açın.')
       }
       const order = await orderMutations.createOrder.mutateAsync({})
       selectOrder(order.id)
@@ -733,7 +733,7 @@ export function EmployeeWorkspacePage() {
                     )}
                     <span>
                       {hasActiveOrder
-                        ? `#${place.active_order_number} · ${place.active_order_item_count} maddə.`
+                        ? `#${place.active_order_number} · ${place.active_order_item_count} məhsul.`
                         : 'Sifariş açılmayıb'}
                     </span>
                     <span className="font-semibold text-slate-950">
@@ -993,7 +993,7 @@ export function EmployeeWorkspacePage() {
                             </span>
                           </label>
                           <div className="grid min-h-5 content-center rounded-md bg-green-900 px-2 py-2 text-sm text-white">
-                            <span className="text-xs text-slate-300">Çayevoy cəmi</span>
+                            <span className="text-xs text-slate-300">Çayevoy ile cəmi</span>
                             <span className="text-base font-semibold">{formatAzn(selectedOrderTotalWithTip)}</span>
                           </div>
                         </div>
@@ -1165,7 +1165,7 @@ export function EmployeeWorkspacePage() {
                       <h4 className="text-base font-semibold text-slate-950">Sifarişin tərkibi</h4>
                     </div>
                     <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800">
-                      {orderItems.length} maddə.
+                      {orderItems.length} məhsul.
                     </span>
                   </div>
 
@@ -1247,7 +1247,7 @@ export function EmployeeWorkspacePage() {
                     })}
                     {!orderItems.length && !orderItemsQuery.isLoading ? (
                       <div className="grid min-h-28 place-items-center p-4 text-center text-sm text-slate-600">
-                        Hələ maddə əlavə edilməyib.
+                        Hələ məhsul əlavə edilməyib.
                       </div>
                     ) : null}
                   </div>
@@ -1460,9 +1460,9 @@ export function EmployeeWorkspacePage() {
             <Modal className="z-[60] bg-slate-950/45" onClose={closeRemoveRequest}>
               <section className="grid w-full max-w-md gap-4 rounded-xl bg-white p-5 shadow-xl">
                 <div className="grid gap-1">
-                  <h4 className="text-lg font-semibold text-slate-950">Maddəni silmək?</h4>
+                  <h4 className="text-lg font-semibold text-slate-950">Məhsulu silmək?</h4>
                   <p className="text-sm text-slate-600">
-                    «{removeRequestItem.name_snapshot}» maddəsi dərhal sifarişdən silinəcək və hərəkət jurnala yazılacaq.
+                    «{removeRequestItem.name_snapshot}» məhsulu dərhal sifarişdən silinəcək və hərəkət jurnala yazılacaq.
                   </p>
                 </div>
 
@@ -1472,7 +1472,7 @@ export function EmployeeWorkspacePage() {
                     autoFocus
                     className="min-h-24 resize-none rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
                     onChange={(event) => setRemoveRequestReason(event.target.value)}
-                    placeholder="Məsələn: müştəri maddəni ləğv etdi"
+                    placeholder="Məsələn: müştəri məhsulu ləğv etdi"
                     value={removeRequestReason}
                   />
                 </label>

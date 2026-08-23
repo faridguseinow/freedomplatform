@@ -247,8 +247,10 @@ export const azTranslations: Record<string, string> = {
   Закрыт: 'Bağlıdır',
   Закрыта: 'Bağlıdır',
   'Закрыта админом': 'Administrator tərəfindən bağlanıb',
+  'Закрыт / оплачен': 'Bağlanıb / ödənilib',
   'Закрытие финансовых периодов и отправка на проверку платформе.':
     'Maliyyə dövrlərinin bağlanması və platforma yoxlamasına göndərilməsi.',
+  Закрытие: 'Bağlanış',
   Закрыть: 'Bağla',
   Закупка: 'Satınalma',
   Закупки: 'Satınalmalar',
@@ -433,6 +435,7 @@ export const azTranslations: Record<string, string> = {
     'Böyük xərclər və təsdiq axını nəzərə alınmaqla əməliyyat xərcləri.',
   'Операция не выполнена.': 'Əməliyyat yerinə yetirilmədi.',
   'Описание не заполнено.': 'Təsvir doldurulmayıb.',
+  Открытие: 'Açılış',
   Оплачен: 'Ödənilib',
   Оплачено: 'Ödənilib',
   'Оплачено заказов': 'Ödənilmiş sifarişlər',
@@ -925,6 +928,7 @@ export const azTranslations: Record<string, string> = {
   'Назначьте существующего Auth-пользователя администратором организации.':
     'Mövcud Auth istifadəçisini təşkilat administratoru təyin edin.',
   Наличными: 'Nağd',
+  Номер: 'Nömrə',
   'Настроить места': 'Yerləri qur',
   'Настройка организации': 'Təşkilat qurulması',
   'Настройки платформы': 'Platforma ayarları',
@@ -1070,6 +1074,7 @@ export const azTranslations: Record<string, string> = {
   'Создать документ': 'Sənəd yarat',
   'Создать комбо': 'Kombo yarat',
   'Сообщить об оплате': 'Ödəniş barədə bildir',
+  Сортировка: 'Sıralama',
   'Состав заказа': 'Sifariş tərkibi',
   'Сотрудник создает запрос, администратор подтверждает или отклоняет действие.':
     'Əməkdaş sorğu yaradır, administrator əməliyyatı təsdiqləyir və ya rədd edir.',
@@ -1130,6 +1135,18 @@ export const azTranslations: Record<string, string> = {
     'Əməkdaşların və onların təşkilata girişinin idarəsi.',
   Услуга: 'Xidmət',
   'Установить ставку': 'Dərəcəni təyin et',
+  'Финансы выбранной организации: P&L, оплаты, направления, периоды и ставка Freedom Platform.':
+    'Seçilmiş təşkilatın maliyyəsi: P&L, ödənişlər, istiqamətlər, dövrlər və Freedom Platform dərəcəsi.',
+  'Финансы по направлениям': 'İstiqamətlər üzrə maliyyə',
+  'Контроль платформы: организации, доля Freedom Platform, задолженность и периоды на проверке.':
+    'Platforma nəzarəti: təşkilatlar, Freedom Platform payı, borclar və yoxlamada olan dövrlər.',
+  'Сообщили оплату': 'Ödəniş bildirilib',
+  'Доход организаций': 'Təşkilatların gəliri',
+  'Расходы организаций': 'Təşkilatların xərcləri',
+  'Чистая прибыль организаций': 'Təşkilatların xalis mənfəəti',
+  'Организации и доля платформы': 'Təşkilatlar və platforma payı',
+  'Главное для владельца платформы: кто сколько заработал, какая прибыль и сколько должны платформе.':
+    'Platforma sahibi üçün əsas məlumat: kim nə qədər qazanıb, mənfəət nə qədərdir və platformaya nə qədər borc var.',
   Фильтр: 'Filtr',
   'Финансовые данные пока пустые.': 'Maliyyə məlumatları hələ boşdur.',
   'Финансы организаций': 'Təşkilatların maliyyəsi',
@@ -1156,6 +1173,8 @@ export const azTranslations: Record<string, string> = {
   'Эти параметры связаны с текущей архитектурой и видны владельцу платформы для контроля.':
     'Bu parametrlər cari arxitektura ilə bağlıdır və nəzarət üçün platforma sahibinə görünür.',
   'Язык': 'Dil',
+  'Язык интерфейса': 'İnterfeys dili',
+  'Язык новых организаций по умолчанию': 'Yeni təşkilatlar üçün standart dil',
   'Язык по умолчанию': 'Standart dil',
   'Язык системы': 'Sistem dili',
   'Язык интерфейса хранится локально на этом устройстве и применяется для администратора и рабочего места сотрудника в этом браузере.':
@@ -1169,6 +1188,25 @@ export const azTranslations: Record<string, string> = {
   'Оплата картой': 'Kartla ödəniş',
   'Итого владельцу': 'Sahibə qalan məbləğ',
   'Финансовая аналитика': 'Maliyyə analitikası',
+  'Прогноз месяца': 'Təxmini aylıq gəlir',
+  'Оценка не попадает в финансовые периоды: она только показывает ожидание по текущему месячному циклу на основе факта с начала периода.':
+    'Bu qiymətləndirmə maliyyə dövrlərinə düşmür: yalnız cari aylıq dövrün əvvəlindən olan fakt əsasında gözləntini göstərir.',
+  'Прошло дней': 'Keçən günlər',
+  'Факт дохода': 'Faktiki gəlir',
+  'Факт грязного дохода с начала текущего расчётного периода.':
+    'Cari hesablama dövrünün əvvəlindən faktiki ümumi gəlir.',
+  'Средний доход в день': 'Gündəlik orta gəlir',
+  'Средний грязный доход в день: факт дохода делится на прошедшие дни периода.':
+    'Gündəlik orta ümumi gəlir: faktiki gəlir dövrün keçən günlərinə bölünür.',
+  'Прогноз дохода за месяц': 'Aylıq gəlir proqnozu',
+  'Примерный грязный доход за полный месяц: средний доход в день умножается на все дни периода.':
+    'Tam ay üçün təxmini ümumi gəlir: gündəlik orta gəlir dövrün bütün günlərinə vurulur.',
+  'Прогноз с расходами': 'Xərclərlə proqnoz',
+  'Примерная прибыль за месяц с учётом COGS и операционных расходов, без вычитания доли платформы.':
+    'COGS və əməliyyat xərcləri nəzərə alınmaqla, platforma payı çıxılmadan aylıq təxmini mənfəət.',
+  'Осталось дней': 'Qalan günlər',
+  'Текущая чистая прибыль': 'Cari xalis mənfəət',
+  'среднее за день × дней в периоде': 'gündəlik orta × dövrdəki günlər',
   'Час пик': 'Pik saat',
   'Самая частая минута': 'Ən çox rast gəlinən dəqiqə',
   оплат: 'ödəniş',
@@ -1178,6 +1216,36 @@ export const azTranslations: Record<string, string> = {
   'Выручка по направлениям (смена)': 'İstiqamətlər üzrə gəlir (növbə)',
   'Выручка сегодня (всего)': 'Bugünkü gəlir (cəmi)',
   'Выручка смены (всего)': 'Növbə gəliri (cəmi)',
+  'Slug обязателен': 'Slug vacibdir',
+  'Организация должна иметь короткую ссылку вида /the-liga.':
+    'Təşkilatın /the-liga formatında qısa linki olmalıdır.',
+  'PIN рабочего экрана': 'İş ekranı PIN-i',
+  'Сотрудник блокирует и открывает рабочий экран PIN-кодом.':
+    'Əməkdaş iş ekranını PIN kodla kilidləyir və açır.',
+  'PIN подтверждения смены': 'Növbə təsdiqi PIN-i',
+  'Критичные действия по смене требуют PIN администратора.':
+    'Növbə üzrə kritik əməliyyatlar administrator PIN-i tələb edir.',
+  'Telegram worker': 'Telegram işçisi',
+  'Интеграция отправки служебных сообщений в Telegram.':
+    'Xidməti mesajların Telegram-a göndərilməsi inteqrasiyası.',
+  'Email-уведомления': 'Email bildirişləri',
+  'Email для системных уведомлений и важных событий.':
+    'Sistem bildirişləri və vacib hadisələr üçün email.',
+  'Режим обслуживания': 'Texniki xidmət rejimi',
+  'Технический режим, когда платформу нужно временно ограничить.':
+    'Platformanın müvəqqəti məhdudlaşdırılması üçün texniki rejim.',
+  'Периоды и ставки': 'Dövrlər və dərəcələr',
+  'Таблица показывает закрытые периоды и историю процента платформы.':
+    'Cədvəl bağlanmış dövrləri və platforma faizinin tarixçəsini göstərir.',
+  Отправлен: 'Göndərilib',
+  'Удалить финансовый период окончательно? Это действие нельзя отменить.':
+    'Maliyyə dövrü birdəfəlik silinsin? Bu əməliyyatı geri qaytarmaq olmaz.',
+  'Удалено владельцем платформы': 'Platforma sahibi tərəfindən silindi',
+  'Период действия': 'Qüvvədə olduğu dövr',
+  Создано: 'Yaradılıb',
+  'Сумма по периодам': 'Dövrlər üzrə məbləğ',
+  Периодов: 'Dövrlər',
+  'Всего оплат': 'Ödənişlərin cəmi',
   'По карте': 'Kartla',
   'Операционный день': 'Əməliyyat günü',
   'Смена не открыта': 'Növbə açılmayıb',
