@@ -147,7 +147,7 @@ export function PlatformOverviewPage() {
         <div className="grid gap-1">
           <h2 className="text-2xl font-semibold tracking-normal text-slate-950 sm:text-3xl">Обзор</h2>
           <p className="max-w-3xl text-sm leading-6 text-slate-600">
-            Контроль платформы: организации, доля Freedom Platform, задолженность и периоды на проверке.
+            Контроль платформы: организации, ежемесячная оплата Freedom Platform, задолженность и периоды на проверке.
           </p>
         </div>
         {overviewQuery.isFetching ? (
@@ -175,7 +175,7 @@ export function PlatformOverviewPage() {
         <OverviewMetric
           hint={`организаций с долгом: ${organizationsWithDebt}`}
           icon={AlertTriangle}
-          label="Долг платформе"
+          label="Оплата платформе"
           tone={outstandingShare > 0 ? 'orange' : 'green'}
           value={money(outstandingShare)}
         />
@@ -215,9 +215,9 @@ export function PlatformOverviewPage() {
       <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
           <div>
-            <h3 className="text-base font-semibold text-slate-950">Организации и доля платформы</h3>
+            <h3 className="text-base font-semibold text-slate-950">Организации и оплата платформы</h3>
             <p className="mt-1 text-sm text-slate-600">
-              Главное для владельца платформы: кто сколько заработал, какая прибыль и сколько должны платформе.
+              Главное для владельца платформы: кто сколько заработал, какая прибыль и сколько должны по ежемесячной оплате.
             </p>
           </div>
           <Link className="shrink-0 text-sm font-medium text-emerald-700 hover:text-emerald-800" to="/platform/finance">
@@ -233,7 +233,7 @@ export function PlatformOverviewPage() {
                 <th className="px-4 py-3 text-right">Доход</th>
                 <th className="px-4 py-3 text-right">Расходы</th>
                 <th className="px-4 py-3 text-right">Прибыль</th>
-                <th className="px-4 py-3 text-right">Долг платформе</th>
+                <th className="px-4 py-3 text-right">Оплата платформе</th>
                 <th className="px-4 py-3 text-right">На проверке</th>
                 <th className="px-4 py-3 text-right">Действия</th>
               </tr>

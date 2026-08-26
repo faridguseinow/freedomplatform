@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase/client'
 import type {
   FinancePaymentMethod,
-  OrganizationPlatformShareRateRow,
+  OrganizationFinanceSettingsRow,
   PlatformShareAccrualRow,
   PlatformSharePaymentRow,
 } from '../../lib/supabase/database.types'
@@ -11,8 +11,6 @@ export const platformShareAccrualSelect =
   'id,organization_id,financial_period_id,percentage_snapshot,net_profit_snapshot,accrued_amount,paid_amount,outstanding_amount,status,due_date,approved_at,fully_paid_at,created_at,updated_at'
 export const platformSharePaymentSelect =
   'id,organization_id,accrual_id,amount,payment_method,payment_date,reference,document_path,marked_sent_by,confirmed_received_by,marked_sent_at,confirmed_received_at,status,comment,created_at,updated_at'
-export const platformShareRateSelect =
-  'id,organization_id,percentage,effective_from,effective_to,created_by,created_at,comment'
 
 export function usePlatformShareAccruals(organizationId: string | null) {
   return useQuery({
@@ -45,23 +43,6 @@ export function usePlatformSharePayments(organizationId?: string | null) {
       const { data, error } = await query
       if (error) throw new Error(error.message)
       return data as PlatformSharePaymentRow[]
-    },
-  })
-}
-
-export function usePlatformShareRates(organizationId: string | null) {
-  return useQuery({
-    enabled: Boolean(organizationId),
-    queryKey: ['finance', 'platform-share-rates', organizationId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('organization_platform_share_rates')
-        .select(platformShareRateSelect)
-        .eq('organization_id', organizationId!)
-        .order('effective_from', { ascending: false })
-
-      if (error) throw new Error(error.message)
-      return data as OrganizationPlatformShareRateRow[]
     },
   })
 }
@@ -106,26 +87,23 @@ export function usePlatformShareMutations(organizationId: string | null) {
       },
       onSuccess: invalidate,
     }),
-    setRate: useMutation({
+    setMonthlyFee: useMutation({
       mutationFn: async ({
-        percentage,
-        effectiveFrom,
+        amount,
         comment,
       }: {
-        percentage: number
-        effectiveFrom: string
+        amount: number
         comment?: string | null
       }) => {
         if (!organizationId) throw new Error('Organization is required.')
-        const { data, error } = await supabase.rpc('set_platform_share_rate', {
+        const { data, error } = await supabase.rpc('set_monthly_platform_fee', {
           target_organization_id: organizationId,
-          target_percentage: percentage,
-          target_effective_from: effectiveFrom,
+          target_amount: amount,
           target_comment: comment ?? null,
         })
 
         if (error) throw new Error(error.message)
-        return data as OrganizationPlatformShareRateRow
+        return data as OrganizationFinanceSettingsRow
       },
       onSuccess: invalidate,
     }),

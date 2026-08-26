@@ -1,23 +1,21 @@
 import {
-  BarChart3,
   Building2,
   CheckCircle2,
   Edit3,
   Eye,
   Landmark,
-  Percent,
   ReceiptText,
   Trash2,
   XCircle,
 } from 'lucide-react'
-import { useMemo, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { EmptyState } from '../../../components/common/EmptyState'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
 import { usePaymentMethodSummary, useRevenueBreakdown } from '../../orders/paymentsApi'
 import { usePlatformOrganizations } from '../../platform/platformApi'
-import { todayDate } from '../financeApi'
+import { todayDate, useFinanceSettings, useFinanceSettingsMutation } from '../financeApi'
 import {
   useFinancialPeriod,
   useFinancialPeriodMutations,
@@ -26,7 +24,6 @@ import { usePlatformOrganizationFinance, usePlatformFinanceSummary } from '../pl
 import {
   usePlatformShareMutations,
   usePlatformSharePayments,
-  usePlatformShareRates,
 } from '../platformShareApi'
 
 const money = (value: number | null | undefined) =>
@@ -56,13 +53,6 @@ const formatDateTime = (value: string | null | undefined) => {
   }).format(new Date(value))
 }
 
-const overlaps = (
-  startA: string,
-  endA: string,
-  startB: string,
-  endB: string | null,
-) => startA <= (endB ?? '9999-12-31') && startB <= endA
-
 function PageHeader({ title, description }: { title: string; description: string }) {
   return (
     <header className="grid gap-2">
@@ -83,7 +73,7 @@ export function PlatformFinancePage() {
   return (
     <section className="grid gap-5">
       <PageHeader
-        description="Глобальный контроль финансов организаций, периодов и задолженности по доле платформы."
+        description="Глобальный контроль финансов организаций, периодов и ежемесячной оплаты платформы."
         title="Финансы платформы"
       />
       <div className="grid gap-3">
@@ -97,7 +87,7 @@ export function PlatformFinancePage() {
               {nameById.get(row.organization_id) ?? row.organization_id}
             </p>
             <p className="text-sm text-slate-600">
-              доход {money(row.total_income)} · расходы {money(row.total_expenses)} · долг платформе {money(row.platform_share_outstanding)}
+              доход {money(row.total_income)} · расходы {money(row.total_expenses)} · к оплате платформе {money(row.platform_share_outstanding)}
             </p>
           </Link>
         ))}
@@ -109,10 +99,9 @@ export function PlatformFinancePage() {
 export function PlatformFinanceOrganizationPage() {
   const { organizationId } = useParams()
   const finance = usePlatformOrganizationFinance(organizationId ?? null)
-  const rates = usePlatformShareRates(organizationId ?? null)
-  const mutations = usePlatformShareMutations(organizationId ?? null)
+  const settings = useFinanceSettings(organizationId ?? null)
+  const settingsMutation = useFinanceSettingsMutation(organizationId ?? null)
   const periodMutations = useFinancialPeriodMutations(organizationId ?? null)
-  const [activeLedger, setActiveLedger] = useState<'periods' | 'rates'>('periods')
   const [editingPeriod, setEditingPeriod] = useState<{
     id: string
     periodEnd: string
@@ -126,28 +115,14 @@ export function PlatformFinanceOrganizationPage() {
   const organizationName =
     organizations.data?.find((organization) => organization.id === organizationId)?.name ?? 'Организация'
 
-  const rateRows = useMemo(
-    () =>
-      (rates.data ?? []).map((rate) => {
-        const relatedPeriods = (finance.data?.periods ?? []).filter((period) =>
-          overlaps(period.period_start, period.period_end, rate.effective_from, rate.effective_to),
-        )
-        return {
-          ...rate,
-          periodCount: relatedPeriods.length,
-          shareAmount: relatedPeriods.reduce((sum, period) => sum + period.platform_share_amount, 0),
-        }
-      }),
-    [finance.data?.periods, rates.data],
-  )
-
-  const handleRateSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleFeeSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
-    mutations.setRate.mutate({
-      percentage: Number(form.get('percentage') ?? 0),
-      effectiveFrom: String(form.get('effective_from') || todayDate()),
-      comment: String(form.get('comment') || '') || null,
+    const amount = Number(form.get('monthly_platform_fee') ?? 0)
+    settingsMutation.mutate({
+      default_platform_share_percentage: 0,
+      monthly_platform_fee: amount,
+      platform_share_payment_due_days: Number(form.get('platform_share_payment_due_days') ?? 0) || 10,
     })
   }
 
@@ -166,9 +141,9 @@ export function PlatformFinanceOrganizationPage() {
   }
 
   const handlePeriodDelete = (periodId: string) => {
-    if (!window.confirm('Удалить финансовый период окончательно? Это действие нельзя отменить.')) return
+    if (!window.confirm('Удалить финансовый период навсегда? Это действие нельзя отменить.')) return
     periodMutations.delete.mutate({
-      comment: 'Удалено владельцем платформы',
+      comment: 'Удалено навсегда владельцем платформы',
       periodId,
     })
   }
@@ -176,14 +151,29 @@ export function PlatformFinanceOrganizationPage() {
   return (
     <section className="grid gap-5">
       <PageHeader
-        description="Финансы выбранной организации: P&L, оплаты, направления, периоды и ставка Freedom Platform."
+        description="Финансы выбранной организации: P&L, оплаты, направления, периоды и ежемесячная оплата Freedom Platform."
         title={organizationName}
       />
-      <form className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white p-4 sm:flex-row sm:items-end" onSubmit={handleRateSubmit}>
-        <Input label="Процент" max="100" min="0" name="percentage" required step="0.0001" type="number" />
-        <Input defaultValue={todayDate()} label="Действует с" name="effective_from" type="date" />
-        <Input label="Комментарий" name="comment" />
-        <Button disabled={mutations.setRate.isPending} type="submit">Установить ставку</Button>
+      <form className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white p-4 sm:flex-row sm:items-end" onSubmit={handleFeeSubmit}>
+        <Input
+          defaultValue={settings.data?.monthly_platform_fee ?? 200}
+          label="Ежемесячная оплата платформы"
+          min="0"
+          name="monthly_platform_fee"
+          required
+          step="0.01"
+          type="number"
+        />
+        <Input
+          defaultValue={settings.data?.platform_share_payment_due_days ?? 10}
+          label="Срок оплаты, дней"
+          min="0"
+          name="platform_share_payment_due_days"
+          type="number"
+        />
+        <Button disabled={settingsMutation.isPending} type="submit">
+          Сохранить оплату
+        </Button>
       </form>
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-md border border-slate-200 bg-white p-4">
@@ -195,7 +185,7 @@ export function PlatformFinanceOrganizationPage() {
           <p className="mt-2 text-xl font-semibold">{money(finance.data?.summary?.total_expenses)}</p>
         </div>
         <div className="rounded-md border border-slate-200 bg-white p-4">
-          <p className="text-xs font-medium uppercase text-slate-500">Долг платформе</p>
+          <p className="text-xs font-medium uppercase text-slate-500">К оплате платформе</p>
           <p className="mt-2 text-xl font-semibold">{money(finance.data?.summary?.platform_share_outstanding)}</p>
         </div>
       </div>
@@ -224,34 +214,10 @@ export function PlatformFinanceOrganizationPage() {
       <div className="grid gap-3 rounded-md border border-slate-200 bg-white p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-base font-semibold text-slate-950">Периоды и ставки</h3>
+            <h3 className="text-base font-semibold text-slate-950">Периоды</h3>
             <p className="mt-1 text-sm text-slate-600">
-              Таблица показывает закрытые периоды и историю процента платформы.
+              Таблица показывает закрытые периоды и фиксированную месячную оплату платформы по каждому периоду.
             </p>
-          </div>
-          <div className="flex rounded-md border border-slate-200 bg-slate-50 p-1">
-            <button
-              className={[
-                'inline-flex items-center gap-2 rounded px-3 py-2 text-sm font-medium',
-                activeLedger === 'periods' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600',
-              ].join(' ')}
-              onClick={() => setActiveLedger('periods')}
-              type="button"
-            >
-              <BarChart3 aria-hidden="true" className="size-4" />
-              Периоды
-            </button>
-            <button
-              className={[
-                'inline-flex items-center gap-2 rounded px-3 py-2 text-sm font-medium',
-                activeLedger === 'rates' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600',
-              ].join(' ')}
-              onClick={() => setActiveLedger('rates')}
-              type="button"
-            >
-              <Percent aria-hidden="true" className="size-4" />
-              Ставки
-            </button>
           </div>
         </div>
 
@@ -267,109 +233,78 @@ export function PlatformFinanceOrganizationPage() {
           </form>
         ) : null}
 
-        {activeLedger === 'periods' ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase text-slate-500">
-                  <th className="py-3 pr-3">Период</th>
-                  <th className="py-3 pr-3">Статус</th>
-                  <th className="py-3 pr-3 text-right">Доход</th>
-                  <th className="py-3 pr-3 text-right">COGS</th>
-                  <th className="py-3 pr-3 text-right">Прибыль</th>
-                  <th className="py-3 pr-3 text-right">Доля</th>
-                  <th className="py-3 pr-3 text-right">Владельцу</th>
-                  <th className="py-3 pr-3">Отправлен</th>
-                  <th className="py-3 text-right">Действия</th>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[980px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase text-slate-500">
+                <th className="py-3 pr-3">Период</th>
+                <th className="py-3 pr-3">Статус</th>
+                <th className="py-3 pr-3 text-right">Доход</th>
+                <th className="py-3 pr-3 text-right">COGS</th>
+                <th className="py-3 pr-3 text-right">Прибыль</th>
+                <th className="py-3 pr-3 text-right">Оплата платформы</th>
+                <th className="py-3 pr-3 text-right">Владельцу</th>
+                <th className="py-3 pr-3">Отправлен</th>
+                <th className="py-3 text-right">Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              {finance.data?.periods.map((period) => (
+                <tr className="border-b border-slate-100 last:border-0" key={period.id}>
+                  <td className="py-3 pr-3 font-medium text-slate-950">{period.period_start} - {period.period_end}</td>
+                  <td className="py-3 pr-3">
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                      {statusLabel[period.status] ?? period.status}
+                    </span>
+                  </td>
+                  <td className="py-3 pr-3 text-right">{money(period.revenue)}</td>
+                  <td className="py-3 pr-3 text-right">{money(period.cogs)}</td>
+                  <td className="py-3 pr-3 text-right">{money(period.net_profit_before_platform_share)}</td>
+                  <td className="py-3 pr-3 text-right">{money(period.platform_share_amount)}</td>
+                  <td className="py-3 pr-3 text-right">{money(period.organization_owner_amount)}</td>
+                  <td className="py-3 pr-3 text-slate-600">{formatDateTime(period.submitted_at)}</td>
+                  <td className="py-3">
+                    <div className="flex justify-end gap-2">
+                      <Link
+                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 transition-colors hover:bg-slate-50"
+                        to={`/platform/finance/periods/${period.id}`}
+                      >
+                        <Eye aria-hidden="true" className="size-4" />
+                        Открыть
+                      </Link>
+                      <Button
+                        className="min-h-9 px-3 py-1.5"
+                        disabled={period.status === 'locked'}
+                        onClick={() =>
+                          setEditingPeriod({
+                            id: period.id,
+                            periodEnd: period.period_end,
+                            periodStart: period.period_start,
+                          })
+                        }
+                        type="button"
+                        variant="secondary"
+                      >
+                        <Edit3 aria-hidden="true" className="size-4" />
+                        Изменить
+                      </Button>
+                      <Button
+                        className="min-h-9 px-3 py-1.5"
+                        disabled={periodMutations.delete.isPending}
+                        onClick={() => handlePeriodDelete(period.id)}
+                        type="button"
+                        variant="danger"
+                      >
+                        <Trash2 aria-hidden="true" className="size-4" />
+                        Удалить навсегда
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {finance.data?.periods.map((period) => (
-                  <tr className="border-b border-slate-100 last:border-0" key={period.id}>
-                    <td className="py-3 pr-3 font-medium text-slate-950">{period.period_start} - {period.period_end}</td>
-                    <td className="py-3 pr-3">
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
-                        {statusLabel[period.status] ?? period.status}
-                      </span>
-                    </td>
-                    <td className="py-3 pr-3 text-right">{money(period.revenue)}</td>
-                    <td className="py-3 pr-3 text-right">{money(period.cogs)}</td>
-                    <td className="py-3 pr-3 text-right">{money(period.net_profit_before_platform_share)}</td>
-                    <td className="py-3 pr-3 text-right">{money(period.platform_share_amount)}</td>
-                    <td className="py-3 pr-3 text-right">{money(period.organization_owner_amount)}</td>
-                    <td className="py-3 pr-3 text-slate-600">{formatDateTime(period.submitted_at)}</td>
-                    <td className="py-3">
-                      <div className="flex justify-end gap-2">
-                        <Link
-                          className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 transition-colors hover:bg-slate-50"
-                          to={`/platform/finance/periods/${period.id}`}
-                        >
-                          <Eye aria-hidden="true" className="size-4" />
-                          Открыть
-                        </Link>
-                        <Button
-                          className="min-h-9 px-3 py-1.5"
-                          disabled={period.status === 'locked'}
-                          onClick={() =>
-                            setEditingPeriod({
-                              id: period.id,
-                              periodEnd: period.period_end,
-                              periodStart: period.period_start,
-                            })
-                          }
-                          type="button"
-                          variant="secondary"
-                        >
-                          <Edit3 aria-hidden="true" className="size-4" />
-                          Изменить
-                        </Button>
-                        <Button
-                          className="min-h-9 px-3 py-1.5"
-                          disabled={period.status === 'locked' || periodMutations.delete.isPending}
-                          onClick={() => handlePeriodDelete(period.id)}
-                          type="button"
-                          variant="danger"
-                        >
-                          <Trash2 aria-hidden="true" className="size-4" />
-                          Удалить
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase text-slate-500">
-                  <th className="py-3 pr-3">Процент</th>
-                  <th className="py-3 pr-3">Период действия</th>
-                  <th className="py-3 pr-3">Создано</th>
-                  <th className="py-3 pr-3 text-right">Периодов</th>
-                  <th className="py-3 pr-3 text-right">Сумма по периодам</th>
-                  <th className="py-3">Комментарий</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rateRows.map((rate) => (
-                  <tr className="border-b border-slate-100 last:border-0" key={rate.id}>
-                    <td className="py-3 pr-3 font-semibold text-slate-950">{money(rate.percentage)}%</td>
-                    <td className="py-3 pr-3">
-                      {rate.effective_from} - {rate.effective_to ?? 'сейчас'}
-                    </td>
-                    <td className="py-3 pr-3 text-slate-600">{formatDateTime(rate.created_at)}</td>
-                    <td className="py-3 pr-3 text-right">{rate.periodCount}</td>
-                    <td className="py-3 pr-3 text-right">{money(rate.shareAmount)}</td>
-                    <td className="py-3 text-slate-600">{rate.comment || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   )
@@ -387,11 +322,11 @@ export function PlatformFinancePeriodPage() {
 
   return (
     <section className="grid gap-5">
-      <PageHeader description="Проверка периода и утверждение начисления доли платформы." title="Период организации" />
+      <PageHeader description="Проверка периода и утверждение ежемесячной оплаты платформы." title="Период организации" />
       {period.data ? (
         <div className="grid gap-3 rounded-md border border-slate-200 bg-white p-4">
           <p className="font-medium text-slate-950">{period.data.period_start} - {period.data.period_end}</p>
-          <p className="text-sm text-slate-600">прибыль {money(period.data.net_profit_before_platform_share)} · доля {money(period.data.platform_share_amount)} · {statusLabel[period.data.status] ?? period.data.status}</p>
+          <p className="text-sm text-slate-600">прибыль {money(period.data.net_profit_before_platform_share)} · оплата платформы {money(period.data.platform_share_amount)} · {statusLabel[period.data.status] ?? period.data.status}</p>
           <div className="flex flex-wrap gap-2">
             <Button disabled={mutations.review.isPending} onClick={() => review('approved')} type="button">
               <CheckCircle2 aria-hidden="true" className="size-4" />
@@ -418,7 +353,7 @@ export function PlatformFinancePaymentsPage() {
   if (!payments.data?.length) {
     return (
       <section className="grid gap-5">
-        <PageHeader description="Подтверждение платежей организаций по доле платформы." title="Платежи платформе" />
+        <PageHeader description="Подтверждение платежей организаций по ежемесячной оплате платформы." title="Платежи платформе" />
         <EmptyState description="Организации пока не отправляли платежи на подтверждение." icon={ReceiptText} title="Платежей нет" />
       </section>
     )
@@ -426,7 +361,7 @@ export function PlatformFinancePaymentsPage() {
 
   return (
     <section className="grid gap-5">
-      <PageHeader description="Подтверждение платежей организаций по доле платформы." title="Платежи платформе" />
+      <PageHeader description="Подтверждение платежей организаций по ежемесячной оплате платформы." title="Платежи платформе" />
       <div className="grid gap-2">
         {payments.data.map((payment) => (
           <div className="grid gap-3 rounded-md border border-slate-200 bg-white p-4" key={payment.id}>

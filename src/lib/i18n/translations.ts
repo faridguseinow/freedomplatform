@@ -125,7 +125,9 @@ export const azTranslations: Record<string, string> = {
   'Время идёт. Завершите сессию, затем укажите сумму, которую клиент оставил.':
     'Vaxt gedir. Sessiyanı tamamlayın, sonra müştərinin qoyduğu məbləği göstərin.',
   'Глобальный контроль финансов организаций, периодов и задолженности по доле платформы.':
-    'Təşkilat maliyyəsi, dövrlər və platforma payı borcları üzrə ümumi nəzarət.',
+    'Təşkilat maliyyəsi, dövrlər və aylıq platforma ödənişi üzrə ümumi nəzarət.',
+  'Глобальный контроль финансов организаций, периодов и ежемесячной оплаты платформы.':
+    'Təşkilat maliyyəsi, dövrlər və aylıq platforma ödənişi üzrə ümumi nəzarət.',
   Готово: 'Hazırdır',
   'Группы для мест, товаров и услуг.': 'Yerlər, məhsullar və xidmətlər üçün qruplar.',
   Да: 'Bəli',
@@ -142,7 +144,9 @@ export const azTranslations: Record<string, string> = {
   'Первая смена': 'Birinci növbə',
   'Вторая смена': 'İkinci növbə',
   'Детальный финансовый период и расчёт доли Freedom Platform.':
-    'Detallı maliyyə dövrü və Freedom Platform payının hesablanması.',
+    'Detallı maliyyə dövrü və aylıq Freedom Platform ödənişi.',
+  'Детальный финансовый период и ежемесячная оплата Freedom Platform.':
+    'Detallı maliyyə dövrü və aylıq Freedom Platform ödənişi.',
   'Длина PIN сотрудника': 'Əməkdaş PIN uzunluğu',
   'Для drag-and-drop нужно применить миграцию workspace layout в Supabase.':
     'Drag-and-drop üçün Supabase-də workspace layout miqrasiyasını tətbiq edin.',
@@ -169,6 +173,11 @@ export const azTranslations: Record<string, string> = {
   'Должность не указана': 'Vəzifə göstərilməyib',
   'Доля платформы': 'Platforma payı',
   'Доля платформы, %': 'Platforma payı, %',
+  'Ежемесячная оплата платформы': 'Aylıq platforma ödənişi',
+  'Оплата платформы': 'Platforma ödənişi',
+  'Оплата платформе': 'Platformaya ödəniş',
+  'Срок оплаты платформы': 'Platforma ödənişi müddəti',
+  'Срок оплаты платформы, дней': 'Platforma ödənişi müddəti, gün',
   'Домен и ссылки': 'Domen və linklər',
   'Доступ найден, но отключен. Можно восстановить.':
     'Giriş tapıldı, amma deaktivdir. Bərpa etmək olar.',
@@ -178,6 +187,8 @@ export const azTranslations: Record<string, string> = {
   Доходы: 'Gəlirlər',
   'Доходы, расходы, периоды и доля платформы.':
     'Gəlirlər, xərclər, dövrlər və platforma payı.',
+  'Доходы, расходы, периоды и оплата платформы.':
+    'Gəlirlər, xərclər, dövrlər və platforma ödənişi.',
   Другое: 'Digər',
   'Единица учета': 'Uçot vahidi',
   'Есть хотя бы одно место с почасовой тарификацией.':
@@ -210,6 +221,33 @@ export const azTranslations: Record<string, string> = {
   'Переводы на карту': 'Karta köçürmələr',
   'Фактическая касса': 'Faktiki kassa',
   'Начальная касса': 'Başlanğıc kassası',
+  'Расчёт кассы': 'Kassa hesablaması',
+  Калькулятор: 'Kalkulyator',
+  'Калькулятор смены': 'Növbə kalkulyatoru',
+  Выражение: 'İfadə',
+  Результат: 'Nəticə',
+  'Быстрые суммы смены': 'Növbənin sürətli məbləğləri',
+  'Готовые формулы': 'Hazır düsturlar',
+  Очистить: 'Təmizlə',
+  'Оплаченные заказы': 'Ödənilmiş sifarişlər',
+  'Оплаты наличными': 'Nağd ödənişlər',
+  'Оплаты картой': 'Kartla ödənişlər',
+  'Начальная касса + наличные продажи': 'Başlanğıc kassası + nağd satışlar',
+  'Фактическая касса - ожидаемая касса': 'Faktiki kassa - gözlənilən kassa',
+  'Наличные продажи + переводы на карту': 'Nağd satışlar + karta köçürmələr',
+  'Сумма заказов - сумма оплат': 'Sifarişlərin cəmi - ödənişlərin cəmi',
+  'Комментарии закрытия': 'Bağlanış şərhləri',
+  'Комментарий закрытия': 'Bağlanış şərhi',
+  'Комментарий расхождения': 'Fərq şərhi',
+  'Комментарий удаления смены': 'Növbə silinmə şərhi',
+  'Причина закрытия админом': 'Administrator bağlanış səbəbi',
+  'Удалить смену': 'Növbəni sil',
+  'Удалить смену навсегда? Все заказы, оплаты, доходы и складовые списания этой смены будут удалены из итогов.':
+    'Növbə birdəfəlik silinsin? Bu növbənin bütün sifarişləri, ödənişləri, gəlirləri və anbar silinmələri yekunlardan çıxarılacaq.',
+  'Начальная касса плюс завершённые наличные оплаты этой смены. Переводы на карту сюда не входят.':
+    'Başlanğıc kassası üstəgəl bu növbənin tamamlanmış nağd ödənişləri. Karta köçürmələr bura daxil deyil.',
+  'Фактическая касса — это реальные наличные в кассе при закрытии смены.':
+    'Faktiki kassa növbə bağlanarkən kassadakı real nağd puldur.',
   Расхождение: 'Fərq',
   Ответственный: 'Məsul şəxs',
   'Роль не указана': 'Rol göstərilməyib',
@@ -353,7 +391,9 @@ export const azTranslations: Record<string, string> = {
   'Начальный остаток': 'Başlanğıc qalıq',
   'Начальный остаток при создании товара': 'Məhsul yaradılarkən başlanğıc qalıq',
   'Начисления и платежи доли Freedom Platform.':
-    'Freedom Platform payı üzrə hesablamalar və ödənişlər.',
+    'Aylıq Freedom Platform ödənişi üzrə hesablamalar və ödənişlər.',
+  'Начисления и платежи ежемесячной оплаты Freedom Platform.':
+    'Aylıq Freedom Platform ödənişi üzrə hesablamalar və ödənişlər.',
   'Не ведется': 'Aparılmır',
   'Не задан': 'Təyin edilməyib',
   'Не оплачен': 'Ödənilməyib',
@@ -496,7 +536,9 @@ export const azTranslations: Record<string, string> = {
   'По фильтру мест нет': 'Filtrə uyğun yer yoxdur',
   Подтвержден: 'Təsdiqlənib',
   'Подтверждение платежей организаций по доле платформы.':
-    'Təşkilatların platforma payı ödənişlərinin təsdiqi.',
+    'Təşkilatların aylıq platforma ödənişlərinin təsdiqi.',
+  'Подтверждение платежей организаций по ежемесячной оплате платформы.':
+    'Təşkilatların aylıq platforma ödənişlərinin təsdiqi.',
   Подтверждён: 'Təsdiqlənib',
   Поиск: 'Axtarış',
   'Поиск товара или услуги': 'Məhsul və ya xidmət axtarışı',
@@ -525,7 +567,9 @@ export const azTranslations: Record<string, string> = {
   'Проверить склад': 'Anbarı yoxla',
   'Проверка PIN': 'PIN yoxlaması',
   'Проверка периода и утверждение начисления доли платформы.':
-    'Dövrün yoxlanması və platforma payı hesablamasının təsdiqi.',
+    'Dövrün yoxlanması və aylıq platforma ödənişinin təsdiqi.',
+  'Проверка периода и утверждение ежемесячной оплаты платформы.':
+    'Dövrün yoxlanması və aylıq platforma ödənişinin təsdiqi.',
   'Проверьте значения в форме.': 'Formadakı dəyərləri yoxlayın.',
   Продажа: 'Satış',
   'Продажная цена': 'Satış qiyməti',
@@ -660,11 +704,17 @@ export const azTranslations: Record<string, string> = {
   'Финансовые категории': 'Maliyyə kateqoriyaları',
   'Финансовые настройки организации. Долю платформы меняет только владелец платформы.':
     'Təşkilatın maliyyə ayarları. Platforma payını yalnız platforma sahibi dəyişir.',
+  'Финансовые настройки организации. Ежемесячную оплату платформы меняет только владелец платформы.':
+    'Təşkilatın maliyyə ayarları. Aylıq platforma ödənişini yalnız platforma sahibi dəyişir.',
   'Текущие правила расчёта': 'Cari hesablama qaydaları',
   'Эти показатели показывают, как сейчас делится чистая прибыль и какой финансовый цикл используется для периодов.':
     'Bu göstəricilər xalis mənfəətin hazırda necə bölündüyünü və dövrlər üçün hansı maliyyə dövrünün istifadə edildiyini göstərir.',
+  'Эти показатели показывают фиксированную оплату платформы и финансовый цикл периодов.':
+    'Bu göstəricilər sabit platforma ödənişini və dövrlərin maliyyə dövrünü göstərir.',
   'Процент, который будет начислен Freedom Platform после утверждения финансового периода.':
     'Maliyyə dövrü təsdiqləndikdən sonra Freedom Platform üçün hesablanacaq faiz.',
+  'Фиксированная сумма за месяц. Она начисляется при утверждении финансового периода и не зависит от процента прибыли.':
+    'Ay üçün sabit məbləğdir. Maliyyə dövrü təsdiqlənəndə hesablanır və mənfəət faizindən asılı deyil.',
   'Доля владельца': 'Sahibin payı',
   'Оставшаяся часть чистой прибыли после доли платформы.':
     'Platforma payından sonra qalan xalis mənfəət hissəsi.',
@@ -674,11 +724,15 @@ export const azTranslations: Record<string, string> = {
     'Gəlir, COGS, mənfəət, kartla ödəniş və cash out kartları bu dövr daxilində hesablanır.',
   'Карточки дохода, COGS, прибыли, доли платформы, оплаты картой и cash out считаются с начала периода до сегодняшнего дня.':
     'Gəlir, COGS, mənfəət, platforma payı, kartla ödəniş və cash out kartları dövrün əvvəlindən bu günə qədər hesablanır.',
+  'Карточки дохода, COGS, прибыли, ежемесячной оплаты платформы, оплаты картой и cash out считаются с начала периода до сегодняшнего дня.':
+    'Gəlir, COGS, mənfəət, aylıq platforma ödənişi, kartla ödəniş və cash out kartları dövrün əvvəlindən bu günə qədər hesablanır.',
   'Если день 15, текущий период идёт с 15-го числа до 14-го числа следующего месяца.':
     'Gün 15-dirsə, cari dövr ayın 15-dən növbəti ayın 14-nə qədər davam edir.',
   'Срок оплаты доли платформы': 'Platforma payının ödəniş müddəti',
   'После закрытия периода долю платформы нужно оплатить в течение этого количества дней.':
     'Dövr bağlandıqdan sonra platforma payı bu gün sayı ərzində ödənilməlidir.',
+  'После закрытия периода ежемесячную оплату платформы нужно оплатить в течение этого количества дней.':
+    'Dövr bağlandıqdan sonra aylıq platforma ödənişi bu gün sayı ərzində ödənilməlidir.',
   дней: 'gün',
   'Следующее закрытие финансового месяца': 'Növbəti maliyyə ayı bağlanışı',
   'Проверьте, что все смены закрыты, расходы внесены, а спорные оплаты исправлены до отправки периода.':
@@ -689,6 +743,8 @@ export const azTranslations: Record<string, string> = {
   'Настройки владельца платформы': 'Platforma sahibinin ayarları',
   'Вы можете изменить долю платформы для этой организации.':
     'Bu təşkilat üçün platforma payını dəyişə bilərsiniz.',
+  'Вы можете изменить ежемесячную оплату платформы для этой организации.':
+    'Bu təşkilat üçün aylıq platforma ödənişini dəyişə bilərsiniz.',
   'Эти значения назначает только владелец платформы.':
     'Bu dəyərləri yalnız platforma sahibi təyin edir.',
   'Срок оплаты доли платформы, дней': 'Platforma payının ödəniş müddəti, gün',
@@ -1136,17 +1192,24 @@ export const azTranslations: Record<string, string> = {
   Услуга: 'Xidmət',
   'Установить ставку': 'Dərəcəni təyin et',
   'Финансы выбранной организации: P&L, оплаты, направления, периоды и ставка Freedom Platform.':
-    'Seçilmiş təşkilatın maliyyəsi: P&L, ödənişlər, istiqamətlər, dövrlər və Freedom Platform dərəcəsi.',
+    'Seçilmiş təşkilatın maliyyəsi: P&L, ödənişlər, istiqamətlər, dövrlər və aylıq Freedom Platform ödənişi.',
+  'Финансы выбранной организации: P&L, оплаты, направления, периоды и ежемесячная оплата Freedom Platform.':
+    'Seçilmiş təşkilatın maliyyəsi: P&L, ödənişlər, istiqamətlər, dövrlər və aylıq Freedom Platform ödənişi.',
   'Финансы по направлениям': 'İstiqamətlər üzrə maliyyə',
   'Контроль платформы: организации, доля Freedom Platform, задолженность и периоды на проверке.':
-    'Platforma nəzarəti: təşkilatlar, Freedom Platform payı, borclar və yoxlamada olan dövrlər.',
+    'Platforma nəzarəti: təşkilatlar, aylıq Freedom Platform ödənişi, borclar və yoxlamada olan dövrlər.',
+  'Контроль платформы: организации, ежемесячная оплата Freedom Platform, задолженность и периоды на проверке.':
+    'Platforma nəzarəti: təşkilatlar, aylıq Freedom Platform ödənişi, borclar və yoxlamada olan dövrlər.',
   'Сообщили оплату': 'Ödəniş bildirilib',
   'Доход организаций': 'Təşkilatların gəliri',
   'Расходы организаций': 'Təşkilatların xərcləri',
   'Чистая прибыль организаций': 'Təşkilatların xalis mənfəəti',
   'Организации и доля платформы': 'Təşkilatlar və platforma payı',
+  'Организации и оплата платформы': 'Təşkilatlar və platforma ödənişi',
   'Главное для владельца платформы: кто сколько заработал, какая прибыль и сколько должны платформе.':
-    'Platforma sahibi üçün əsas məlumat: kim nə qədər qazanıb, mənfəət nə qədərdir və platformaya nə qədər borc var.',
+    'Platforma sahibi üçün əsas məlumat: kim nə qədər qazanıb, mənfəət nə qədərdir və aylıq ödəniş üzrə nə qədər borc var.',
+  'Главное для владельца платформы: кто сколько заработал, какая прибыль и сколько должны по ежемесячной оплате.':
+    'Platforma sahibi üçün əsas məlumat: kim nə qədər qazanıb, mənfəət nə qədərdir və aylıq ödəniş üzrə nə qədər borc var.',
   Фильтр: 'Filtr',
   'Финансовые данные пока пустые.': 'Maliyyə məlumatları hələ boşdur.',
   'Финансы организаций': 'Təşkilatların maliyyəsi',
@@ -1203,7 +1266,7 @@ export const azTranslations: Record<string, string> = {
     'Tam ay üçün təxmini ümumi gəlir: gündəlik orta gəlir dövrün bütün günlərinə vurulur.',
   'Прогноз с расходами': 'Xərclərlə proqnoz',
   'Примерная прибыль за месяц с учётом COGS и операционных расходов, без вычитания доли платформы.':
-    'COGS və əməliyyat xərcləri nəzərə alınmaqla, platforma payı çıxılmadan aylıq təxmini mənfəət.',
+    'COGS və əməliyyat xərcləri nəzərə alınmaqla, aylıq platforma ödənişi çıxılmadan təxmini mənfəət.',
   'Осталось дней': 'Qalan günlər',
   'Текущая чистая прибыль': 'Cari xalis mənfəət',
   'среднее за день × дней в периоде': 'gündəlik orta × dövrdəki günlər',
@@ -1266,8 +1329,12 @@ export const azTranslations: Record<string, string> = {
     'Mənfəətə təsir edən xərclər: ləğv edilməmiş, təsdiq gözləməyən və rədd edilməmiş xərclər, hesablama tarixinə görə.',
   'Валовая прибыль минус операционные расходы. Это прибыль до расчёта доли платформы.':
     'Ümumi mənfəətdən əməliyyat xərcləri çıxılır. Bu, platforma payı hesablanmazdan əvvəlki mənfəətdir.',
+  'Валовая прибыль минус операционные расходы. Это прибыль до ежемесячной оплаты платформы.':
+    'Ümumi mənfəətdən əməliyyat xərcləri çıxılır. Bu, aylıq platforma ödənişindən əvvəlki mənfəətdir.',
   'Считается только если чистая прибыль положительная: чистая прибыль × процент платформы. Если чистая прибыль отрицательная, доля платформы равна 0.':
     'Yalnız xalis mənfəət müsbət olduqda hesablanır: xalis mənfəət × platforma faizi. Xalis mənfəət mənfidirsə, platforma payı 0 olur.',
+  'Фиксированная месячная сумма за использование Freedom Platform. Сейчас по умолчанию 200 AZN и не зависит от процента или прибыли.':
+    'Freedom Platform istifadəsi üçün sabit aylıq məbləğdir. Hazırda standart 200 AZN-dir və faizdən və ya mənfəətdən asılı deyil.',
   'Удаление периодов ещё не подключено в базе. Примените последнюю миграцию Supabase и обновите schema cache.':
     'Dövrlərin silinməsi bazada hələ qoşulmayıb. Son Supabase miqrasiyasını tətbiq edin və schema cache-i yeniləyin.',
   'Итоговая сумма для владельца после расчётов периода. Если чистая прибыль отрицательная, сумма тоже может быть отрицательной.':
@@ -1351,20 +1418,25 @@ export const azTranslations: Record<string, string> = {
   'синхронизировал доход по заказу': 'sifariş gəlirini sinxronlaşdırdı',
   'синхронизировал закупку': 'satınalmanı sinxronlaşdırdı',
   'сообщил об оплате доли платформы': 'platforma payı ödənişi barədə bildirdi',
+  'сообщил об оплате платформы': 'platforma ödənişi barədə bildirdi',
   'одобрил исправление': 'düzəlişi təsdiqlədi',
   'одобрил расход': 'xərci təsdiqlədi',
   'одобрил финансовый период': 'maliyyə dövrünü təsdiqlədi',
   'отклонил исправление': 'düzəlişi rədd etdi',
   'отклонил оплату доли платформы': 'platforma payı ödənişini rədd etdi',
+  'отклонил оплату платформы': 'platforma ödənişini rədd etdi',
   'отклонил расход': 'xərci rədd etdi',
   'отклонил финансовый период': 'maliyyə dövrünü rədd etdi',
   'открыл раздел': 'bölməni açdı',
   'открыл смену': 'növbəni açdı',
   'переместил заказ': 'sifarişi köçürdü',
   'подтвердил оплату доли платформы': 'platforma payı ödənişini təsdiqlədi',
+  'подтвердил оплату платформы': 'platforma ödənişini təsdiqlədi',
   'принудительно закрыл смену': 'növbəni məcburi bağladı',
   'принял оплату': 'ödənişi qəbul etdi',
   'установил ставку доли платформы': 'platforma payı dərəcəsini təyin etdi',
+  'изменил оплату платформы': 'platforma ödənişini dəyişdi',
+  'изменил ежемесячную оплату платформы': 'aylıq platforma ödənişini dəyişdi',
   'оформил отказ от оплаты': 'ödənişdən imtinanı rəsmiləşdirdi',
   'отправил финансовый период на проверку': 'maliyyə dövrünü yoxlamaya göndərdi',
   'заказ': 'sifariş',
@@ -1378,6 +1450,8 @@ export const azTranslations: Record<string, string> = {
   'финансовый период': 'maliyyə dövrü',
   'ставка доли платформы': 'platforma payı dərəcəsi',
   'платёж доли платформы': 'platforma payı ödənişi',
+  'настройка оплаты платформы': 'platforma ödənişi ayarı',
+  'платёж платформе': 'platformaya ödəniş',
   'страница админки': 'admin səhifəsi',
   'поз.': 'mövqe',
   сейчас: 'indi',

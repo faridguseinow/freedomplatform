@@ -67,8 +67,6 @@ const money = (value: number | null | undefined) =>
   new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(
     value ?? 0,
   )
-const percent = (value: number | null | undefined) =>
-  `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(value ?? 0)}%`
 
 function formatDateInput(date: Date) {
   const year = date.getFullYear()
@@ -279,13 +277,13 @@ function StatGrid({
       label: 'Чистая прибыль',
       value: summary?.net_profit_before_platform_share,
       description:
-        'Валовая прибыль минус операционные расходы. Это прибыль до расчёта доли платформы.',
+        'Валовая прибыль минус операционные расходы. Это прибыль до ежемесячной оплаты платформы.',
     },
     {
-      label: 'Доля платформы',
+      label: 'Ежемесячная оплата платформы',
       value: summary?.platform_share_amount,
       description:
-        'Считается только если чистая прибыль положительная: чистая прибыль × процент платформы. Если чистая прибыль отрицательная, доля платформы равна 0.',
+        'Фиксированная месячная сумма за использование Freedom Platform. Сейчас по умолчанию 200 AZN и не зависит от процента или прибыли.',
     },
     showCardPayment
       ? {
@@ -475,7 +473,7 @@ function MonthlyForecastAnalytics({
       value: projectedGross,
     },
     {
-      description: 'Примерная прибыль за месяц с учётом COGS и операционных расходов, без вычитания доли платформы.',
+      description: 'Примерная прибыль за месяц с учётом COGS и операционных расходов, до ежемесячной оплаты платформы.',
       label: 'Прогноз с расходами',
       value: projectedNet,
     },
@@ -879,7 +877,7 @@ export function AdminFinancePage() {
       />
       <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-900">
         {t('Текущий расчётный период')}: {currentCycle.start} - {currentDate}.{' '}
-        {t('Карточки дохода, COGS, прибыли, доли платформы, оплаты картой и cash out считаются с начала периода до сегодняшнего дня.')}
+        {t('Карточки дохода, COGS, прибыли, ежемесячной оплаты платформы, оплаты картой и cash out считаются с начала периода до сегодняшнего дня.')}
       </div>
       <StatGrid
         cardPayment={paymentMethodSummary.data?.card ?? null}
@@ -1212,7 +1210,7 @@ export function AdminFinancePeriodsPage() {
           <MetricCard label="Доход" value={totals.revenue} />
           <MetricCard label="COGS" value={totals.cogs} />
           <MetricCard label="Чистая прибыль" value={totals.profit} />
-          <MetricCard label="Доля платформы" value={totals.platform} />
+          <MetricCard label="Ежемесячная оплата платформы" value={totals.platform} />
           <MetricCard label="Итого владельцу" value={totals.owner} />
         </div>
 
@@ -1229,7 +1227,7 @@ export function AdminFinancePeriodsPage() {
                 <th className="px-3 py-3 font-medium">{t('Доход')}</th>
                 <th className="px-3 py-3 font-medium">COGS</th>
                 <th className="px-3 py-3 font-medium">{t('Прибыль')}</th>
-                <th className="px-3 py-3 font-medium">{t('Доля')}</th>
+                <th className="px-3 py-3 font-medium">{t('Оплата платформы')}</th>
                 <th className="px-3 py-3 font-medium">{t('Владельцу')}</th>
                 <th className="px-3 py-3 text-right font-medium">{t('Действия')}</th>
               </tr>
@@ -1264,7 +1262,7 @@ export function AdminFinancePeriodsPage() {
               <dl className="grid grid-cols-2 gap-2 text-sm">
                 <div><dt className="text-xs uppercase text-slate-500">{t('Доход')}</dt><dd>{money(period.revenue)}</dd></div>
                 <div><dt className="text-xs uppercase text-slate-500">COGS</dt><dd>{money(period.cogs)}</dd></div>
-                <div><dt className="text-xs uppercase text-slate-500">{t('Доля')}</dt><dd>{money(period.platform_share_amount)}</dd></div>
+                <div><dt className="text-xs uppercase text-slate-500">{t('Оплата платформы')}</dt><dd>{money(period.platform_share_amount)}</dd></div>
                 <div><dt className="text-xs uppercase text-slate-500">{t('Владельцу')}</dt><dd>{money(period.organization_owner_amount)}</dd></div>
               </dl>
               {periodActions(period)}
@@ -1341,7 +1339,7 @@ export function AdminFinancePeriodDetailPage() {
 
   return (
     <section className="grid gap-5">
-      <PageHeader description="Детальный финансовый период и расчёт доли Freedom Platform." title="Финансовый период" />
+      <PageHeader description="Детальный финансовый период и ежемесячная оплата Freedom Platform." title="Финансовый период" />
       {period.data ? <StatGrid summary={period.data} /> : null}
     </section>
   )
@@ -1366,7 +1364,7 @@ export function AdminFinancePlatformSharePage() {
 
   return (
     <section className="grid gap-5">
-      <PageHeader description="Начисления и платежи доли Freedom Platform." title="Доля платформы" />
+      <PageHeader description="Начисления и платежи ежемесячной оплаты Freedom Platform." title="Ежемесячная оплата платформы" />
       {rows.data?.map((row) => (
         <div className="grid gap-3 rounded-md border border-slate-200 bg-white p-4" key={row.id}>
           <p className="font-medium text-slate-950">{money(row.accrued_amount)} · оплачено {money(row.paid_amount)} · {statusLabel[row.status] ?? row.status}</p>
@@ -1391,8 +1389,7 @@ export function AdminFinanceSettingsPage() {
   const isPlatformOwner = role === 'platform_owner'
   const closeDay = settings.data?.financial_month_close_day ?? 15
   const reportingCurrency = settings.data?.reporting_currency_code || 'AZN'
-  const platformSharePercentage = settings.data?.default_platform_share_percentage ?? 0
-  const ownerSharePercentage = Math.max(0, 100 - platformSharePercentage)
+  const monthlyPlatformFee = settings.data?.monthly_platform_fee ?? 200
   const platformPaymentDueDays = settings.data?.platform_share_payment_due_days ?? 10
   const cycle = getFinancialCycle(closeDay)
 
@@ -1410,7 +1407,8 @@ export function AdminFinanceSettingsPage() {
       isPlatformOwner
         ? {
             ...input,
-            default_platform_share_percentage: Number(form.get('default_platform_share_percentage') ?? 0) || 0,
+            default_platform_share_percentage: 0,
+            monthly_platform_fee: Number(form.get('monthly_platform_fee') ?? 0) || 0,
             platform_share_payment_due_days: Number(form.get('platform_share_payment_due_days') ?? 0) || 10,
           }
         : input,
@@ -1420,7 +1418,7 @@ export function AdminFinanceSettingsPage() {
   return (
     <section className="grid gap-5">
       <PageHeader
-        description={t('Финансовые настройки организации. Долю платформы меняет только владелец платформы.')}
+        description={t('Финансовые настройки организации. Ежемесячную оплату платформы меняет только владелец платформы.')}
         title={t('Настройки финансов')}
       />
 
@@ -1428,19 +1426,14 @@ export function AdminFinanceSettingsPage() {
         <div>
           <h3 className="font-semibold text-slate-950">{t('Текущие правила расчёта')}</h3>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            {t('Эти показатели показывают, как сейчас делится чистая прибыль и какой финансовый цикл используется для периодов.')}
+            {t('Эти показатели показывают фиксированную оплату платформы и финансовый цикл периодов.')}
           </p>
         </div>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-3">
           <InfoCard
-            description="Процент, который будет начислен Freedom Platform после утверждения финансового периода."
-            label="Доля платформы"
-            value={percent(platformSharePercentage)}
-          />
-          <InfoCard
-            description="Оставшаяся часть чистой прибыли после доли платформы."
-            label="Доля владельца"
-            value={percent(ownerSharePercentage)}
+            description="Фиксированная сумма за месяц. Она начисляется при утверждении финансового периода и не зависит от процента прибыли."
+            label="Ежемесячная оплата платформы"
+            value={money(monthlyPlatformFee)}
           />
           <InfoCard
             description="Если день 15, текущий период идёт с 15-го числа до 14-го числа следующего месяца."
@@ -1448,8 +1441,8 @@ export function AdminFinanceSettingsPage() {
             value={`${cycle.start} - ${cycle.end}`}
           />
           <InfoCard
-            description="После закрытия периода долю платформы нужно оплатить в течение этого количества дней."
-            label="Срок оплаты доли платформы"
+            description="После закрытия периода ежемесячную оплату платформы нужно оплатить в течение этого количества дней."
+            label="Срок оплаты платформы"
             value={`${platformPaymentDueDays} ${t('дней')}`}
           />
         </div>
@@ -1503,25 +1496,24 @@ export function AdminFinanceSettingsPage() {
             <h4 className="text-sm font-semibold text-slate-950">{t('Настройки владельца платформы')}</h4>
             <p className="mt-1 text-sm leading-6 text-slate-600">
               {isPlatformOwner
-                ? t('Вы можете изменить долю платформы для этой организации.')
+                ? t('Вы можете изменить ежемесячную оплату платформы для этой организации.')
                 : t('Эти значения назначает только владелец платформы.')}
             </p>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             <Input
-              defaultValue={platformSharePercentage}
+              defaultValue={monthlyPlatformFee}
               disabled={!isPlatformOwner}
-              label={t('Доля платформы, %')}
-              max="100"
+              label={t('Ежемесячная оплата платформы')}
               min="0"
-              name="default_platform_share_percentage"
+              name="monthly_platform_fee"
               step="0.01"
               type="number"
             />
             <Input
               defaultValue={platformPaymentDueDays}
               disabled={!isPlatformOwner}
-              label={t('Срок оплаты доли платформы, дней')}
+              label={t('Срок оплаты платформы, дней')}
               min="0"
               name="platform_share_payment_due_days"
               type="number"

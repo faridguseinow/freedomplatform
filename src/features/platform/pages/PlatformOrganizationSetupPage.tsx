@@ -64,8 +64,8 @@ const checklistItems: Array<{
   },
   {
     key: 'has_share_rate',
-    label: 'Доля платформы',
-    description: 'Задана ставка Freedom Platform.',
+    label: 'Оплата платформы',
+    description: 'Задана ежемесячная оплата Freedom Platform.',
     icon: Landmark,
   },
   {

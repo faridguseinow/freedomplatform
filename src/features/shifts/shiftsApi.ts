@@ -172,6 +172,23 @@ export function useAdminShiftMutations(organizationId: string | null) {
   }
 
   return {
+    deleteShift: useMutation({
+      mutationFn: async ({
+        shiftId,
+        comment,
+      }: {
+        shiftId: string
+        comment?: string | null
+      }) => {
+        const { data, error } = await supabase.rpc('delete_employee_shift', {
+          target_shift_id: shiftId,
+          target_comment: comment ?? null,
+        })
+        if (error) throw new Error(error.message)
+        return data
+      },
+      onSuccess: (_payload, variables) => invalidate(variables.shiftId),
+    }),
     forceClose: useMutation({
       mutationFn: async ({
         shiftId,

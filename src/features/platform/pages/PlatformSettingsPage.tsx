@@ -28,7 +28,7 @@ type PlatformSettings = {
   requireEmployeePin: boolean
   employeePinDigits: number
   requireAdminPinApproval: boolean
-  defaultPlatformSharePercent: number
+  defaultMonthlyPlatformFee: number
   paymentDueDays: number
   largeExpenseThreshold: number
   maxOrganizations: number
@@ -60,7 +60,7 @@ const defaultSettings: PlatformSettings = {
   requireEmployeePin: true,
   employeePinDigits: 4,
   requireAdminPinApproval: true,
-  defaultPlatformSharePercent: 10,
+  defaultMonthlyPlatformFee: 200,
   paymentDueDays: 10,
   largeExpenseThreshold: 500,
   maxOrganizations: 100,
@@ -275,18 +275,17 @@ export function PlatformSettingsPage() {
           title="Финансы"
         >
           <Input
-            id="platform_share_percent"
-            label="Доля платформы, %"
-            max={100}
+            id="monthly_platform_fee"
+            label="Ежемесячная оплата платформы"
             min={0}
-            onChange={(event) => updateSetting('defaultPlatformSharePercent', Number(event.target.value))}
+            onChange={(event) => updateSetting('defaultMonthlyPlatformFee', Number(event.target.value))}
             step="0.01"
             type="number"
-            value={settings.defaultPlatformSharePercent}
+            value={settings.defaultMonthlyPlatformFee}
           />
           <Input
             id="platform_payment_due_days"
-            label="Срок оплаты доли, дней"
+            label="Срок оплаты платформы, дней"
             min={0}
             onChange={(event) => updateSetting('paymentDueDays', Number(event.target.value))}
             type="number"

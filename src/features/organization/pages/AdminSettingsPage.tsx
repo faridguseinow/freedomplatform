@@ -16,7 +16,7 @@ import {
 const mobileManagementLinks = [
   {
     label: 'Финансы',
-    description: 'Доходы, расходы, периоды и доля платформы.',
+    description: 'Доходы, расходы, периоды и оплата платформы.',
     path: '/admin/finance',
     icon: Landmark,
   },

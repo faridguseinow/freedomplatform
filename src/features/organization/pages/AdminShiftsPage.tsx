@@ -1,4 +1,4 @@
-import { Eye, Loader2 } from 'lucide-react'
+import { Eye, Loader2, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../hooks/useAuth'
@@ -6,7 +6,7 @@ import { useI18n } from '../../../lib/i18n/I18nContext'
 import type { AdminShiftReportRow, ShiftStatus } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
 import { ROLE_LABEL } from '../../../types/roles'
-import { shiftStatusLabel, useAdminShifts } from '../../shifts/shiftsApi'
+import { shiftStatusLabel, useAdminShiftMutations, useAdminShifts } from '../../shifts/shiftsApi'
 
 type StatusFilter = ShiftStatus | 'all'
 
@@ -22,15 +22,26 @@ const metrics = [
 ] as const satisfies ReadonlyArray<{ key: keyof AdminShiftReportRow; label: string }>
 
 export function AdminShiftsPage() {
-  const { currentOrganization, organizationId } = useAuth()
+  const { currentOrganization, organizationId, role } = useAuth()
   const { t } = useI18n()
   const [status, setStatus] = useState<StatusFilter>('all')
   const shiftsQuery = useAdminShifts(organizationId, status)
+  const mutations = useAdminShiftMutations(organizationId)
   const shifts = shiftsQuery.data ?? []
+  const isPlatformOwner = role === 'platform_owner'
   const buildAdminPath = (path: string) =>
     currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
   const getRoleLabel = (shift: AdminShiftReportRow) =>
     shift.employee_role ? ROLE_LABEL[shift.employee_role] : ROLE_LABEL.employee
+  const deleteShift = (shift: AdminShiftReportRow) => {
+    const confirmation = window.confirm(
+      t('Удалить смену навсегда? Все заказы, оплаты, доходы и складовые списания этой смены будут удалены из итогов.'),
+    )
+    if (!confirmation) return
+
+    const comment = window.prompt(t('Комментарий удаления смены'), t('Удалено владельцем платформы'))
+    mutations.deleteShift.mutate({ shiftId: shift.id, comment })
+  }
 
   return (
     <section className="grid gap-5">
@@ -77,7 +88,7 @@ export function AdminShiftsPage() {
                     {t(metric.label)}
                   </th>
                 ))}
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">{t('Детали')}</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">{t('Действия')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
@@ -101,13 +112,25 @@ export function AdminShiftsPage() {
                       {formatMoney(Number(shift[metric.key] ?? 0))}
                     </td>
                   ))}
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                      to={buildAdminPath(`/admin/shifts/${shift.id}`)}
-                    >
-                      <Eye className="size-4" /> {t('Детали')}
-                    </Link>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-2">
+                      <Link
+                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                        to={buildAdminPath(`/admin/shifts/${shift.id}`)}
+                      >
+                        <Eye className="size-4" /> {t('Детали')}
+                      </Link>
+                      {isPlatformOwner ? (
+                        <button
+                          className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-red-100 bg-white px-3 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={mutations.deleteShift.isPending}
+                          onClick={() => deleteShift(shift)}
+                          type="button"
+                        >
+                          <Trash2 className="size-4" /> {t('Удалить')}
+                        </button>
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -139,12 +162,24 @@ export function AdminShiftsPage() {
                 </div>
               ))}
             </dl>
-            <Link
-              className="mt-3 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              to={buildAdminPath(`/admin/shifts/${shift.id}`)}
-            >
-              <Eye className="size-4" /> {t('Детали')}
-            </Link>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <Link
+                className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                to={buildAdminPath(`/admin/shifts/${shift.id}`)}
+              >
+                <Eye className="size-4" /> {t('Детали')}
+              </Link>
+              {isPlatformOwner ? (
+                <button
+                  className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-md border border-red-100 bg-white px-3 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={mutations.deleteShift.isPending}
+                  onClick={() => deleteShift(shift)}
+                  type="button"
+                >
+                  <Trash2 className="size-4" /> {t('Удалить')}
+                </button>
+              ) : null}
+            </div>
           </article>
         ))}
       </div>

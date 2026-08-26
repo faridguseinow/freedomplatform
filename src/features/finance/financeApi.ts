@@ -15,7 +15,7 @@ export const financeCategorySelect =
 export const financeTransactionSelect =
   'id,organization_id,transaction_type,category_id,source_type,source_id,title,description,amount,paid_amount,status,payment_method,accrual_date,paid_date,recipient_or_supplier,reference,document_path,affects_profit,affects_cash_flow,eligible_for_platform_share_deduction,expense_approval_status,approval_requested_by,approved_by,approved_at,created_by,cancelled_by,cancelled_at,cancellation_reason,created_at,updated_at'
 export const financeSettingsSelect =
-  'organization_id,large_expense_threshold,require_large_expense_approval,default_platform_share_percentage,reporting_currency_code,financial_month_close_day,platform_share_payment_due_days,created_at,updated_at'
+  'organization_id,large_expense_threshold,require_large_expense_approval,default_platform_share_percentage,monthly_platform_fee,reporting_currency_code,financial_month_close_day,platform_share_payment_due_days,created_at,updated_at'
 
 export function todayDate() {
   return new Date().toISOString().slice(0, 10)

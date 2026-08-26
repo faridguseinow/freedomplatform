@@ -81,10 +81,11 @@ const actionLabels: Record<string, string> = {
   'finance.period_approved': 'одобрил финансовый период',
   'finance.period_rejected': 'отклонил финансовый период',
   'finance.period_clarification_requested': 'запросил уточнение по периоду',
-  'finance.platform_share_rate_set': 'установил ставку доли платформы',
-  'finance.platform_share_payment_reported': 'сообщил об оплате доли платформы',
-  'finance.platform_share_payment_confirmed': 'подтвердил оплату доли платформы',
-  'finance.platform_share_payment_rejected': 'отклонил оплату доли платформы',
+  'finance.platform_share_rate_set': 'изменил оплату платформы',
+  'finance.monthly_platform_fee_set': 'изменил ежемесячную оплату платформы',
+  'finance.platform_share_payment_reported': 'сообщил об оплате платформы',
+  'finance.platform_share_payment_confirmed': 'подтвердил оплату платформы',
+  'finance.platform_share_payment_rejected': 'отклонил оплату платформы',
   'catalog.product_deleted': 'удалил товар',
   'maintenance.test_orders_reset': 'очистил тестовые заказы',
 }
@@ -100,8 +101,8 @@ const entityLabels: Record<string, string> = {
   operational_day: 'операционный день',
   finance_transaction: 'финансовая операция',
   financial_period: 'финансовый период',
-  organization_platform_share_rate: 'ставка доли платформы',
-  platform_share_payment: 'платёж доли платформы',
+  organization_platform_share_rate: 'настройка оплаты платформы',
+  platform_share_payment: 'платёж платформе',
   product: 'товар',
   organization: 'организация',
 }
@@ -174,7 +175,7 @@ function buildFinanceDetails(log: FinanceAuditLogRow) {
     income: 'Доход',
     expense: 'Расход',
     purchase: 'Закупка',
-    platform_share_payment: 'Оплата доли платформы',
+    platform_share_payment: 'Оплата платформы',
   }
 
   if (amount) details.push(`Сумма: ${amount}`)

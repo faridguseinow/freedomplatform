@@ -816,6 +816,7 @@ export type OrganizationFinanceSettingsRow = {
   large_expense_threshold: number | null
   require_large_expense_approval: boolean
   default_platform_share_percentage: number | null
+  monthly_platform_fee: number
   reporting_currency_code: string | null
   financial_month_close_day: number | null
   platform_share_payment_due_days: number
@@ -1077,6 +1078,18 @@ export type ShiftClosePayload = {
   shift: EmployeeShiftRow
   summary: ShiftSummary
   handover: ShiftHandoverRow | null
+}
+
+export type ShiftDeletePayload = {
+  shift_id: string
+  organization_id: string
+  operational_day_id: string
+  deleted_shift: number
+  deleted_orders: number
+  deleted_payments: number
+  deleted_finance_transactions: number
+  deleted_stock_movements: number
+  deleted_handovers: number
 }
 
 export type EmployeeCurrentShiftViewRow = Pick<
@@ -1804,6 +1817,13 @@ export type Database = {
         }
         Returns: ShiftClosePayload
       }
+      delete_employee_shift: {
+        Args: {
+          target_shift_id: string
+          target_comment?: string | null
+        }
+        Returns: ShiftDeletePayload
+      }
       find_overdue_open_shifts: {
         Args: Record<string, never>
         Returns: EmployeeShiftRow[]
@@ -1954,6 +1974,14 @@ export type Database = {
           target_comment?: string | null
         }
         Returns: OrganizationPlatformShareRateRow
+      }
+      set_monthly_platform_fee: {
+        Args: {
+          target_organization_id: string
+          target_amount: number
+          target_comment?: string | null
+        }
+        Returns: OrganizationFinanceSettingsRow
       }
       report_platform_share_payment: {
         Args: {
