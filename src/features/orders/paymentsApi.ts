@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase/client'
-import type { PaymentMethod, PaymentRow } from '../../lib/supabase/database.types'
+import type { PaymentMethod, PaymentRow, PlaceType } from '../../lib/supabase/database.types'
 
 export function usePaymentMutations(organizationId: string | null) {
   const queryClient = useQueryClient()
@@ -68,6 +68,158 @@ function getDateRange(dateStart: string, dateEnd = dateStart) {
     start: `${dateStart}T00:00:00Z`,
     end: `${next.toISOString().slice(0, 10)}T00:00:00Z`,
   }
+}
+
+const minutesBetween = (startMs: number, endMs: number) => Math.max(0, (endMs - startMs) / 60_000)
+
+const getTimeGroup = (type: PlaceType | string | null | undefined) => {
+  if (type === 'playstation' || type === 'vip_room' || type === 'private_room') return 'playstation'
+  if (type === 'billiard') return 'billiard'
+  if (type === 'table') return 'tables'
+  return null
+}
+
+export type UsageHoursBreakdown = {
+  playstation: number
+  billiard: number
+  tables: number
+  total: number
+}
+
+const emptyUsageHours: UsageHoursBreakdown = { billiard: 0, playstation: 0, tables: 0, total: 0 }
+
+export function useUsageHoursBreakdown(
+  organizationId: string | null,
+  dateStart: string | null,
+  dateEnd: string | null,
+) {
+  return useQuery({
+    enabled: Boolean(organizationId && dateStart && dateEnd),
+    queryKey: ['usage-hours-breakdown', organizationId, dateStart, dateEnd],
+    queryFn: async () => {
+      const range = getDateRange(dateStart!, dateEnd!)
+      const rangeStartMs = new Date(range.start).getTime()
+      const rangeEndMs = new Date(range.end).getTime()
+      const nowMs = Date.now()
+      const effectiveRangeEndMs = Math.min(rangeEndMs, nowMs)
+
+      const [sessionsResult, ordersResult, placesResult] = await Promise.all([
+        supabase
+          .from('timed_sessions')
+          .select('place_id,started_at,ended_at,status,actual_minutes')
+          .eq('organization_id', organizationId!)
+          .lt('started_at', range.end)
+          .or(`ended_at.gte.${range.start},ended_at.is.null`)
+          .limit(10000),
+        supabase
+          .from('orders')
+          .select('place_id,opened_at,closed_at,status')
+          .eq('organization_id', organizationId!)
+          .lt('opened_at', range.end)
+          .or(`closed_at.gte.${range.start},closed_at.is.null`)
+          .limit(10000),
+        supabase
+          .from('places')
+          .select('id,type')
+          .eq('organization_id', organizationId!)
+          .limit(10000),
+      ])
+
+      if (sessionsResult.error) throw new Error(sessionsResult.error.message)
+      if (ordersResult.error) throw new Error(ordersResult.error.message)
+      if (placesResult.error) throw new Error(placesResult.error.message)
+
+      const placeTypes = new Map((placesResult.data ?? []).map((place) => [place.id, place.type]))
+      const result: UsageHoursBreakdown = { ...emptyUsageHours }
+
+      for (const session of sessionsResult.data ?? []) {
+        const group = getTimeGroup(placeTypes.get(session.place_id))
+        if (group !== 'playstation' && group !== 'billiard') continue
+        const startedMs = new Date(session.started_at).getTime()
+        const endedMs = session.ended_at ? new Date(session.ended_at).getTime() : nowMs
+        result[group] += minutesBetween(Math.max(startedMs, rangeStartMs), Math.min(endedMs, effectiveRangeEndMs)) / 60
+      }
+
+      for (const order of ordersResult.data ?? []) {
+        if (!order.place_id || order.status === 'cancelled') continue
+        const group = getTimeGroup(placeTypes.get(order.place_id))
+        if (group !== 'tables') continue
+        const openedMs = new Date(order.opened_at).getTime()
+        const closedMs = order.closed_at ? new Date(order.closed_at).getTime() : nowMs
+        result.tables += minutesBetween(Math.max(openedMs, rangeStartMs), Math.min(closedMs, effectiveRangeEndMs)) / 60
+      }
+
+      result.playstation = Number(result.playstation.toFixed(2))
+      result.billiard = Number(result.billiard.toFixed(2))
+      result.tables = Number(result.tables.toFixed(2))
+      result.total = Number((result.playstation + result.billiard + result.tables).toFixed(2))
+      return result
+    },
+  })
+}
+
+export function useUsageHoursBreakdownByShiftIds(organizationId: string | null, shiftIds: string[]) {
+  const shiftKey = shiftIds.join(',')
+
+  return useQuery({
+    enabled: Boolean(organizationId),
+    queryKey: ['usage-hours-breakdown-by-shifts', organizationId, shiftKey],
+    queryFn: async () => {
+      if (!shiftIds.length) return { ...emptyUsageHours }
+
+      const shiftFilter = `(${shiftIds.join(',')})`
+      const [sessionsResult, ordersResult, placesResult] = await Promise.all([
+        supabase
+          .from('timed_sessions')
+          .select('place_id,started_at,ended_at,status,started_shift_id,ended_shift_id')
+          .eq('organization_id', organizationId!)
+          .or(`started_shift_id.in.${shiftFilter},ended_shift_id.in.${shiftFilter}`)
+          .limit(10000),
+        supabase
+          .from('orders')
+          .select('place_id,opened_at,closed_at,status,opened_shift_id,closed_shift_id')
+          .eq('organization_id', organizationId!)
+          .or(`opened_shift_id.in.${shiftFilter},closed_shift_id.in.${shiftFilter}`)
+          .limit(10000),
+        supabase
+          .from('places')
+          .select('id,type')
+          .eq('organization_id', organizationId!)
+          .limit(10000),
+      ])
+
+      if (sessionsResult.error) throw new Error(sessionsResult.error.message)
+      if (ordersResult.error) throw new Error(ordersResult.error.message)
+      if (placesResult.error) throw new Error(placesResult.error.message)
+
+      const nowMs = Date.now()
+      const placeTypes = new Map((placesResult.data ?? []).map((place) => [place.id, place.type]))
+      const result: UsageHoursBreakdown = { ...emptyUsageHours }
+
+      for (const session of sessionsResult.data ?? []) {
+        const group = getTimeGroup(placeTypes.get(session.place_id))
+        if (group !== 'playstation' && group !== 'billiard') continue
+        const startedMs = new Date(session.started_at).getTime()
+        const endedMs = session.ended_at ? new Date(session.ended_at).getTime() : nowMs
+        result[group] += minutesBetween(startedMs, endedMs) / 60
+      }
+
+      for (const order of ordersResult.data ?? []) {
+        if (!order.place_id || order.status === 'cancelled') continue
+        const group = getTimeGroup(placeTypes.get(order.place_id))
+        if (group !== 'tables') continue
+        const openedMs = new Date(order.opened_at).getTime()
+        const closedMs = order.closed_at ? new Date(order.closed_at).getTime() : nowMs
+        result.tables += minutesBetween(openedMs, closedMs) / 60
+      }
+
+      result.playstation = Number(result.playstation.toFixed(2))
+      result.billiard = Number(result.billiard.toFixed(2))
+      result.tables = Number(result.tables.toFixed(2))
+      result.total = Number((result.playstation + result.billiard + result.tables).toFixed(2))
+      return result
+    },
+  })
 }
 
 export type PaymentMethodSummary = {
@@ -158,6 +310,16 @@ export type PaymentsByPlaceRow = {
   total: number
 }
 
+const RELATED_ROWS_CHUNK_SIZE = 100
+
+function chunkValues<T>(values: T[], size = RELATED_ROWS_CHUNK_SIZE) {
+  const chunks: T[][] = []
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size))
+  }
+  return chunks
+}
+
 async function buildRevenueBreakdown(paymentRows: PaymentRow[]) {
   const orderIds = Array.from(
     new Set(paymentRows.map((p) => p.order_id).filter((id): id is string => Boolean(id))),
@@ -165,26 +327,30 @@ async function buildRevenueBreakdown(paymentRows: PaymentRow[]) {
 
   let orders: { id: string; place_id: string | null }[] = []
   if (orderIds.length) {
-    const { data: ordersData, error: ordersErr } = await supabase
-      .from('orders')
-      .select('id,place_id')
-      .in('id', orderIds)
+    for (const chunk of chunkValues(orderIds)) {
+      const { data: ordersData, error: ordersErr } = await supabase
+        .from('orders')
+        .select('id,place_id')
+        .in('id', chunk)
 
-    if (ordersErr) throw new Error(ordersErr.message)
-    orders = ordersData ?? []
+      if (ordersErr) throw new Error(ordersErr.message)
+      orders.push(...(ordersData ?? []))
+    }
   }
 
   const placeIds = Array.from(new Set(orders.map((o) => o.place_id).filter((id): id is string => Boolean(id))))
 
   let places: { id: string; type: string | null }[] = []
   if (placeIds.length) {
-    const { data: placesData, error: placesErr } = await supabase
-      .from('places')
-      .select('id,type')
-      .in('id', placeIds)
+    for (const chunk of chunkValues(placeIds)) {
+      const { data: placesData, error: placesErr } = await supabase
+        .from('places')
+        .select('id,type')
+        .in('id', chunk)
 
-    if (placesErr) throw new Error(placesErr.message)
-    places = placesData ?? []
+      if (placesErr) throw new Error(placesErr.message)
+      places.push(...(placesData ?? []))
+    }
   }
 
   let orderItems: {
@@ -195,13 +361,15 @@ async function buildRevenueBreakdown(paymentRows: PaymentRow[]) {
     total_cost_snapshot: number | null
   }[] = []
   if (orderIds.length) {
-    const { data: itemsData, error: itemsErr } = await supabase
-      .from('order_items')
-      .select('order_id,item_type,status,total_price,total_cost_snapshot')
-      .in('order_id', orderIds)
+    for (const chunk of chunkValues(orderIds)) {
+      const { data: itemsData, error: itemsErr } = await supabase
+        .from('order_items')
+        .select('order_id,item_type,status,total_price,total_cost_snapshot')
+        .in('order_id', chunk)
 
-    if (itemsErr) throw new Error(itemsErr.message)
-    orderItems = itemsData ?? []
+      if (itemsErr) throw new Error(itemsErr.message)
+      orderItems.push(...(itemsData ?? []))
+    }
   }
 
   const orderToPlaceType = new Map<string, string | null>()

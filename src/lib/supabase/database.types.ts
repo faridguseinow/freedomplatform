@@ -555,6 +555,7 @@ export type TimedSessionRow = {
   hourly_rate_snapshot: number
   minimum_minutes_snapshot: number
   billing_step_minutes_snapshot: number
+  planned_minutes: number | null
   started_at: string
   ended_at: string | null
   actual_minutes: number | null
@@ -657,6 +658,7 @@ export type EmployeeWorkspacePlaceRow = EmployeePlaceRow & {
   active_session_hourly_rate: number | null
   active_session_minimum_minutes: number | null
   active_session_billing_step_minutes: number | null
+  active_session_planned_minutes: number | null
   active_order_item_count: number
 }
 
@@ -1674,6 +1676,7 @@ export type Database = {
         Args: {
           target_place_id: string
           target_order_id?: string | null
+          target_planned_minutes?: number | null
         }
         Returns: TimedSessionRow
       }

@@ -62,6 +62,7 @@ const toWorkspacePlace = (
     active_session_minimum_minutes: (activeSession?.minimum_minutes_snapshot as number | undefined) ?? null,
     active_session_billing_step_minutes:
       (activeSession?.billing_step_minutes_snapshot as number | undefined) ?? null,
+    active_session_planned_minutes: (activeSession?.planned_minutes as number | undefined) ?? null,
     vip_equipment_name: place.vip_equipment_name ?? null,
     vip_equipment_time: place.vip_equipment_time ?? null,
     vip_equipment_price: place.vip_equipment_price ?? null,
@@ -333,10 +334,19 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
       onSuccess: (item) => invalidate(item.order_id),
     }),
     startSession: useMutation({
-      mutationFn: async ({ placeId, orderId }: { placeId: string; orderId?: string | null }) => {
+      mutationFn: async ({
+        placeId,
+        orderId,
+        plannedMinutes,
+      }: {
+        placeId: string
+        orderId?: string | null
+        plannedMinutes?: number | null
+      }) => {
         const { data, error } = await supabase.rpc('start_timed_session', {
           target_place_id: placeId,
           target_order_id: orderId ?? null,
+          target_planned_minutes: plannedMinutes ?? null,
         })
         if (error) throw new Error(error.message)
         return data

@@ -21,6 +21,7 @@ import { useAdminAdjustmentRequests } from '../../orders/adjustmentRequestsApi'
 import {
   usePaymentMethodSummaryByShiftIds,
   useRevenueBreakdownByShiftIds,
+  useUsageHoursBreakdownByShiftIds,
 } from '../../orders/paymentsApi'
 import { orderStatusLabel } from '../../orders/employeeOrdersApi'
 import { useAdminOrders } from '../../orders/ordersApi'
@@ -141,6 +142,8 @@ export function AdminDashboardPage() {
   const paymentSummary = paymentSummaryQuery.data
   const revenueBreakdownQuery = useRevenueBreakdownByShiftIds(organizationId, currentShiftIds)
   const revenueBreakdown = revenueBreakdownQuery.data
+  const usageHoursQuery = useUsageHoursBreakdownByShiftIds(organizationId, currentShiftIds)
+  const usageHours = usageHoursQuery.data
   const openOrders = orders.filter((order) => order.status === 'open').length
   const refusedOrders = orders.filter((order) => order.status === 'payment_refused').length
   const openShifts = shifts.filter((shift) => shift.status === 'open' || shift.status === 'closing').length
@@ -160,7 +163,8 @@ export function AdminDashboardPage() {
     inventoryQuery.isLoading ||
     financeQuery.isLoading ||
     paymentSummaryQuery.isLoading ||
-    revenueBreakdownQuery.isLoading
+    revenueBreakdownQuery.isLoading ||
+    usageHoursQuery.isLoading
 
   const firstError =
     ordersQuery.error ??
@@ -174,7 +178,8 @@ export function AdminDashboardPage() {
     inventoryQuery.error ??
     financeQuery.error ??
     paymentSummaryQuery.error ??
-    revenueBreakdownQuery.error
+    revenueBreakdownQuery.error ??
+    usageHoursQuery.error
   const buildAdminPath = (path: string) =>
     currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
   const recentOrders = orders.slice(0, 5)
@@ -260,6 +265,34 @@ export function AdminDashboardPage() {
             label="Прибыль товаров"
             tone="default"
             value={formatMoney(revenueBreakdown?.goods ?? 0)}
+          />
+        </div>
+      </section>
+
+      <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-lg font-semibold text-slate-950">{t('Время по направлениям (сегодня)')}</h3>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
+          <StatCard
+            description="Сумма фактического времени всех сессий PlayStation и VIP-кабинетов за выбранный операционный день."
+            label="PlayStation"
+            value={`${formatMoney(usageHours?.playstation ?? 0)} ${t('ч')}`}
+          />
+          <StatCard
+            description="Сумма фактического времени всех бильярдных сессий за выбранный операционный день."
+            label="Бильярд"
+            value={`${formatMoney(usageHours?.billiard ?? 0)} ${t('ч')}`}
+          />
+          <StatCard
+            description="Сумма времени занятости обычных столов: от открытия заказа до закрытия или до текущего момента."
+            label="Столы"
+            value={`${formatMoney(usageHours?.tables ?? 0)} ${t('ч')}`}
+          />
+          <StatCard
+            description="Общее занятое время по PlayStation, бильярду и столам за выбранный операционный день."
+            label="Всего часов"
+            value={`${formatMoney(usageHours?.total ?? 0)} ${t('ч')}`}
           />
         </div>
       </section>

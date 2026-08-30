@@ -15,7 +15,7 @@ import {
   Timer,
   X,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CatalogImage } from '../../../components/common/CatalogImage'
 import { Button } from '../../../components/ui/Button'
@@ -51,6 +51,7 @@ type PickerTab = 'products' | 'services' | 'combos'
 type OrderCloseAction = 'finish-empty' | 'cancel'
 
 const BILLING_GRACE_MINUTES = 10
+const SESSION_LIMIT_WARNING_MINUTES = 10
 
 const formatMoney = (value: number | null | undefined) =>
   new Intl.NumberFormat('ru', { maximumFractionDigits: 2 }).format(value ?? 0)
@@ -67,6 +68,39 @@ const formatElapsed = (startedAt: string | null, nowMs: number) => {
   return hours > 0
     ? `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
     : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+const formatDurationMinutes = (minutes: number | null | undefined, hourLabel: string, minuteLabel: string) => {
+  if (!minutes || minutes <= 0) return ''
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  if (hours && rest) return `${hours} ${hourLabel} ${rest} ${minuteLabel}`
+  if (hours) return `${hours} ${hourLabel}`
+  return `${rest} ${minuteLabel}`
+}
+
+const formatRemainingMs = (remainingMs: number) => {
+  const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000))
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+    : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+const getSessionLimitInfo = (place: EmployeeWorkspacePlaceRow | null, nowMs: number) => {
+  if (!place?.active_session_started_at || !place.active_session_planned_minutes) return null
+  const endMs =
+    new Date(place.active_session_started_at).getTime() + place.active_session_planned_minutes * 60_000
+  const remainingMs = endMs - nowMs
+  return {
+    endMs,
+    isExpired: remainingMs <= 0,
+    isWarning: remainingMs > 0 && remainingMs <= SESSION_LIMIT_WARNING_MINUTES * 60_000,
+    remainingMs,
+    remainingText: formatRemainingMs(remainingMs),
+  }
 }
 
 const calculateCurrentSessionAmount = (place: EmployeeWorkspacePlaceRow, nowMs: number) => {
@@ -130,7 +164,7 @@ const getStatusIndicatorClassName = (status: ReturnType<typeof placeStatus>) =>
     status === 'Mümkün deyil' && 'bg-slate-400 ring-slate-100',
   )
 
-const getSlotClassName = (place: EmployeeWorkspacePlaceRow, shape: string) =>
+const getSlotClassName = (place: EmployeeWorkspacePlaceRow, shape: string, hasSessionLimitAlert = false) =>
   cn(
     'group relative grid min-h-24 content-between overflow-hidden rounded-lg border p-3 text-left shadow-sm transition',
     'focus-within:ring-2 focus-within:ring-emerald-700 hover:-translate-y-0.5 hover:shadow-md',
@@ -138,6 +172,7 @@ const getSlotClassName = (place: EmployeeWorkspacePlaceRow, shape: string) =>
       ? 'border-red-200 bg-red-50/70'
       : 'border-slate-200 bg-white hover:border-emerald-200',
     place.active_order_status === 'waiting_payment' && 'border-orange-200 bg-orange-50',
+    hasSessionLimitAlert && 'border-red-400 bg-red-100 ring-2 ring-red-200',
     place.status !== 'active' && 'border-slate-200 bg-slate-100 opacity-70',
     shape === 'compact' && 'min-h-24',
     shape === 'room' && 'min-h-36',
@@ -218,8 +253,10 @@ export function EmployeeWorkspacePage() {
   const [vipEquipmentText, setVipEquipmentText] = useState('')
   const [isOrderCommentOpen, setIsOrderCommentOpen] = useState(false)
   const [pressedCatalogItemKey, setPressedCatalogItemKey] = useState<string | null>(null)
+  const [plannedSessionMinutes, setPlannedSessionMinutes] = useState<number | null>(null)
   const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const autoCompletingSessionsRef = useRef(new Set<string>())
   const orderItemsQuery = useEmployeeOrderItems(selectedOrderId)
 
   useEffect(() => {
@@ -263,6 +300,20 @@ export function EmployeeWorkspacePage() {
   const selectedOrderPlace = selectedOrder?.place_id ? placesById.get(selectedOrder.place_id) ?? null : null
   const ordersWithoutPlace = orders.filter((order) => !order.place_id && order.status !== 'paid')
 
+  useEffect(() => {
+    const expiredSessions = places.filter((place) => {
+      const limitInfo = getSessionLimitInfo(place, nowMs)
+      return place.active_session_id && limitInfo?.isExpired
+    })
+
+    for (const place of expiredSessions) {
+      const sessionId = place.active_session_id!
+      if (autoCompletingSessionsRef.current.has(sessionId)) continue
+      autoCompletingSessionsRef.current.add(sessionId)
+      void runAction(() => orderMutations.completeSession.mutateAsync(sessionId))
+    }
+  }, [nowMs, orderMutations.completeSession, places])
+
   const filteredProducts = (productsQuery.data ?? []).filter((item) =>
     [item.name, item.sku, item.characteristics].filter(Boolean).join(' ').toLowerCase().includes(search.toLowerCase()),
   )
@@ -303,6 +354,7 @@ export function EmployeeWorkspacePage() {
     setOrderCustomerLabel(order?.customer_label ?? '')
     setVipEquipmentText(formatVipEquipmentSummary(place) ?? '')
     setIsOrderCommentOpen(Boolean(order?.comment?.trim()))
+    setPlannedSessionMinutes(null)
     setSelectedOrderId(orderId)
   }
 
@@ -318,6 +370,7 @@ export function EmployeeWorkspacePage() {
     setOrderCustomerLabel('')
     setVipEquipmentText('')
     setIsOrderCommentOpen(false)
+    setPlannedSessionMinutes(null)
     setRemoveRequestItem(null)
     setRemoveRequestReason('')
     setSelectedOrderId(null)
@@ -362,7 +415,7 @@ export function EmployeeWorkspacePage() {
       selectOrder(order.id)
     })
 
-  const startSession = (place: EmployeeWorkspacePlaceRow) =>
+  const startSession = (place: EmployeeWorkspacePlaceRow, plannedMinutes?: number | null) =>
     runAction(async () => {
       if (!currentShiftQuery.data?.shift) {
         if (role === 'organization_admin') {
@@ -371,11 +424,14 @@ export function EmployeeWorkspacePage() {
         }
         throw new Error('Növbə açılmayıb. Sifarişlərlə işə başlamaq üçün növbəni açın.')
       }
-      const session = await orderMutations.startSession.mutateAsync({ placeId: place.id })
+      const session = await orderMutations.startSession.mutateAsync({
+        placeId: place.id,
+        ...(plannedMinutes !== undefined ? { plannedMinutes } : {}),
+      })
       selectOrder(session.order_id)
     })
 
-  const startSessionForOrder = (place: EmployeeWorkspacePlaceRow, orderId: string) =>
+  const startSessionForOrder = (place: EmployeeWorkspacePlaceRow, orderId: string, plannedMinutes?: number | null) =>
     runAction(async () => {
       if (!currentShiftQuery.data?.shift) {
         if (role === 'organization_admin') {
@@ -384,7 +440,11 @@ export function EmployeeWorkspacePage() {
         }
         throw new Error('Növbə açılmayıb. Sifarişlərlə işə başlamaq üçün növbəni açın.')
       }
-      await orderMutations.startSession.mutateAsync({ placeId: place.id, orderId })
+      await orderMutations.startSession.mutateAsync({
+        placeId: place.id,
+        orderId,
+        ...(plannedMinutes !== undefined ? { plannedMinutes } : {}),
+      })
     })
 
   const openPlaceOrder = (place: EmployeeWorkspacePlaceRow) => {
@@ -686,11 +746,16 @@ export function EmployeeWorkspacePage() {
                   : null
             const sessionAmount = calculateCurrentSessionAmount(place, nowMs)
             const sessionGraceNotice = getSessionGraceNotice(place, nowMs)
+            const sessionLimitInfo = getSessionLimitInfo(place, nowMs)
             const vipEquipmentSummary = isVipEquipmentPlace(place) ? formatVipEquipmentSummary(place) : null
 
             return (
               <article
-                className={getSlotClassName(place, slot.shape)}
+                className={getSlotClassName(
+                  place,
+                  slot.shape,
+                  Boolean(sessionLimitInfo?.isWarning || sessionLimitInfo?.isExpired),
+                )}
                 key={slot.key}
                 onClick={() => openPlaceOrder(place)}
                 onKeyDown={(event) => {
@@ -741,6 +806,18 @@ export function EmployeeWorkspacePage() {
                     </span>
                     {sessionGraceNotice ? (
                       <span className="font-medium text-orange-700">{sessionGraceNotice}</span>
+                    ) : null}
+                    {sessionLimitInfo ? (
+                      <span
+                        className={cn(
+                          'font-semibold',
+                          sessionLimitInfo.isExpired ? 'text-red-800' : 'text-orange-700',
+                        )}
+                      >
+                        {sessionLimitInfo.isExpired
+                          ? t('Лимит истёк')
+                          : `${t('Осталось')}: ${sessionLimitInfo.remainingText}`}
+                      </span>
                     ) : null}
                   </div>
                 </div>
@@ -1261,6 +1338,9 @@ export function EmployeeWorkspacePage() {
                   const selectedSessionGraceNotice = selectedPlace
                     ? getSessionGraceNotice(selectedPlace, nowMs)
                     : null
+                  const selectedSessionLimitInfo = selectedPlace
+                    ? getSessionLimitInfo(selectedPlace, nowMs)
+                    : null
                   const isSelectedTable = Boolean(selectedPlace && isTablePlace(selectedPlace))
                   const tableOpenedAt =
                     isSelectedTable && selectedOrder.status !== 'paid'
@@ -1402,6 +1482,18 @@ export function EmployeeWorkspacePage() {
                                   {selectedSessionGraceNotice}
                                 </div>
                               ) : null}
+                              {selectedSessionLimitInfo ? (
+                                <div
+                                  className={cn(
+                                    'mt-0.5 text-xs font-semibold',
+                                    selectedSessionLimitInfo.isExpired ? 'text-red-800' : 'text-orange-700',
+                                  )}
+                                >
+                                  {selectedSessionLimitInfo.isExpired
+                                    ? t('Лимит истёк')
+                                    : `${t('Осталось')}: ${selectedSessionLimitInfo.remainingText}`}
+                                </div>
+                              ) : null}
                             </div>
                           ) : tableOpenedAt ? (
                             <div className="shrink-0 rounded-md border border-cyan-100 bg-cyan-50 px-2.5 py-1.5 text-right text-sm text-cyan-900">
@@ -1415,11 +1507,87 @@ export function EmployeeWorkspacePage() {
                         </div>
 
                         {!isSelectedTable ? (
-                          <div className="grid grid-cols-3 gap-2">
+                          <div className="grid gap-2">
+                            {canStartSession ? (
+                              <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-xs font-semibold uppercase text-slate-500">
+                                    {t('Лимит сессии')}
+                                  </span>
+                                  <span className="text-xs font-semibold text-slate-800">
+                                    {plannedSessionMinutes
+                                      ? formatDurationMinutes(plannedSessionMinutes, t('ч'), t('мин'))
+                                      : t('Без лимита')}
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-4 gap-1.5">
+                                  {[
+                                    { label: 'Без лимита', value: null },
+                                    { label: '1 час', value: 60 },
+                                    { label: '2 часа', value: 120 },
+                                    { label: '3 часа', value: 180 },
+                                  ].map((option) => (
+                                    <button
+                                      className={cn(
+                                        'min-h-8 rounded-md border px-2 text-xs font-semibold',
+                                        plannedSessionMinutes === option.value
+                                          ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                                          : 'border-slate-200 bg-white text-slate-700',
+                                      )}
+                                      key={option.label}
+                                      onClick={() => setPlannedSessionMinutes(option.value)}
+                                      type="button"
+                                    >
+                                      {t(option.label)}
+                                    </button>
+                                  ))}
+                                </div>
+                                <div className="grid grid-cols-[auto_1fr_auto] gap-1.5">
+                                  <button
+                                    className="min-h-8 rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold text-slate-800 disabled:text-slate-300"
+                                    disabled={!plannedSessionMinutes}
+                                    onClick={() =>
+                                      setPlannedSessionMinutes((current) =>
+                                        current ? Math.max(15, current - 15) : 60,
+                                      )
+                                    }
+                                    type="button"
+                                  >
+                                    -
+                                  </button>
+                                  <input
+                                    className="min-h-8 rounded-md border border-slate-200 bg-white px-2 text-center text-sm font-semibold text-slate-950 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                                    min={15}
+                                    onChange={(event) => {
+                                      const value = Number(event.target.value)
+                                      setPlannedSessionMinutes(
+                                        Number.isFinite(value) && value > 0 ? Math.min(1440, value) : null,
+                                      )
+                                    }}
+                                    placeholder="dəq"
+                                    type="number"
+                                    value={plannedSessionMinutes ?? ''}
+                                  />
+                                  <button
+                                    className="min-h-8 rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold text-slate-800"
+                                    onClick={() =>
+                                      setPlannedSessionMinutes((current) => Math.min(1440, (current ?? 45) + 15))
+                                    }
+                                    type="button"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+                            ) : null}
+                            <div className="grid grid-cols-3 gap-2">
                             <Button
                               className="min-h-9"
                               disabled={!canStartSession}
-                              onClick={() => selectedPlace && startSessionForOrder(selectedPlace, selectedOrder.id)}
+                              onClick={() =>
+                                selectedPlace &&
+                                startSessionForOrder(selectedPlace, selectedOrder.id, plannedSessionMinutes)
+                              }
                               title="Sessiyanı başlat"
                               type="button"
                               variant="secondary"
@@ -1442,6 +1610,7 @@ export function EmployeeWorkspacePage() {
                             <Button className="min-h-9" disabled title="Sessiya pauzu hələ server tərəfindən dəstəklənmir" type="button" variant="secondary">
                               <Pause className="size-4" /> Pauza
                             </Button>
+                            </div>
                           </div>
                         ) : null}
                       </div>

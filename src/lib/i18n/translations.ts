@@ -12,6 +12,7 @@ export const supportedLanguages: SystemLanguage[] = ['ru', 'az']
 export const azTranslations: Record<string, string> = {
   '(обязательно)': '(vacibdir)',
   ' · через полночь': ' · gecə yarısından sonra',
+  ч: 'saat',
   '/the-liga/admin и /the-liga/employee': '/the-liga/admin və /the-liga/employee',
   'Email недоступен': 'Email əlçatan deyil',
   'Email существующего пользователя': 'Mövcud istifadəçinin emaili',
@@ -61,6 +62,7 @@ export const azTranslations: Record<string, string> = {
   Баланс: 'Balans',
   Банк: 'Bank',
   'Без reference': 'Referencesiz',
+  'Без лимита': 'Limitsiz',
   'Без фиксированного времени': 'Sabit vaxt yoxdur',
   'Без имени': 'Adsız',
   'Без комментария': 'Şərhsiz',
@@ -108,6 +110,7 @@ export const azTranslations: Record<string, string> = {
   Восстановить: 'Bərpa et',
   'Восстановить доступ': 'Girişi bərpa et',
   Все: 'Hamısı',
+  'Всего часов': 'Cəmi saat',
   'Все статусы': 'Bütün statuslar',
   'Все категории': 'Bütün kateqoriyalar',
   'Все типы': 'Bütün növlər',
@@ -122,6 +125,8 @@ export const azTranslations: Record<string, string> = {
   'Выручка сегодня': 'Bugünkü gəlir',
   Высота: 'Hündürlük',
   'Высота должна быть больше 0.': 'Hündürlük 0-dan böyük olmalıdır.',
+  'Время по направлениям (период)': 'İstiqamətlər üzrə vaxt (dövr)',
+  'Время по направлениям (сегодня)': 'İstiqamətlər üzrə vaxt (bugün)',
   'Время идёт. Завершите сессию, затем укажите сумму, которую клиент оставил.':
     'Vaxt gedir. Sessiyanı tamamlayın, sonra müştərinin qoyduğu məbləği göstərin.',
   'Глобальный контроль финансов организаций, периодов и задолженности по доле платформы.':
@@ -141,6 +146,9 @@ export const azTranslations: Record<string, string> = {
   'Действует с': 'Başlama tarixi',
   'День закрытия месяца': 'Ayın bağlanma günü',
   'День открытия': 'Açılış günü',
+  '1 час': '1 saat',
+  '2 часа': '2 saat',
+  '3 часа': '3 saat',
   'Первая смена': 'Birinci növbə',
   'Вторая смена': 'İkinci növbə',
   'Детальный финансовый период и расчёт доли Freedom Platform.':
@@ -350,6 +358,8 @@ export const azTranslations: Record<string, string> = {
   'Корректировка -': 'Düzəliş -',
   'Крупный расход от': 'Böyük xərc limiti',
   'Лимиты организаций': 'Təşkilat limitləri',
+  'Лимит истёк': 'Limit bitdi',
+  'Лимит сессии': 'Sessiya limiti',
   'Логин или email': 'Login və ya email',
   'Логотип организации': 'Təşkilat loqosu',
   'Максимум организаций': 'Maksimum təşkilat sayı',
@@ -1362,6 +1372,7 @@ export const azTranslations: Record<string, string> = {
     'Məhsul mövqeləri üzrə xalis mənfəət: məhsul satışlarının cəmi çıxılsın sifarişlərdə saxlanmış snapshot maya dəyəri.',
   'Оплаченная выручка, которая не относится к PlayStation, бильярду, столам или товарам.':
     'PlayStation, bilyard, masalar və ya məhsullara aid olmayan ödənilmiş gəlir.',
+  'Не удалось загрузить выручку по направлениям': 'İstiqamətlər üzrə gəliri yükləmək mümkün olmadı',
   'Все завершённые платежи до сегодняшнего дня: распределение по 24 часам и шкала трафика от 1 до 10.':
     'Bu günə qədər bütün tamamlanmış ödənişlər: 24 saat üzrə bölgü və 1-dən 10-a qədər trafik şkalası.',
   Время: 'Vaxt',

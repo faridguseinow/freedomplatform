@@ -51,6 +51,7 @@ import {
   usePaymentMethodSummary,
   usePaymentTrafficAnalytics,
   useRevenueBreakdown,
+  useUsageHoursBreakdown,
 } from '../../orders/paymentsApi'
 import {
   useRecurringExpenseMutations,
@@ -61,7 +62,6 @@ import { usePlatformShareAccruals, usePlatformShareMutations } from '../platform
 
 const DEFAULT_START = monthStartDate()
 const DEFAULT_END = todayDate()
-const ALL_TIME_START = '1970-01-01'
 
 const money = (value: number | null | undefined) =>
   new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(
@@ -371,6 +371,56 @@ function RevenueBreakdownGrid({
           key={item.label}
           label={item.label}
           value={item.value}
+        />
+      ))}
+    </div>
+  )
+}
+
+function UsageHoursGrid({
+  billiard,
+  playstation,
+  tables,
+  total,
+}: {
+  billiard: number | undefined
+  playstation: number | undefined
+  tables: number | undefined
+  total: number | undefined
+}) {
+  const items = [
+    {
+      label: 'PlayStation',
+      value: playstation,
+      description:
+        'Фактические часы сессий PlayStation и VIP-кабинетов за выбранный период.',
+    },
+    {
+      label: 'Бильярд',
+      value: billiard,
+      description: 'Фактические часы бильярдных сессий за выбранный период.',
+    },
+    {
+      label: 'Столы',
+      value: tables,
+      description:
+        'Время занятости обычных столов: от открытия заказа до закрытия или до текущего момента.',
+    },
+    {
+      label: 'Всего часов',
+      value: total,
+      description: 'Общее занятое время по PlayStation, бильярду и столам.',
+    },
+  ]
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {items.map((item) => (
+        <InfoCard
+          description={item.description}
+          key={item.label}
+          label={item.label}
+          value={`${money(item.value ?? 0)} ч`}
         />
       ))}
     </div>
@@ -865,7 +915,16 @@ export function AdminFinancePage() {
   const currentCycle = getFinancialCycle(settings.data?.financial_month_close_day)
   const periodSummary = useFinancePeriodSummary(organizationId, currentCycle.start, currentDate)
   const paymentMethodSummary = usePaymentMethodSummary(organizationId, currentCycle.start, currentDate)
-  const revenueBreakdown = useRevenueBreakdown(organizationId, ALL_TIME_START, currentDate)
+  const revenueBreakdown = useRevenueBreakdown(organizationId, currentCycle.start, currentDate)
+  const usageHours = useUsageHoursBreakdown(organizationId, currentCycle.start, currentDate)
+  const revenueBreakdownData = revenueBreakdown.data ?? {
+    billiard: 0,
+    goods: 0,
+    other: 0,
+    playstation: 0,
+    tables: 0,
+    total: 0,
+  }
   const buildAdminPath = (path: string) =>
     currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
 
@@ -884,15 +943,29 @@ export function AdminFinancePage() {
         showCardPayment
         summary={periodSummary.data}
       />
-      {revenueBreakdown.data ? (
+      <section className="grid gap-3">
+        <h3 className="text-lg font-semibold text-slate-950">{t('Выручка по направлениям (итого)')}</h3>
+        <RevenueBreakdownGrid
+          billiard={revenueBreakdownData.billiard}
+          goods={revenueBreakdownData.goods}
+          other={revenueBreakdownData.other}
+          playstation={revenueBreakdownData.playstation}
+          tables={revenueBreakdownData.tables}
+        />
+        {revenueBreakdown.error ? (
+          <p className="text-sm text-rose-700">
+            {t('Не удалось загрузить выручку по направлениям')}: {revenueBreakdown.error.message}
+          </p>
+        ) : null}
+      </section>
+      {usageHours.data ? (
         <section className="grid gap-3">
-          <h3 className="text-lg font-semibold text-slate-950">Выручка по направлениям (итого)</h3>
-          <RevenueBreakdownGrid
-            billiard={revenueBreakdown.data.billiard}
-            goods={revenueBreakdown.data.goods}
-            other={revenueBreakdown.data.other}
-            playstation={revenueBreakdown.data.playstation}
-            tables={revenueBreakdown.data.tables}
+          <h3 className="text-lg font-semibold text-slate-950">{t('Время по направлениям (период)')}</h3>
+          <UsageHoursGrid
+            billiard={usageHours.data.billiard}
+            playstation={usageHours.data.playstation}
+            tables={usageHours.data.tables}
+            total={usageHours.data.total}
           />
         </section>
       ) : null}
