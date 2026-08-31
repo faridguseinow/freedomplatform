@@ -5,9 +5,6 @@ const APP_SHELL = [
   '/index.html',
   '/manifest.webmanifest',
   '/pwa/freedom-platform.svg',
-  '/pwa/freedom-platform-180.png',
-  '/pwa/freedom-platform-192.png',
-  '/pwa/freedom-platform-512.png',
   '/pwa/the-league.svg',
 ]
 const STATIC_PATH_PREFIXES = ['/assets/', '/pwa/']
