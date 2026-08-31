@@ -39,7 +39,7 @@ import {
   useEmployeeOrderMutations,
   useEmployeeWorkspaceData,
 } from '../../orders/employeeOrdersApi'
-import { isOpeningDayShiftName, useCurrentEmployeeShift } from '../../shifts/shiftsApi'
+import { useCurrentEmployeeShift } from '../../shifts/shiftsApi'
 import {
   buildWorkspaceLayout,
   isTablePlace,
@@ -68,6 +68,11 @@ const formatElapsed = (startedAt: string | null, nowMs: number) => {
   return hours > 0
     ? `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
     : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+const formatQuantity = (value: number | null | undefined) => {
+  if (value === null || value === undefined) return null
+  return new Intl.NumberFormat('ru', { maximumFractionDigits: 3 }).format(value)
 }
 
 const formatDurationMinutes = (minutes: number | null | undefined, hourLabel: string, minuteLabel: string) => {
@@ -182,20 +187,20 @@ const getSlotClassName = (place: EmployeeWorkspacePlaceRow, shape: string, hasSe
 
 type CatalogAddButtonProps = {
   imagePath: string | null
-  isOpeningDayShift: boolean
   isPressed: boolean
   name: string
   onClick: () => void
   price: number | null
+  stockLabel?: string | null
 }
 
 function CatalogAddButton({
   imagePath,
-  isOpeningDayShift,
   isPressed,
   name,
   onClick,
   price,
+  stockLabel,
 }: CatalogAddButtonProps) {
   return (
     <button
@@ -210,9 +215,8 @@ function CatalogAddButton({
       <CatalogImage alt={name} className="size-9" imagePath={imagePath} />
       <span className="grid min-w-0 gap-0.5">
         <span className="truncate text-sm font-medium text-slate-950">{name}</span>
-        {!isOpeningDayShift ? (
-          <span className="text-xs text-slate-600">{formatAzn(price)}</span>
-        ) : null}
+        <span className="text-xs text-slate-600">{formatAzn(price)}</span>
+        {stockLabel ? <span className="text-xs text-slate-500">{stockLabel}</span> : null}
       </span>
       <span
         aria-hidden="true"
@@ -244,7 +248,6 @@ export function EmployeeWorkspacePage() {
   const [cancelReason, setCancelReason] = useState('')
   const [removeRequestItem, setRemoveRequestItem] = useState<EmployeeOrderItemRow | null>(null)
   const [removeRequestReason, setRemoveRequestReason] = useState('')
-  const [openingDayPaymentAmount, setOpeningDayPaymentAmount] = useState('')
   const [tipAmount, setTipAmount] = useState('')
   const [cashSplitAmount, setCashSplitAmount] = useState('')
   const [cardSplitAmount, setCardSplitAmount] = useState('')
@@ -272,12 +275,6 @@ export function EmployeeWorkspacePage() {
     [orders, selectedOrderId],
   )
   const paymentChoiceOpen = Boolean(selectedOrderId && selectedOrderId === paymentChoiceOrderId)
-  const isOpeningDayShift = isOpeningDayShiftName(currentShiftQuery.data?.template?.name)
-  const openingDayPaymentValue = parseMoneyInput(openingDayPaymentAmount)
-  const hasOpeningDayPaymentAmount =
-    openingDayPaymentAmount.trim().length > 0 &&
-    Number.isFinite(openingDayPaymentValue) &&
-    openingDayPaymentValue >= 0
   const tipValue = parseMoneyInput(tipAmount)
   const hasValidTipAmount =
     tipAmount.trim().length === 0 ||
@@ -286,7 +283,7 @@ export function EmployeeWorkspacePage() {
   const selectedOrderTotalWithTip = (selectedOrder?.total_amount ?? 0) + normalizedTipAmount
   const cashSplitValue = parseMoneyInput(cashSplitAmount)
   const cardSplitValue = parseMoneyInput(cardSplitAmount)
-  const splitPaymentTargetTotal = isOpeningDayShift ? openingDayPaymentValue : selectedOrderTotalWithTip
+  const splitPaymentTargetTotal = selectedOrderTotalWithTip
   const splitPaymentTotal = cashSplitValue + cardSplitValue
   const isSplitPaymentValid =
     Number.isFinite(cashSplitValue) &&
@@ -346,7 +343,6 @@ export function EmployeeWorkspacePage() {
     const order = orders.find((currentOrder) => currentOrder.id === orderId)
     const place = order?.place_id ? placesById.get(order.place_id) ?? null : null
     setPaymentChoiceOrderId(null)
-    setOpeningDayPaymentAmount('')
     setTipAmount('')
     setCashSplitAmount('')
     setCardSplitAmount('')
@@ -362,7 +358,6 @@ export function EmployeeWorkspacePage() {
     setPaymentChoiceOrderId(null)
     setOrderCloseAction(null)
     setCancelReason('')
-    setOpeningDayPaymentAmount('')
     setTipAmount('')
     setCashSplitAmount('')
     setCardSplitAmount('')
@@ -530,29 +525,16 @@ export function EmployeeWorkspacePage() {
   const completePayment = (method: PaymentMethod) => {
     if (!selectedOrderId) return
     void runAction(async () => {
-      if (isOpeningDayShift) {
-        if (!hasOpeningDayPaymentAmount) {
-          throw new Error('Müştərinin həqiqətən qoyduğu məbləği daxil edin.')
-        }
-
-        await orderMutations.completeOpeningDayPayment.mutateAsync({
-          orderId: selectedOrderId,
-          method,
-          amount: openingDayPaymentValue,
-          comment: orderComment.trim() || null,
-        })
-      } else {
-        if (!hasValidTipAmount) {
-          throw new Error('Çaypulu mənfi ola bilməz.')
-        }
-
-        await orderMutations.completePaymentWithTip.mutateAsync({
-          orderId: selectedOrderId,
-          method,
-          tipAmount: normalizedTipAmount,
-          comment: orderComment.trim() || null,
-        })
+      if (!hasValidTipAmount) {
+        throw new Error('Çaypulu mənfi ola bilməz.')
       }
+
+      await orderMutations.completePaymentWithTip.mutateAsync({
+        orderId: selectedOrderId,
+        method,
+        tipAmount: normalizedTipAmount,
+        comment: orderComment.trim() || null,
+      })
       closeOrder()
     })
   }
@@ -560,11 +542,7 @@ export function EmployeeWorkspacePage() {
   const completeSplitPayment = () => {
     if (!selectedOrderId) return
     void runAction(async () => {
-      if (isOpeningDayShift) {
-        if (!hasOpeningDayPaymentAmount) {
-          throw new Error('Müştərinin həqiqətən qoyduğu məbləği daxil edin.')
-        }
-      } else if (!hasValidTipAmount) {
+      if (!hasValidTipAmount) {
         throw new Error('Çaypulu mənfi ola bilməz.')
       }
 
@@ -601,9 +579,6 @@ export function EmployeeWorkspacePage() {
         await orderMutations.waitPayment.mutateAsync(selectedOrder.id)
       }
       setPaymentChoiceOrderId(selectedOrder.id)
-      if (isOpeningDayShift && !openingDayPaymentAmount) {
-        setOpeningDayPaymentAmount(String(selectedOrder.total_amount || 0))
-      }
     })
   }
 
@@ -712,7 +687,6 @@ export function EmployeeWorkspacePage() {
     orderMutations.cancelOrder.isPending ||
     orderMutations.completePayment.isPending ||
     orderMutations.completePaymentWithTip.isPending ||
-    orderMutations.completeOpeningDayPayment.isPending ||
     orderMutations.refusePayment.isPending
 
   return (
@@ -802,7 +776,7 @@ export function EmployeeWorkspacePage() {
                         : 'Sifariş açılmayıb'}
                     </span>
                     <span className="font-semibold text-slate-950">
-                      {isOpeningDayShift ? 'Əl ilə yekun' : formatAzn((place.active_order_total ?? 0) + sessionAmount)}
+                      {formatAzn((place.active_order_total ?? 0) + sessionAmount)}
                     </span>
                     {sessionGraceNotice ? (
                       <span className="font-medium text-orange-700">{sessionGraceNotice}</span>
@@ -910,7 +884,7 @@ export function EmployeeWorkspacePage() {
                   <span className="text-sm text-slate-600">{orderStatusLabel[order.status]}</span>
                 </div>
                 <div className="mt-2 text-sm text-slate-600">
-                  {isOpeningDayShift ? 'Yekun əl ilə daxil ediləcək' : `Cəmi: ${formatAzn(order.total_amount)}`}
+                  Cəmi: {formatAzn(order.total_amount)}
                 </div>
               </button>
             ))}
@@ -973,11 +947,10 @@ export function EmployeeWorkspacePage() {
                     (selectedOrder.status === 'open' || selectedOrder.status === 'waiting_payment') &&
                     !hasActiveSession &&
                     hasValidTipAmount &&
-                    (isOpeningDayShift || hasNormalPaymentAmount)
+                    hasNormalPaymentAmount
                   const canFinishEmptyOrder =
                     (selectedOrder.status === 'open' || selectedOrder.status === 'waiting_payment') &&
                     !hasActiveSession &&
-                    !isOpeningDayShift &&
                     selectedOrder.total_amount <= 0 &&
                     normalizedTipAmount <= 0
                   const canCancelOrder =
@@ -987,16 +960,8 @@ export function EmployeeWorkspacePage() {
                   return (
                     <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-sm font-semibold text-slate-950">
-                          {isOpeningDayShift ? 'Həqiqi məbləğ' : 'Sifariş məbləği'}
-                        </span>
-                        <span className="text-2xl font-semibold text-slate-950">
-                          {isOpeningDayShift
-                            ? hasOpeningDayPaymentAmount
-                              ? formatAzn(openingDayPaymentValue)
-                              : '—'
-                            : formatAzn(selectedOrder.total_amount)}
-                        </span>
+                        <span className="text-sm font-semibold text-slate-950">Sifariş məbləği</span>
+                        <span className="text-2xl font-semibold text-slate-950">{formatAzn(selectedOrder.total_amount)}</span>
                       </div>
 
                       {isOrderWithoutPlace ? (
@@ -1029,52 +994,32 @@ export function EmployeeWorkspacePage() {
                         </div>
                       ) : null}
 
-                      {isOpeningDayShift ? (
-                        <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
-                          <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                            <span>Müştəri nə qədər qoydu</span>
-                            <input
-                              className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
-                              inputMode="decimal"
-                              min={0}
-                              onChange={(event) => setOpeningDayPaymentAmount(event.target.value)}
-                              placeholder="Məsələn: 50"
-                              type="number"
-                              value={openingDayPaymentAmount}
-                            />
-                            <span className="text-xs font-normal text-slate-500">
-                              Bu gün pul alınmasa 0 yazmaq da mümkündür.
-                            </span>
-                          </label>
+                      <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
+                        <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                          <span>Çayevoy</span>
+                          <input
+                            className={cn(
+                              'min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15',
+                              !hasValidTipAmount && 'border-red-300 focus:border-red-600 focus:ring-red-600/15',
+                            )}
+                            inputMode="decimal"
+                            min={0}
+                            onChange={(event) => setTipAmount(event.target.value)}
+                            placeholder="Məsələn: 5"
+                            type="number"
+                            value={tipAmount}
+                          />
+                          <span className={cn('text-xs font-normal text-slate-500', !hasValidTipAmount && 'text-red-700')}>
+                            {hasValidTipAmount
+                              ? 'Çayevoy yoxdur, 0 və ya boş qoyun.'
+                              : 'Çayevoy mənfi ola bilməz.'}
+                          </span>
+                        </label>
+                        <div className="grid min-h-5 content-center rounded-md bg-green-900 px-2 py-2 text-sm text-white">
+                          <span className="text-xs text-slate-300">Çayevoy ile cəmi</span>
+                          <span className="text-base font-semibold">{formatAzn(selectedOrderTotalWithTip)}</span>
                         </div>
-                      ) : (
-                        <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
-                          <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                            <span>Çayevoy</span>
-                            <input
-                              className={cn(
-                                'min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15',
-                                !hasValidTipAmount && 'border-red-300 focus:border-red-600 focus:ring-red-600/15',
-                              )}
-                              inputMode="decimal"
-                              min={0}
-                              onChange={(event) => setTipAmount(event.target.value)}
-                              placeholder="Məsələn: 5"
-                              type="number"
-                              value={tipAmount}
-                            />
-                            <span className={cn('text-xs font-normal text-slate-500', !hasValidTipAmount && 'text-red-700')}>
-                              {hasValidTipAmount
-                                ? 'Çayevoy yoxdur, 0 və ya boş qoyun.'
-                                : 'Çayevoy mənfi ola bilməz.'}
-                            </span>
-                          </label>
-                          <div className="grid min-h-5 content-center rounded-md bg-green-900 px-2 py-2 text-sm text-white">
-                            <span className="text-xs text-slate-300">Çayevoy ile cəmi</span>
-                            <span className="text-base font-semibold">{formatAzn(selectedOrderTotalWithTip)}</span>
-                          </div>
-                        </div>
-                      )}
+                      </div>
 
                       <div className="rounded-md border border-slate-200 bg-white">
                         <button
@@ -1112,14 +1057,10 @@ export function EmployeeWorkspacePage() {
                         </div>
                       ) : (
                         <div className="grid gap-2 md:grid-cols-3">
-                          {isOpeningDayShift || hasNormalPaymentAmount ? (
+                          {hasNormalPaymentAmount ? (
                             <Button disabled={!canPreparePayment || isClosingOrder} onClick={openPaymentChoice} type="button">
                               <Hourglass className="size-4" />
-                              {isOpeningDayShift
-                                ? 'Məbləği yaz'
-                                : selectedOrder.status === 'waiting_payment'
-                                  ? 'Ödənişi qəbul et'
-                                  : 'Ödənişə'}
+                              {selectedOrder.status === 'waiting_payment' ? 'Ödənişi qəbul et' : 'Ödənişə'}
                             </Button>
                           ) : (
                             <Button
@@ -1135,22 +1076,14 @@ export function EmployeeWorkspacePage() {
                           {paymentChoiceOpen ? (
                             <>
                               <Button
-                                disabled={
-                                  isClosingOrder ||
-                                  (isOpeningDayShift && !hasOpeningDayPaymentAmount) ||
-                                  (!isOpeningDayShift && !hasValidTipAmount)
-                                }
+                                disabled={isClosingOrder || !hasValidTipAmount}
                                 onClick={() => completePayment('cash')}
                                 type="button"
                               >
                                 <Banknote className="size-4" /> Nağd
                               </Button>
                               <Button
-                                disabled={
-                                  isClosingOrder ||
-                                  (isOpeningDayShift && !hasOpeningDayPaymentAmount) ||
-                                  (!isOpeningDayShift && !hasValidTipAmount)
-                                }
+                                disabled={isClosingOrder || !hasValidTipAmount}
                                 onClick={() => completePayment('card_transfer')}
                                 type="button"
                                 variant="secondary"
@@ -1195,12 +1128,7 @@ export function EmployeeWorkspacePage() {
                                   <span>{isSplitPaymentValid ? 'Məbləğ uyğun gəlir' : 'Ümumi məbləğə bərabər olmalıdır'}</span>
                                 </div>
                                 <Button
-                                  disabled={
-                                    isClosingOrder ||
-                                    !isSplitPaymentValid ||
-                                    (isOpeningDayShift && !hasOpeningDayPaymentAmount) ||
-                                    (!isOpeningDayShift && !hasValidTipAmount)
-                                  }
+                                  disabled={isClosingOrder || !isSplitPaymentValid || !hasValidTipAmount}
                                   onClick={completeSplitPayment}
                                   type="button"
                                 >
@@ -1210,7 +1138,7 @@ export function EmployeeWorkspacePage() {
                             </>
                           ) : null}
 
-                          {!isOpeningDayShift && hasNormalPaymentAmount ? (
+                          {hasNormalPaymentAmount ? (
                             <Button
                               disabled={hasActiveSession || isClosingOrder}
                               onClick={refusePayment}
@@ -1267,19 +1195,13 @@ export function EmployeeWorkspacePage() {
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <div className="truncate font-medium text-slate-950">{item.name_snapshot}</div>
-                                {!isOpeningDayShift ? (
-                                  <div className="text-sm text-slate-600">
-                                    {item.quantity} × {formatAzn(item.unit_price)}
-                                  </div>
-                                ) : (
-                                  <div className="text-sm text-slate-600">Qiymətsiz hesablama</div>
-                                )}
-                              </div>
-                              {!isOpeningDayShift ? (
-                                <div className="shrink-0 text-right font-semibold text-slate-950">
-                                  {formatAzn(item.total_price)}
+                                <div className="text-sm text-slate-600">
+                                  {item.quantity} × {formatAzn(item.unit_price)}
                                 </div>
-                              ) : null}
+                              </div>
+                              <div className="shrink-0 text-right font-semibold text-slate-950">
+                                {formatAzn(item.total_price)}
+                              </div>
                             </div>
                             {item.status === 'active' && selectedOrder.status === 'open' ? (
                               <div className="flex flex-wrap items-center gap-2">
@@ -1395,17 +1317,25 @@ export function EmployeeWorkspacePage() {
                                   Məhsullar yüklənmədi: {productsQuery.error.message}
                                 </div>
                               ) : filteredProducts.length ? (
-                                filteredProducts.map((product) => (
-                                  <CatalogAddButton
-                                    imagePath={product.image_path}
-                                    isOpeningDayShift={isOpeningDayShift}
-                                    isPressed={pressedCatalogItemKey === `products:${product.id}`}
-                                    key={product.id}
-                                    name={product.name}
-                                    onClick={() => addItem('products', product.id)}
-                                    price={product.sale_price}
-                                  />
-                                ))
+                                filteredProducts.map((product) => {
+                                  const quantity = formatQuantity(product.stock_quantity)
+                                  const stockLabel =
+                                    quantity != null
+                                      ? `${t('Осталось')}: ${quantity}${product.unit_name ? ` ${product.unit_name}` : ''}`
+                                      : null
+
+                                  return (
+                                    <CatalogAddButton
+                                      imagePath={product.image_path}
+                                      isPressed={pressedCatalogItemKey === `products:${product.id}`}
+                                      key={product.id}
+                                      name={product.name}
+                                      onClick={() => addItem('products', product.id)}
+                                      price={product.sale_price}
+                                      stockLabel={stockLabel}
+                                    />
+                                  )
+                                })
                               ) : (
                                 <div className="rounded-md border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">
                                   Məhsul tapılmadı.
@@ -1413,10 +1343,9 @@ export function EmployeeWorkspacePage() {
                               )
                             ) : null}
                             {pickerTab === 'services'
-                              ? filteredServices.map((service) => (
+                                ? filteredServices.map((service) => (
                                   <CatalogAddButton
                                     imagePath={service.image_path}
-                                    isOpeningDayShift={isOpeningDayShift}
                                     isPressed={pressedCatalogItemKey === `services:${service.id}`}
                                     key={service.id}
                                     name={service.name}
@@ -1426,10 +1355,9 @@ export function EmployeeWorkspacePage() {
                                 ))
                               : null}
                             {pickerTab === 'combos'
-                              ? filteredCombos.map((combo) => (
+                                ? filteredCombos.map((combo) => (
                                   <CatalogAddButton
                                     imagePath={combo.image_path}
-                                    isOpeningDayShift={isOpeningDayShift}
                                     isPressed={pressedCatalogItemKey === `combos:${combo.id}`}
                                     key={combo.id}
                                     name={combo.name}
@@ -1453,10 +1381,6 @@ export function EmployeeWorkspacePage() {
                                 ? tableOpenedAt
                                   ? 'Masa məşğulluq vaxtı sifarişin açılmasından hesablanır.'
                                   : 'Masa məşğulluq vaxtını görmək üçün sifariş yaradın.'
-                                : isOpeningDayShift
-                                ? hasActiveSession
-                                  ? 'Vaxt gedir. Sessiyanı bitirin, sonra müştərinin qoyduğu məbləği göstərin.'
-                                  : 'Sifarişin sonunda müştərinin həqiqi məbləğini daxil edin.'
                                 : hasActiveSession
                                   ? 'Əvvəl sessiyanı dayandırın, sonra sifarişi ödənişə keçirin.'
                                   : selectedOrder.status === 'waiting_payment'
@@ -1473,9 +1397,7 @@ export function EmployeeWorkspacePage() {
                                 {formatElapsed(selectedPlace?.active_session_started_at ?? null, nowMs)}
                               </div>
                               <div className="mt-0.5 text-xs">
-                                {isOpeningDayShift
-                                  ? 'Qiymət əl ilə'
-                                  : `Hazırda: ${formatAzn(selectedPlace ? calculateCurrentSessionAmount(selectedPlace, nowMs) : 0)}`}
+                                Hazırda: {formatAzn(selectedPlace ? calculateCurrentSessionAmount(selectedPlace, nowMs) : 0)}
                               </div>
                               {selectedSessionGraceNotice ? (
                                 <div className="mt-0.5 text-xs font-semibold text-orange-700">

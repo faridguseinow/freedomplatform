@@ -439,29 +439,6 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
       },
       onSuccess: (order) => invalidate(order.id),
     }),
-    completeOpeningDayPayment: useMutation({
-      mutationFn: async ({
-        orderId,
-        method,
-        amount,
-        comment,
-      }: {
-        orderId: string
-        method: PaymentMethod
-        amount: number
-        comment?: string | null
-      }) => {
-        const { data, error } = await supabase.rpc('complete_opening_day_order_payment', {
-          target_order_id: orderId,
-          target_method: method,
-          target_amount: amount,
-          target_comment: comment ?? null,
-        })
-        if (error) throw new Error(error.message)
-        return data
-      },
-      onSuccess: (order) => invalidate(order.id),
-    }),
     refusePayment: useMutation({
       mutationFn: async ({ orderId, comment }: { orderId: string; comment: string }) => {
         const { data, error } = await supabase.rpc('mark_order_payment_refused', {

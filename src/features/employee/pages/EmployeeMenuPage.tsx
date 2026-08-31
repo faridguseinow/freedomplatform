@@ -160,13 +160,14 @@ export function EmployeeMenuPage() {
                 {list.map((it: any) => {
                   const isCombo = it.type === 'combo'
                   const isExpanded = Boolean(expandedIds[it.id])
-                  const quantity = formatQuantity(it.type === 'combo' ? it.availableQuantity : it.stockQuantity)
-                  const hasCountedStock = (it.type === 'product' && it.trackStock !== false && quantity != null) || (isCombo && quantity != null)
-                  const isOutOfStock = hasCountedStock && Number(it.type === 'combo' ? it.availableQuantity : it.stockQuantity) <= 0
+                  const stockQuantity = it.type === 'combo' ? it.availableQuantity : it.stockQuantity
+                  const quantity = formatQuantity(stockQuantity)
+                  const hasStockQuantity = (it.type === 'product' || isCombo) && quantity != null
+                  const isOutOfStock = hasStockQuantity && Number(stockQuantity) <= 0
                   const stockLabel =
                     it.type === 'service'
                       ? t('Услуга')
-                      : hasCountedStock
+                      : hasStockQuantity
                         ? `${t('Осталось')}: ${quantity}${it.unitName ? ` ${it.unitName}` : ''}`
                         : null
 

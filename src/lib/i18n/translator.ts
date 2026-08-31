@@ -100,6 +100,8 @@ const ignoredTags = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'CODE', 'PRE'])
 const translatableAttributes = ['aria-label', 'placeholder', 'title', 'alt']
 
 function translateTextNode(node: Text, language: SystemLanguage) {
+  if (node.parentElement && ignoredTags.has(node.parentElement.tagName)) return
+
   const currentValue = node.nodeValue
   if (!currentValue) return
 

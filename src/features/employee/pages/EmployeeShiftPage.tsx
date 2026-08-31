@@ -17,12 +17,13 @@ import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
 import { useAuth } from '../../../hooks/useAuth'
 import { useI18n } from '../../../lib/i18n/I18nContext'
+import { cn } from '../../../lib/utils/cn'
 import { useShiftTemplates } from '../../shifts/shiftTemplatesApi'
 import {
-  isOpeningDayShiftName,
   useCurrentEmployeeShift,
   useEmployeeShiftMutations,
 } from '../../shifts/shiftsApi'
+import type { ShiftTemplateRow } from '../../../lib/supabase/database.types'
 
 const formatMoney = (value: number | null | undefined) =>
   new Intl.NumberFormat('ru', { maximumFractionDigits: 2 }).format(value ?? 0)
@@ -43,6 +44,19 @@ const formatDuration = (openedAt: string | undefined, nowMs: number) => {
   return `${hours} ч ${minutes % 60} мин`
 }
 
+const isOpeningTemplateName = (name: string | null | undefined) => {
+  const normalized = name?.trim().toLowerCase()
+  return normalized === 'день открытия' || normalized === 'opening ceremony' || normalized === 'opening day'
+}
+
+const matchesShiftNumber = (template: ShiftTemplateRow, number: 1 | 2) => {
+  const normalized = template.name.trim().toLowerCase()
+  if (number === 1) {
+    return /\b1\b/.test(normalized) || normalized.includes('birinci') || normalized.includes('первая') || normalized.includes('first')
+  }
+  return /\b2\b/.test(normalized) || normalized.includes('ikinci') || normalized.includes('вторая') || normalized.includes('second')
+}
+
 type ShiftMetricProps = {
   description?: string
   label: string
@@ -57,6 +71,17 @@ const metricToneClassName: Record<NonNullable<ShiftMetricProps['tone']>, string>
   orange: 'bg-orange-50 text-orange-950 ring-orange-100',
   red: 'bg-red-50 text-red-950 ring-red-100',
 }
+
+const shiftRules = [
+  'Система считает кассу по введённым данным. Работайте внимательно: проверяйте заказы, суммы, оплаты и остатки товара.',
+  'Перед тем как принять оплату, обязательно проверьте итоговую сумму заказа и способ оплаты.',
+  'Чаевые нельзя брать себе. Если клиент оставил чаевые, они обязательно записываются в системе и идут в кассу.',
+  'Вся ответственность за кассу во время смены лежит на сотруднике, который открыл смену.',
+  'Если в конце смены в кассе плюс, это тоже ошибка. Плюс не означает, что всё хорошо: значит где-то неверно записаны деньги, заказ или оплата.',
+  'Если в кассе минус или плюс, обязательно сверяйте действия и пишите честный комментарий при закрытии смены.',
+  'Нельзя давать в долг. Если клиент говорит, что оплатит в следующий раз, такой заказ нельзя закрывать как оплаченный.',
+  'Открывая смену, вы подтверждаете, что прочитали правила, понимаете ответственность и будете работать строго по системе.',
+]
 
 function ShiftMetric({ description, icon: Icon, label, tone = 'default', value }: ShiftMetricProps) {
   const { t } = useI18n()
@@ -113,16 +138,21 @@ export function EmployeeShiftPage() {
   const hasVariance = Math.abs(variance) > 0.009
   const closeCommentRequired = hasVariance && !comment.trim()
   const closeDisabled = mutations.close.isPending || closeCommentRequired
-  const defaultTemplateId = useMemo(
-    () =>
-      templates.find((template) => isOpeningDayShiftName(template.name) && template.is_active)?.id ??
-      templates.find((template) => template.is_active)?.id ??
-      '',
-    [templates],
-  )
+  const shiftChoices = useMemo(() => {
+    const regularTemplates = templates.filter((template) => template.is_active && !isOpeningTemplateName(template.name))
+    const first = regularTemplates.find((template) => matchesShiftNumber(template, 1)) ?? regularTemplates[0] ?? null
+    const second =
+      regularTemplates.find((template) => template.id !== first?.id && matchesShiftNumber(template, 2)) ??
+      regularTemplates.find((template) => template.id !== first?.id) ??
+      null
+
+    return [
+      { number: 1 as const, label: 'Первая смена', template: first },
+      { number: 2 as const, label: 'Вторая смена', template: second },
+    ]
+  }, [templates])
+  const defaultTemplateId = useMemo(() => shiftChoices[0]?.template?.id ?? '', [shiftChoices])
   const selectedTemplateId = templateId || defaultTemplateId
-  const selectedTemplate = templates.find((template) => template.id === selectedTemplateId) ?? null
-  const selectedOpeningDay = isOpeningDayShiftName(selectedTemplate?.name)
 
   const runAction = async (action: () => Promise<unknown>) => {
     setError(null)
@@ -147,12 +177,16 @@ export function EmployeeShiftPage() {
         {error ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
 
         <form
-          className="grid gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm lg:grid-cols-[minmax(220px,1fr)_minmax(220px,280px)_minmax(180px,240px)_auto] lg:items-end"
+          className="grid gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm lg:grid-cols-[minmax(220px,1fr)_minmax(280px,360px)_minmax(180px,240px)_auto] lg:items-end"
           onSubmit={(event) => {
             event.preventDefault()
+            if (!selectedTemplateId) {
+              setError('Выберите первую или вторую смену.')
+              return
+            }
             void runAction(() =>
               mutations.open.mutateAsync({
-                shiftTemplateId: selectedTemplateId || null,
+                shiftTemplateId: selectedTemplateId,
                 openingCashAmount: openingCash,
               }),
             )
@@ -163,27 +197,35 @@ export function EmployeeShiftPage() {
             <p className="mt-1 truncate text-sm leading-5 text-slate-600">
               {currentOrganization?.name ?? 'Организация'} · {new Date().toLocaleString('ru')}
             </p>
-            {selectedOpeningDay ? (
-              <p className="mt-1 text-xs font-medium text-emerald-700">
-                Режим открытия: цены скрыты, итог заказа вводится вручную.
-              </p>
-            ) : null}
           </header>
-          <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-            <span>Шаблон смены</span>
-            <select
-              className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
-              onChange={(event) => setTemplateId(event.target.value)}
-              value={selectedTemplateId}
-            >
-              <option value="">Без шаблона</option>
-              {templates.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="grid gap-1.5 text-sm font-medium text-slate-700">
+            <span>Смена</span>
+            <div className="grid grid-cols-2 gap-2">
+              {shiftChoices.map((choice) => {
+                const isSelected = selectedTemplateId === choice.template?.id
+                return (
+                  <button
+                    className={cn(
+                      'grid min-h-14 content-center rounded-md border px-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+                      isSelected
+                        ? 'border-emerald-700 bg-emerald-50 text-emerald-950'
+                        : 'border-slate-200 bg-white text-slate-800 hover:border-emerald-200 hover:bg-emerald-50/40',
+                    )}
+                    disabled={!choice.template}
+                    key={choice.number}
+                    onClick={() => setTemplateId(choice.template?.id ?? '')}
+                    type="button"
+                  >
+                    <span className="text-base font-semibold">{choice.number}</span>
+                    <span className="text-xs font-medium">{t(choice.label)}</span>
+                  </button>
+                )
+              })}
+            </div>
+            {!shiftChoices.some((choice) => choice.template) && !templatesQuery.isLoading ? (
+              <span className="text-xs font-normal text-red-700">Активные шаблоны смен не найдены.</span>
+            ) : null}
+          </div>
           <Input
             id="opening_cash"
             label="Начальная наличность"
@@ -193,11 +235,34 @@ export function EmployeeShiftPage() {
             type="number"
             value={openingCash}
           />
-          <Button className="whitespace-nowrap lg:min-h-11" disabled={mutations.open.isPending} type="submit">
+          <Button className="whitespace-nowrap lg:min-h-11" disabled={mutations.open.isPending || !selectedTemplateId} type="submit">
             {mutations.open.isPending ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
             Открыть смену
           </Button>
         </form>
+        <section className="rounded-lg border border-amber-200 bg-white shadow-sm">
+          <div className="border-b border-amber-100 bg-amber-50 px-4 py-3">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-700" />
+              <div className="min-w-0">
+                <h3 className="text-base font-semibold text-slate-950">{t('Правила кассы')}</h3>
+                <p className="mt-1 text-sm leading-5 text-slate-700">
+                  {t('Перед открытием смены сотрудник обязан прочитать и принять эти условия.')}
+                </p>
+              </div>
+            </div>
+          </div>
+          <ol className="grid gap-0 px-4 py-2">
+            {shiftRules.map((rule, index) => (
+              <li className="grid grid-cols-[2rem_1fr] gap-2 border-b border-slate-100 py-3 last:border-b-0" key={rule}>
+                <span className="flex size-7 items-center justify-center rounded-md bg-slate-100 text-sm font-semibold text-slate-700">
+                  {index + 1}
+                </span>
+                <p className="text-sm leading-6 text-slate-800">{t(rule)}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
       </section>
     )
   }

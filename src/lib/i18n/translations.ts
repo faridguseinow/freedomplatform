@@ -145,7 +145,6 @@ export const azTranslations: Record<string, string> = {
     'Cari ay üçün ödəniş tarixlərinə görə pul hərəkəti.',
   'Действует с': 'Başlama tarixi',
   'День закрытия месяца': 'Ayın bağlanma günü',
-  'День открытия': 'Açılış günü',
   '1 час': '1 saat',
   '2 часа': '2 saat',
   '3 часа': '3 saat',
@@ -1047,6 +1046,25 @@ export const azTranslations: Record<string, string> = {
   'Нажмите «Завершить смену». Открытые заказы и активные сессии будут переданы следующей смене.':
     '“Növbəni tamamla” düyməsinə basın. Açıq sifarişlər və aktiv sessiyalar növbəti növbəyə təhvil veriləcək.',
   'Открыть смену': 'Növbəni aç',
+  'Правила кассы': 'Kassa qaydaları',
+  'Перед открытием смены сотрудник обязан прочитать и принять эти условия.':
+    'Növbəni açmazdan əvvəl əməkdaş bu şərtləri oxumalı və qəbul etməlidir.',
+  'Система считает кассу по введённым данным. Работайте внимательно: проверяйте заказы, суммы, оплаты и остатки товара.':
+    'Sistem kassani daxil edilən məlumatlara əsasən hesablayır. Diqqətli işləyin: sifarişləri, məbləğləri, ödənişləri və məhsul qalıqlarını yoxlayın.',
+  'Перед тем как принять оплату, обязательно проверьте итоговую сумму заказа и способ оплаты.':
+    'Ödənişi qəbul etməzdən əvvəl sifarişin yekun məbləğini və ödəniş üsulunu mütləq yoxlayın.',
+  'Чаевые нельзя брать себе. Если клиент оставил чаевые, они обязательно записываются в системе и идут в кассу.':
+    'Çaypulunu şəxsi götürmək olmaz. Müştəri çaypulu qoyubsa, o mütləq sistemə yazılır və kassaya daxil edilir.',
+  'Вся ответственность за кассу во время смены лежит на сотруднике, который открыл смену.':
+    'Növbə ərzində kassaya görə bütün məsuliyyət növbəni açan əməkdaşın üzərindədir.',
+  'Если в конце смены в кассе плюс, это тоже ошибка. Плюс не означает, что всё хорошо: значит где-то неверно записаны деньги, заказ или оплата.':
+    'Növbənin sonunda kassada artıq pul çıxırsa, bu da səhvdir. Artıq pul hər şeyin qaydasında olduğunu göstərmir: deməli haradasa pul, sifariş və ya ödəniş səhv yazılıb.',
+  'Если в кассе минус или плюс, обязательно сверяйте действия и пишите честный комментарий при закрытии смены.':
+    'Kassada əskik və ya artıq məbləğ varsa, əməliyyatları mütləq tutuşdurun və növbəni bağlayarkən dürüst şərh yazın.',
+  'Нельзя давать в долг. Если клиент говорит, что оплатит в следующий раз, такой заказ нельзя закрывать как оплаченный.':
+    'Nisyə vermək olmaz. Müştəri növbəti dəfə ödəyəcəyini deyirsə, belə sifarişi ödənilmiş kimi bağlamaq olmaz.',
+  'Открывая смену, вы подтверждаете, что прочитали правила, понимаете ответственность и будете работать строго по системе.':
+    'Növbəni açmaqla qaydaları oxuduğunuzu, məsuliyyəti başa düşdüyünüzü və sistem üzrə dəqiq işləyəcəyinizi təsdiqləyirsiniz.',
   Отмена: 'İmtina',
   'Отменить заказ': 'Sifarişi ləğv et',
   Отправить: 'Göndər',
@@ -1112,8 +1130,6 @@ export const azTranslations: Record<string, string> = {
   'Редактировать пользователя': 'İstifadəçini redaktə et',
   'Режим выбора: fixed. Choice будет добавлен позже.':
     'Seçim rejimi: fixed. Choice sonra əlavə ediləcək.',
-  'Режим открытия: цены скрыты, итог заказа вводится вручную.':
-    'Açılış rejimi: qiymətlər gizlidir, sifariş yekunu əl ilə daxil edilir.',
   'Ручной итог': 'Əl ilə yekun',
   'Резервов нет.': 'Rezerv yoxdur.',
   Резервы: 'Rezervlər',

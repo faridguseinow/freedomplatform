@@ -7,13 +7,6 @@ import type {
   ShiftStatus,
 } from '../../lib/supabase/database.types'
 
-export const OPENING_DAY_SHIFT_NAME = 'День открытия'
-
-export const isOpeningDayShiftName = (name: string | null | undefined) => {
-  const normalized = name?.trim().toLowerCase()
-  return normalized === 'день открытия' || normalized === 'opening ceremony' || normalized === 'opening day'
-}
-
 type EmployeeShiftSummary = {
   active_sessions_count?: number
   card_transfer_sales_total?: number
