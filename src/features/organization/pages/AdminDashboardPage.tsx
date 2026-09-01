@@ -34,6 +34,16 @@ import { useAdminActivityEvents } from '../activity/activityApi'
 const formatMoney = (value: number | null | undefined) =>
   new Intl.NumberFormat('ru', { maximumFractionDigits: 2 }).format(value ?? 0)
 
+const formatUsageDuration = (hours: number | null | undefined, t: (value: string) => string) => {
+  const totalMinutes = Math.round(Math.max(0, hours ?? 0) * 60)
+  const wholeHours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+
+  if (wholeHours && minutes) return `${wholeHours} ${t('ч')} ${minutes} ${t('мин')}`
+  if (wholeHours) return `${wholeHours} ${t('ч')}`
+  return `${minutes} ${t('мин')}`
+}
+
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return '-'
   return new Intl.DateTimeFormat('ru', {
@@ -277,22 +287,22 @@ export function AdminDashboardPage() {
           <StatCard
             description="Сумма фактического времени всех сессий PlayStation и VIP-кабинетов за выбранный операционный день."
             label="PlayStation"
-            value={`${formatMoney(usageHours?.playstation ?? 0)} ${t('ч')}`}
+            value={formatUsageDuration(usageHours?.playstation, t)}
           />
           <StatCard
             description="Сумма фактического времени всех бильярдных сессий за выбранный операционный день."
             label="Бильярд"
-            value={`${formatMoney(usageHours?.billiard ?? 0)} ${t('ч')}`}
+            value={formatUsageDuration(usageHours?.billiard, t)}
           />
           <StatCard
             description="Сумма времени занятости обычных столов: от открытия заказа до закрытия или до текущего момента."
             label="Столы"
-            value={`${formatMoney(usageHours?.tables ?? 0)} ${t('ч')}`}
+            value={formatUsageDuration(usageHours?.tables, t)}
           />
           <StatCard
             description="Общее занятое время по PlayStation, бильярду и столам за выбранный операционный день."
             label="Всего часов"
-            value={`${formatMoney(usageHours?.total ?? 0)} ${t('ч')}`}
+            value={formatUsageDuration(usageHours?.total, t)}
           />
         </div>
       </section>

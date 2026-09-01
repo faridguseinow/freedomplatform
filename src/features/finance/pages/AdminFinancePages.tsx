@@ -68,6 +68,16 @@ const money = (value: number | null | undefined) =>
     value ?? 0,
   )
 
+const formatUsageDuration = (hours: number | null | undefined, t: (value: string) => string) => {
+  const totalMinutes = Math.round(Math.max(0, hours ?? 0) * 60)
+  const wholeHours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+
+  if (wholeHours && minutes) return `${wholeHours} ${t('ч')} ${minutes} ${t('мин')}`
+  if (wholeHours) return `${wholeHours} ${t('ч')}`
+  return `${minutes} ${t('мин')}`
+}
+
 function formatDateInput(date: Date) {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -388,6 +398,7 @@ function UsageHoursGrid({
   tables: number | undefined
   total: number | undefined
 }) {
+  const { t } = useI18n()
   const items = [
     {
       label: 'PlayStation',
@@ -420,7 +431,7 @@ function UsageHoursGrid({
           description={item.description}
           key={item.label}
           label={item.label}
-          value={`${money(item.value ?? 0)} ч`}
+          value={formatUsageDuration(item.value, t)}
         />
       ))}
     </div>
