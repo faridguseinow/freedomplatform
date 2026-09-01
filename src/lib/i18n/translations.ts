@@ -1389,6 +1389,22 @@ export const azTranslations: Record<string, string> = {
   'Оплаченная выручка, которая не относится к PlayStation, бильярду, столам или товарам.':
     'PlayStation, bilyard, masalar və ya məhsullara aid olmayan ödənilmiş gəlir.',
   'Не удалось загрузить выручку по направлениям': 'İstiqamətlər üzrə gəliri yükləmək mümkün olmadı',
+  'Сумма фактического времени всех сессий PlayStation и VIP-кабинетов за выбранный операционный день.':
+    'Seçilmiş əməliyyat günü üzrə bütün PlayStation və VIP kabinet sessiyalarının faktiki vaxtı.',
+  'Сумма фактического времени всех бильярдных сессий за выбранный операционный день.':
+    'Seçilmiş əməliyyat günü üzrə bütün bilyard sessiyalarının faktiki vaxtı.',
+  'Сумма времени занятости обычных столов: от открытия заказа до закрытия или до текущего момента.':
+    'Adi masaların məşğulluq vaxtı: sifarişin açılmasından bağlanmasına və ya cari ana qədər.',
+  'Общее занятое время по PlayStation, бильярду и столам за выбранный операционный день.':
+    'Seçilmiş əməliyyat günü üzrə PlayStation, bilyard və masaların ümumi məşğulluq vaxtı.',
+  'Фактические часы сессий PlayStation и VIP-кабинетов за выбранный период.':
+    'Seçilmiş dövr üzrə PlayStation və VIP kabinet sessiyalarının faktiki vaxtı.',
+  'Фактические часы бильярдных сессий за выбранный период.':
+    'Seçilmiş dövr üzrə bilyard sessiyalarının faktiki vaxtı.',
+  'Время занятости обычных столов: от открытия заказа до закрытия или до текущего момента.':
+    'Adi masaların məşğulluq vaxtı: sifarişin açılmasından bağlanmasına və ya cari ana qədər.',
+  'Общее занятое время по PlayStation, бильярду и столам.':
+    'PlayStation, bilyard və masalar üzrə ümumi məşğulluq vaxtı.',
   'Все завершённые платежи до сегодняшнего дня: распределение по 24 часам и шкала трафика от 1 до 10.':
     'Bu günə qədər bütün tamamlanmış ödənişlər: 24 saat üzrə bölgü və 1-dən 10-a qədər trafik şkalası.',
   Время: 'Vaxt',
