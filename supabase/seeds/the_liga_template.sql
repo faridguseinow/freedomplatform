@@ -33,7 +33,7 @@ begin
   values (
     target_organization_id,
     'The Liga',
-    'the-liga',
+    'theliga',
     'The Liga launch configuration',
     'active',
     'ru',

@@ -14,8 +14,16 @@ import type {
   OrganizationRow,
   ProfileRow,
 } from '../../lib/supabase/database.types'
+import { getCurrentAppHost, getRouteOrganizationSlug } from '../../lib/routing/appHost'
 import { USER_ROLES } from '../../types/roles'
-import { AuthContext, type AuthContextValue, type SignInCredentials } from './AuthContext'
+import {
+  AuthContext,
+  type AuthContextValue,
+  type DemoRole,
+  type HostOrganizationState,
+  type OrganizationLoginBrand,
+  type SignInCredentials,
+} from './AuthContext'
 
 const profileSelect =
   'id,email,full_name,avatar_path,preferred_locale,is_active,created_at,updated_at'
@@ -25,6 +33,7 @@ const membershipSelect =
 
 const organizationSelect =
   'id,name,slug,description,logo_path,status,default_locale,timezone,currency_code,created_by,created_at,updated_at,archived_at'
+const appHost = getCurrentAppHost()
 
 type AccessContext = {
   profile: ProfileRow
@@ -44,8 +53,11 @@ const pickMembership = (memberships: OrganizationMembershipRow[]) =>
     return first.role === 'organization_admin' ? -1 : 1
   })[0] ?? null
 
-const getOrganizationSlugFromPath = () => {
+const getOrganizationSlugFromLocation = () => {
   if (typeof window === 'undefined') return null
+
+  const hostnameSlug = getRouteOrganizationSlug(null)
+  if (hostnameSlug) return hostnameSlug
 
   const [firstSegment, secondSegment] = window.location.pathname.split('/').filter(Boolean)
 
@@ -72,9 +84,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [currentOrganization, setCurrentOrganization] = useState<OrganizationRow | null>(null)
   const [memberships, setMemberships] = useState<OrganizationMembershipRow[]>([])
   const [availableOrganizations, setAvailableOrganizations] = useState<OrganizationRow[]>([])
+  const [hostOrganization, setHostOrganization] = useState<OrganizationLoginBrand | null>(null)
+  const [hostOrganizationState, setHostOrganizationState] = useState<HostOrganizationState>(
+    appHost.mode === 'tenant' ? 'loading' : 'not-applicable',
+  )
   const [isLoading, setIsLoading] = useState(true)
   const [authError, setAuthError] = useState<string | null>(null)
   const currentUserIdRef = useRef<string | null>(null)
+  const demoSignInRef = useRef(false)
 
   useEffect(() => {
     currentUserIdRef.current = session?.user.id ?? null
@@ -153,7 +170,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return null
       }
 
-      const requestedOrganizationSlug = getOrganizationSlugFromPath()
+      const requestedOrganizationSlug = getOrganizationSlugFromLocation()
       const selectedOrganization = requestedOrganizationSlug
         ? (organizations ?? []).find((item) => item.slug === requestedOrganizationSlug) ?? null
         : null
@@ -207,16 +224,31 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const activeMemberships = nextMemberships.filter((item) =>
       activeOrganizationIds.has(item.organization_id),
     )
-    const requestedOrganizationSlug = getOrganizationSlugFromPath()
+    const requestedOrganizationSlug = getOrganizationSlugFromLocation()
     const requestedOrganization = requestedOrganizationSlug
       ? organizations.find((item) => item.slug === requestedOrganizationSlug)
       : null
     const requestedMembership = requestedOrganization
       ? activeMemberships.find((item) => item.organization_id === requestedOrganization.id)
       : null
-    const selectedMembership = requestedMembership ?? pickMembership(activeMemberships)
+    const selectedMembership = requestedOrganizationSlug
+      ? requestedMembership
+      : pickMembership(activeMemberships)
 
     if (!selectedMembership) {
+      const fallbackMembership = pickMembership(activeMemberships)
+      if (requestedOrganizationSlug && fallbackMembership) {
+        setAuthError(null)
+        return {
+          profile: nextProfile,
+          role: fallbackMembership.role,
+          organizationId: null,
+          currentOrganization: null,
+          memberships: activeMemberships,
+          availableOrganizations: organizations,
+        } satisfies AccessContext
+      }
+
       setAuthError('Для аккаунта нет активного доступа к организации.')
       return null
     }
@@ -259,10 +291,47 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setIsLoading(true)
       clearAccess()
 
-      const { data, error } = await supabase.auth.getSession()
+      const hostResolutionPromise =
+        appHost.mode === 'tenant'
+          ? supabase
+              .rpc('resolve_organization_login', { target_slug: appHost.slug })
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null })
+      const [{ data, error }, hostResolution] = await Promise.all([
+        supabase.auth.getSession(),
+        hostResolutionPromise,
+      ])
 
       if (!isMounted) {
         return
+      }
+
+      if (appHost.mode === 'tenant') {
+        if (hostResolution.error) {
+          setHostOrganization(null)
+          setHostOrganizationState('error')
+        } else if (!hostResolution.data) {
+          setHostOrganization(null)
+          setHostOrganizationState('not-found')
+        } else if (hostResolution.data.organization_status !== 'active') {
+          setHostOrganization({
+            id: hostResolution.data.organization_id,
+            name: hostResolution.data.organization_name,
+            slug: hostResolution.data.organization_slug,
+            logo_path: hostResolution.data.organization_logo_path,
+            status: hostResolution.data.organization_status,
+          })
+          setHostOrganizationState('unavailable')
+        } else {
+          setHostOrganization({
+            id: hostResolution.data.organization_id,
+            name: hostResolution.data.organization_name,
+            slug: hostResolution.data.organization_slug,
+            logo_path: hostResolution.data.organization_logo_path,
+            status: hostResolution.data.organization_status,
+          })
+          setHostOrganizationState('resolved')
+        }
       }
 
       if (error) {
@@ -296,6 +365,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
 
         setSession(nextSession)
+
+        if (demoSignInRef.current) {
+          return
+        }
 
         const currentUserId = currentUserIdRef.current
         const nextUserId = nextSession.user.id
@@ -415,6 +488,56 @@ export function AuthProvider({ children }: PropsWithChildren) {
     [applyAccessContext, clearAccess, loadAccessContext],
   )
 
+  const signInDemo = useCallback(
+    async (demoRole: DemoRole) => {
+      if (appHost.mode !== 'tenant' || appHost.slug !== 'demo') {
+        throw new Error('Демо-вход доступен только на demo-домене.')
+      }
+
+      setIsLoading(true)
+      setAuthError(null)
+      clearAccess()
+      demoSignInRef.current = true
+
+      try {
+        const { data, error } = await supabase.auth.signInAnonymously({
+          options: {
+            data: {
+              full_name:
+                demoRole === USER_ROLES.organizationAdmin
+                  ? 'Demo administrator'
+                  : 'Demo employee',
+            },
+          },
+        })
+
+        if (error || !data.user) {
+          throw new Error(error?.message || 'Не удалось открыть демо-режим.')
+        }
+
+        const { error: claimError } = await supabase.rpc('claim_demo_access', {
+          target_role: demoRole,
+        })
+
+        if (claimError) {
+          await supabase.auth.signOut({ scope: 'local' })
+          throw new Error(claimError.message || 'Не удалось настроить демо-доступ.')
+        }
+
+        setSession(data.session)
+        currentUserIdRef.current = data.user.id
+        const context = await loadAccessContext(data.user.id)
+        applyAccessContext(context)
+
+        return context?.role ?? null
+      } finally {
+        demoSignInRef.current = false
+        setIsLoading(false)
+      }
+    },
+    [applyAccessContext, clearAccess, loadAccessContext],
+  )
+
   const signOut = useCallback(async () => {
     setIsLoading(true)
     await supabase.auth.signOut()
@@ -434,10 +557,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
       currentOrganization,
       memberships,
       availableOrganizations,
+      hostOrganization,
+      hostOrganizationState,
       isLoading,
       authError,
       profileError: authError,
       signIn,
+      signInDemo,
       signOut,
       refreshProfile,
       refreshAccessContext,
@@ -449,6 +575,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       availableOrganizations,
       clearOrganizationView,
       currentOrganization,
+      hostOrganization,
+      hostOrganizationState,
       isLoading,
       memberships,
       organizationId,
@@ -459,6 +587,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       role,
       session,
       signIn,
+      signInDemo,
       signOut,
     ],
   )

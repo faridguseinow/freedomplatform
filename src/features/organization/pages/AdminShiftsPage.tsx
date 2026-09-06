@@ -3,6 +3,7 @@ import { Eye, Loader2, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../hooks/useAuth'
+import { getTenantRoutePath } from '../../../lib/routing/appHost'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import type { AdminShiftReportRow, ShiftStatus } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
@@ -31,7 +32,7 @@ export function AdminShiftsPage() {
   const shifts = shiftsQuery.data ?? []
   const isPlatformOwner = role === 'platform_owner'
   const buildAdminPath = (path: string) =>
-    currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
+    getTenantRoutePath(path, currentOrganization?.slug)
   const getRoleLabel = (shift: AdminShiftReportRow) =>
     shift.employee_role ? ROLE_LABEL[shift.employee_role] : ROLE_LABEL.employee
   const deleteShift = (shift: AdminShiftReportRow) => {

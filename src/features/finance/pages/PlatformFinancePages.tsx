@@ -15,6 +15,7 @@ import { EmptyState } from '../../../components/common/EmptyState'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
 import { useI18n } from '../../../lib/i18n/I18nContext'
+import { getPlatformRoutePath } from '../../../lib/routing/appHost'
 import { usePaymentMethodSummary, useRevenueBreakdown } from '../../orders/paymentsApi'
 import { usePlatformOrganizations } from '../../platform/platformApi'
 import { todayDate, useFinanceSettings, useFinanceSettingsMutation } from '../financeApi'
@@ -83,7 +84,7 @@ export function PlatformFinancePage() {
           <Link
             className="grid gap-2 rounded-md border border-slate-200 bg-white p-4 hover:bg-slate-50"
             key={row.organization_id}
-            to={`/platform/finance/organizations/${row.organization_id}`}
+            to={getPlatformRoutePath(`/finance/organizations/${row.organization_id}`)}
           >
             <p className="font-medium text-slate-950">
               {nameById.get(row.organization_id) ?? row.organization_id}
@@ -270,7 +271,7 @@ export function PlatformFinanceOrganizationPage() {
                     <div className="flex justify-end gap-2">
                       <Link
                         className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 transition-colors hover:bg-slate-50"
-                        to={`/platform/finance/periods/${period.id}`}
+                        to={getPlatformRoutePath(`/finance/periods/${period.id}`)}
                       >
                         <Eye aria-hidden="true" className="size-4" />
                         Открыть

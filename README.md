@@ -29,13 +29,14 @@ npm run dev
 Default local URL:
 
 ```text
-https://freedom.vercel.app/
+http://localhost:5173/
 ```
 
 ## Checks
 
 ```bash
 npm run lint
+npm test
 npm run build
 ```
 

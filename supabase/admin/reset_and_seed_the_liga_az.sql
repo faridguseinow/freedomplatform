@@ -182,7 +182,7 @@ begin
   values (
     target_organization_id,
     'The Liga',
-    'the-liga',
+    'theliga',
     'PlayStation, bilyard və istirahət məkanı',
     null,
     'active',
@@ -419,7 +419,7 @@ select
   o.currency_code,
   o.status
 from public.organizations o
-where o.slug = 'the-liga';
+where o.slug = 'theliga';
 
 select role, is_active, count(*)::integer as users
 from public.organization_memberships
@@ -456,4 +456,4 @@ from public.organization_notification_settings;
 
 select public.get_organization_readiness(id) as readiness
 from public.organizations
-where slug = 'the-liga';
+where slug = 'theliga';

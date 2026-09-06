@@ -8,6 +8,7 @@
     "build": "npm run i18n:check && tsc -b && vite build",
     "i18n:check": "node scripts/check-i18n.mjs",
     "lint": "eslint .",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "preview": "vite preview",
     "supabase:types": "supabase gen types typescript --local > src/lib/supabase/database.types.ts",
     "supabase:reset-the-liga": "bash scripts/reset-the-liga-supabase.sh --confirm-reset-all-organizations",

@@ -78,7 +78,7 @@ export function useEmployeeWorkspaceData(organizationId: string | null) {
     queryKey: ['employee', 'workspace', organizationId],
     refetchInterval: 45_000,
     queryFn: async () => {
-      const [placesResult, ordersResult, sessionsResult] = await Promise.all([
+      const [placesResult, ordersResult, sessionsResult, comboItemsResult] = await Promise.all([
         supabase
           .from('employee_workspace_places')
           .select('*')
@@ -95,10 +95,17 @@ export function useEmployeeWorkspaceData(organizationId: string | null) {
           .select('*')
           .eq('organization_id', organizationId!)
           .eq('status', 'active'),
+        supabase
+          .from('employee_order_items')
+          .select(employeeOrderItemSelect)
+          .eq('organization_id', organizationId!)
+          .eq('status', 'active')
+          .eq('item_type', 'combo'),
       ])
 
       if (ordersResult.error) throw new Error(ordersResult.error.message)
       if (sessionsResult.error) throw new Error(sessionsResult.error.message)
+      if (comboItemsResult.error) throw new Error(comboItemsResult.error.message)
 
       const orders = ordersResult.data as EmployeeOrderRow[]
       const sessions = sessionsResult.data ?? []
@@ -169,6 +176,7 @@ export function useEmployeeWorkspaceData(organizationId: string | null) {
         places,
         orders,
         sessions,
+        comboItems: comboItemsResult.data as EmployeeOrderItemRow[],
       }
     },
   })

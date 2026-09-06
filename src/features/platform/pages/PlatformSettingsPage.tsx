@@ -11,15 +11,16 @@ import {
   SlidersHorizontal,
   Users,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import { languageLabels, supportedLanguages, type SystemLanguage } from '../../../lib/i18n/translations'
+import { getOrganizationUrl, PLATFORM_BASE_DOMAIN } from '../../../lib/routing/appHost'
 
 type PlatformSettings = {
   publicBaseUrl: string
-  organizationUrlMode: 'path'
+  organizationUrlMode: 'subdomain'
   defaultLocale: 'ru' | 'az' | 'en'
   defaultTimezone: string
   defaultCurrency: string
@@ -50,8 +51,8 @@ type SettingSectionProps = {
 const storageKey = 'freedom-platform.platform-settings'
 
 const defaultSettings: PlatformSettings = {
-  publicBaseUrl: 'https://freedomplatform.vercel.app',
-  organizationUrlMode: 'path',
+  publicBaseUrl: `https://${PLATFORM_BASE_DOMAIN}`,
+  organizationUrlMode: 'subdomain',
   defaultLocale: 'az',
   defaultTimezone: 'Asia/Baku',
   defaultCurrency: 'AZN',
@@ -79,7 +80,12 @@ const loadStoredSettings = () => {
   if (!stored) return defaultSettings
 
   try {
-    return { ...defaultSettings, ...JSON.parse(stored) } as PlatformSettings
+    return {
+      ...defaultSettings,
+      ...JSON.parse(stored),
+      publicBaseUrl: defaultSettings.publicBaseUrl,
+      organizationUrlMode: 'subdomain',
+    } as PlatformSettings
   } catch {
     window.localStorage.removeItem(storageKey)
     return defaultSettings
@@ -158,10 +164,7 @@ export function PlatformSettingsPage() {
   const [settings, setSettings] = useState<PlatformSettings>(loadStoredSettings)
   const [savedAt, setSavedAt] = useState<string | null>(null)
 
-  const organizationExampleUrl = useMemo(
-    () => `${settings.publicBaseUrl.replace(/\/+$/, '')}/the-liga`,
-    [settings.publicBaseUrl],
-  )
+  const organizationExampleUrl = getOrganizationUrl('theliga')
 
   const updateSetting = <Key extends keyof PlatformSettings>(key: Key, value: PlatformSettings[Key]) => {
     setSettings((current) => ({ ...current, [key]: value }))
@@ -202,24 +205,24 @@ export function PlatformSettingsPage() {
 
       <div className="grid gap-4 xl:grid-cols-2">
         <SettingSection
-          description="Публичный адрес Vercel и формат ссылок организаций."
+          description="Təşkilat domeni və keçid formatı."
           icon={Globe2}
           title="Домен и ссылки"
         >
           <Input
             id="platform_public_base_url"
             label="Публичный адрес"
-            onChange={(event) => updateSetting('publicBaseUrl', event.target.value)}
+            readOnly
             value={settings.publicBaseUrl}
           />
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             <span>Формат ссылки организации</span>
             <select
               className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
-              onChange={() => updateSetting('organizationUrlMode', 'path')}
+              onChange={() => updateSetting('organizationUrlMode', 'subdomain')}
               value={settings.organizationUrlMode}
             >
-              <option value="path">/slug</option>
+              <option value="subdomain">slug.{PLATFORM_BASE_DOMAIN}</option>
             </select>
           </label>
           <div className="rounded-md border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 sm:col-span-2">
@@ -227,7 +230,7 @@ export function PlatformSettingsPage() {
           </div>
           <ToggleSetting
             checked={settings.requireOrganizationSlug}
-            description="Организация должна иметь короткую ссылку вида /the-liga."
+            description={`Təşkilatın theliga.${PLATFORM_BASE_DOMAIN} formatında subdomeni olmalıdır.`}
             label="Slug обязателен"
             onChange={(value) => updateSetting('requireOrganizationSlug', value)}
           />
@@ -430,7 +433,7 @@ export function PlatformSettingsPage() {
         <div className="grid gap-2 sm:grid-cols-3">
           {[
             { Icon: LockKeyhole, label: 'RLS и роли Supabase', value: 'platform_owner / admin / employee' },
-            { Icon: Globe2, label: 'Slug организаций', value: '/the-liga/admin и /the-liga/employee' },
+            { Icon: Globe2, label: 'Slug организаций', value: '/theliga/admin и /theliga/employee' },
             { Icon: Bell, label: 'Очередь уведомлений', value: 'notification_outbox' },
           ].map(({ Icon, label, value }) => (
             <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2" key={label}>

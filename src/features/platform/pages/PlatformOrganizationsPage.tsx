@@ -30,6 +30,11 @@ import type { OrganizationRow } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import { uploadOrganizationLogo } from '../../organization/catalog/imageUpload'
+import {
+  getOrganizationUrl,
+  getPlatformRoutePath,
+  isValidOrganizationSlug,
+} from '../../../lib/routing/appHost'
 
 const organizationSelect =
   'id,name,slug,description,logo_path,status,default_locale,timezone,currency_code,created_by,created_at,updated_at,archived_at'
@@ -87,8 +92,6 @@ const buildSlug = (value: string) =>
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
 
-const buildOrganizationUrl = (slug: string) => `https://freedomplatform.vercel.app/${slug}`
-
 const organizationSchema = z.object({
   name: z.string().trim().min(2, 'Введите название организации.'),
   slug: z
@@ -96,7 +99,10 @@ const organizationSchema = z.object({
     .trim()
     .transform(buildSlug)
     .pipe(
-      z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'Slug: lowercase, цифры и дефисы.'),
+      z
+        .string()
+        .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'Slug: lowercase, цифры и дефисы.')
+        .refine(isValidOrganizationSlug, 'Bu slug platforma tərəfindən rezerv edilib.'),
     ),
   description: z.string().trim().optional(),
   logo_path: z.string().trim().optional(),
@@ -128,7 +134,7 @@ const statusClass: Record<OrganizationRow['status'], string> = {
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat(getCurrentLocale(), {
     day: '2-digit',
-    month: 'short',
+    month: '2-digit',
     year: 'numeric',
   }).format(new Date(value))
 
@@ -200,7 +206,7 @@ export function PlatformOrganizationsPage() {
   const watchedSlug = useWatch({ control, name: 'slug' })
   const watchedLogoPath = useWatch({ control, name: 'logo_path' })
   const normalizedSlug = buildSlug(watchedSlug ?? '')
-  const organizationUrl = normalizedSlug ? buildOrganizationUrl(normalizedSlug) : ''
+  const organizationUrl = normalizedSlug ? getOrganizationUrl(normalizedSlug) : ''
 
   useEffect(() => {
     if (!editingOrganization && watchedName && !watchedSlug) {
@@ -458,11 +464,11 @@ export function PlatformOrganizationsPage() {
                     </p>
                     <a
                       className="mt-1 inline-flex max-w-full items-center gap-1 truncate text-xs font-medium text-emerald-700 hover:text-emerald-800"
-                      href={buildOrganizationUrl(organization.slug)}
+                      href={getOrganizationUrl(organization.slug)}
                       rel="noreferrer"
                       target="_blank"
                     >
-                      <span className="truncate">{buildOrganizationUrl(organization.slug)}</span>
+                      <span className="truncate">{getOrganizationUrl(organization.slug)}</span>
                       <ExternalLink aria-hidden="true" className="size-3 shrink-0" />
                     </a>
                   </div>
@@ -471,32 +477,32 @@ export function PlatformOrganizationsPage() {
                 <div className="flex flex-wrap gap-2">
                   {organization.status === 'active' ? (
                     <>
-                      <Link
+                      <a
                         className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
-                        to={`/${organization.slug}/admin`}
+                        href={getOrganizationUrl(organization.slug, '/admin')}
                       >
                         <ShieldCheck aria-hidden="true" className="size-4" />
                         Админка
-                      </Link>
-                      <Link
+                      </a>
+                      <a
                         className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-medium text-cyan-800 transition-colors hover:bg-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-700 focus-visible:ring-offset-2"
-                        to={`/${organization.slug}/employee`}
+                        href={getOrganizationUrl(organization.slug, '/employee')}
                       >
                         <BriefcaseBusiness aria-hidden="true" className="size-4" />
                         Сотрудник
-                      </Link>
+                      </a>
                     </>
                   ) : null}
                   <Link
                     className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
-                    to={`/platform/organizations/${organization.id}/users`}
+                    to={getPlatformRoutePath(`/organizations/${organization.id}/users`)}
                   >
                     <Users aria-hidden="true" className="size-4" />
                     Пользователи
                   </Link>
                   <Link
                     className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
-                    to={`/platform/organizations/${organization.id}/setup`}
+                    to={getPlatformRoutePath(`/organizations/${organization.id}/setup`)}
                   >
                     <ListChecks aria-hidden="true" className="size-4" />
                     Setup

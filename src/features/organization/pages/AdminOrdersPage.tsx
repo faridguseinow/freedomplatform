@@ -6,6 +6,7 @@ import { useAuth } from '../../../hooks/useAuth'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import type { OrderStatus } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
+import { getTenantRoutePath } from '../../../lib/routing/appHost'
 import { orderStatusLabel } from '../../orders/employeeOrdersApi'
 import type { AdminOrderRow } from '../../orders/ordersApi'
 import { useAdminOrders } from '../../orders/ordersApi'
@@ -42,7 +43,7 @@ export function AdminOrdersPage() {
   const ordersQuery = useAdminOrders(organizationId, status)
   const orders = useMemo(() => ordersQuery.data ?? [], [ordersQuery.data])
   const buildAdminPath = (path: string) =>
-    currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
+    getTenantRoutePath(path, currentOrganization?.slug)
   const visibleOrders = useMemo(() => {
     const needle = search.trim().toLowerCase()
     if (!needle) return orders

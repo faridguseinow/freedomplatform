@@ -23,6 +23,7 @@ import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
 import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
+import { getTenantRoutePath } from '../../../lib/routing/appHost'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import type {
   FinancePaymentMethod,
@@ -1015,7 +1016,7 @@ export function AdminFinancePage() {
     total: 0,
   }
   const buildAdminPath = (path: string) =>
-    currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
+    getTenantRoutePath(path, currentOrganization?.slug)
 
   return (
     <section className="grid gap-4 sm:gap-5">
@@ -1219,7 +1220,7 @@ export function AdminFinancePeriodsPage() {
   const [editingPeriod, setEditingPeriod] = useState<FinancialPeriodRow | null>(null)
   const [cancellingPeriod, setCancellingPeriod] = useState<FinancialPeriodRow | null>(null)
   const buildAdminPath = (path: string) =>
-    currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
+    getTenantRoutePath(path, currentOrganization?.slug)
   const periods = rows.data ?? []
   const visiblePeriods = periods.filter((period) => {
     if (periodFilter === 'active') return period.status !== 'cancelled'

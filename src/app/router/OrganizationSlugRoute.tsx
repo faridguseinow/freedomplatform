@@ -3,6 +3,7 @@ import { Navigate, Outlet, useParams } from 'react-router-dom'
 import { FullPageLoader } from '../../components/common/StateView'
 import { useAuth } from '../../hooks/useAuth'
 import { getRoleHomePath, USER_ROLES } from '../../types/roles'
+import { getRouteOrganizationSlug } from '../../lib/routing/appHost'
 
 export function OrganizationSlugRoute() {
   const {
@@ -13,7 +14,8 @@ export function OrganizationSlugRoute() {
     role,
     selectOrganizationBySlug,
   } = useAuth()
-  const { organizationSlug } = useParams<{ organizationSlug: string }>()
+  const { organizationSlug: routeOrganizationSlug } = useParams<{ organizationSlug: string }>()
+  const organizationSlug = getRouteOrganizationSlug(routeOrganizationSlug)
 
   const targetOrganization = availableOrganizations.find(
     (organization) => organization.slug === organizationSlug,
@@ -35,7 +37,7 @@ export function OrganizationSlugRoute() {
   }
 
   if (!organizationSlug || !canAccessTarget) {
-    return <Navigate replace to={getRoleHomePath(role, currentOrganization?.slug)} />
+    return <Navigate replace to={organizationSlug ? '/access-denied' : getRoleHomePath(role, currentOrganization?.slug)} />
   }
 
   if (currentOrganization?.slug !== organizationSlug || role !== expectedRole) {

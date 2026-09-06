@@ -1,7 +1,7 @@
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Check, Copy, Edit3, Loader2, Save, ShieldCheck, UserMinus, Users, X } from 'lucide-react'
+import { ArrowLeft, Check, Copy, Edit3, KeyRound, Loader2, Save, ShieldCheck, UserMinus, Users, X } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useParams } from 'react-router-dom'
@@ -15,6 +15,7 @@ import type {
   OrganizationRow,
   ProfileRow,
 } from '../../../lib/supabase/database.types'
+import { getPlatformRoutePath } from '../../../lib/routing/appHost'
 
 const organizationSelect =
   'id,name,slug,description,logo_path,status,default_locale,timezone,currency_code,created_by,created_at,updated_at,archived_at'
@@ -40,7 +41,7 @@ const roleLabel: Record<OrganizationMembershipRow['role'], string> = {
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat(getCurrentLocale(), {
     day: '2-digit',
-    month: 'short',
+    month: '2-digit',
     year: 'numeric',
   }).format(new Date(value))
 
@@ -51,6 +52,9 @@ export function PlatformOrganizationUsersPage() {
   const [editingMembership, setEditingMembership] = useState<MembershipWithProfile | null>(null)
   const [editFullName, setEditFullName] = useState('')
   const [editProfileError, setEditProfileError] = useState<string | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordMessage, setPasswordMessage] = useState<string | null>(null)
 
   const {
     formState: { errors, isSubmitting },
@@ -197,6 +201,35 @@ export function PlatformOrganizationUsersPage() {
     },
   })
 
+  const updatePasswordMutation = useMutation({
+    mutationFn: async ({ password, userId }: { password: string; userId: string }) => {
+      const { data, error, response } = await supabase.functions.invoke('platform-update-user-password', {
+        body: { target_user_id: userId, password },
+      })
+
+      if (error) {
+        if (response && typeof response.json === 'function') {
+          try {
+            const payload = await response.json() as { error?: unknown }
+            if (typeof payload.error === 'string') {
+              throw new Error(payload.error)
+            }
+          } catch (responseError) {
+            if (responseError instanceof Error && responseError.message !== 'Unexpected end of JSON input') throw responseError
+          }
+        }
+        throw new Error(error.message)
+      }
+
+      return data
+    },
+    onSuccess: () => {
+      setNewPassword('')
+      setConfirmPassword('')
+      setPasswordMessage('Пароль успешно изменён.')
+    },
+  })
+
   const onAssignAdmin = handleSubmit(async (values) => {
     try {
       await assignAdminMutation.mutateAsync(values)
@@ -220,13 +253,19 @@ export function PlatformOrganizationUsersPage() {
     setEditingMembership(membership)
     setEditFullName(membership.profile?.full_name ?? '')
     setEditProfileError(null)
+    setNewPassword('')
+    setConfirmPassword('')
+    setPasswordMessage(null)
   }
 
   const closeEditProfile = () => {
-    if (updateProfileMutation.isPending) return
+    if (updateProfileMutation.isPending || updatePasswordMutation.isPending) return
     setEditingMembership(null)
     setEditFullName('')
     setEditProfileError(null)
+    setNewPassword('')
+    setConfirmPassword('')
+    setPasswordMessage(null)
   }
 
   const saveProfileName = async () => {
@@ -243,12 +282,38 @@ export function PlatformOrganizationUsersPage() {
     }
   }
 
+  const saveUserPassword = async () => {
+    if (!editingMembership) return
+
+    setEditProfileError(null)
+    setPasswordMessage(null)
+
+    if (newPassword.length < 8 || newPassword.length > 72) {
+      setEditProfileError('Пароль должен содержать от 8 до 72 символов.')
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      setEditProfileError('Пароли не совпадают.')
+      return
+    }
+
+    try {
+      await updatePasswordMutation.mutateAsync({
+        password: newPassword,
+        userId: editingMembership.user_id,
+      })
+    } catch (error) {
+      setEditProfileError(error instanceof Error ? error.message : 'Не удалось изменить пароль.')
+    }
+  }
+
   return (
     <section className="grid gap-5">
       <header className="grid gap-4">
         <Link
           className="inline-flex w-fit items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-950"
-          to="/platform/organizations"
+          to={getPlatformRoutePath('/organizations')}
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
           Организации
@@ -405,22 +470,74 @@ export function PlatformOrganizationUsersPage() {
               value={editFullName}
             />
 
+            <div className="grid gap-3 border-t border-slate-200 pt-4">
+              <div>
+                <h4 className="text-sm font-semibold text-slate-950">Изменить пароль</h4>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Новый пароль начнёт действовать при следующем входе пользователя.
+                </p>
+              </div>
+              <Input
+                autoComplete="new-password"
+                id="profile_new_password"
+                label="Новый пароль"
+                minLength={8}
+                onChange={(event) => setNewPassword(event.target.value)}
+                placeholder="Минимум 8 символов"
+                type="password"
+                value={newPassword}
+              />
+              <Input
+                autoComplete="new-password"
+                id="profile_confirm_password"
+                label="Повторите пароль"
+                minLength={8}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                type="password"
+                value={confirmPassword}
+              />
+              <Button
+                className="w-full"
+                disabled={updatePasswordMutation.isPending || !newPassword || !confirmPassword}
+                onClick={() => void saveUserPassword()}
+                type="button"
+                variant="secondary"
+              >
+                {updatePasswordMutation.isPending ? (
+                  <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+                ) : (
+                  <KeyRound aria-hidden="true" className="size-4" />
+                )}
+                Изменить пароль
+              </Button>
+            </div>
+
             {editProfileError ? (
               <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm leading-6 text-red-800">
                 {editProfileError}
               </div>
             ) : null}
 
+            {passwordMessage ? (
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm leading-6 text-emerald-800">
+                {passwordMessage}
+              </div>
+            ) : null}
+
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button
-                disabled={updateProfileMutation.isPending}
+                disabled={updateProfileMutation.isPending || updatePasswordMutation.isPending}
                 onClick={closeEditProfile}
                 type="button"
                 variant="secondary"
               >
                 Отмена
               </Button>
-              <Button disabled={updateProfileMutation.isPending} onClick={saveProfileName} type="button">
+              <Button
+                disabled={updateProfileMutation.isPending || updatePasswordMutation.isPending}
+                onClick={saveProfileName}
+                type="button"
+              >
                 {updateProfileMutation.isPending ? (
                   <Loader2 aria-hidden="true" className="size-4 animate-spin" />
                 ) : (

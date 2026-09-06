@@ -23,9 +23,9 @@ export function AdminActivityTracker() {
   useEffect(() => {
     if (!currentOrganization?.slug || !organizationId || !user) return
     if (role !== USER_ROLES.organizationAdmin && role !== USER_ROLES.platformOwner) return
-    if (!location.pathname.startsWith(`/${currentOrganization.slug}/admin`)) return
-
     const normalizedPath = normalizeAdminPath(location.pathname, currentOrganization.slug)
+    if (!normalizedPath.startsWith('/admin')) return
+
     const storageKey = `freedom.audit.section.${organizationId}.${user.id}.${normalizedPath}`
     const lastLoggedAt = Number(window.sessionStorage.getItem(storageKey) ?? 0)
 

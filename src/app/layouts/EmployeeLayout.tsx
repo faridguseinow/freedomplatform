@@ -6,6 +6,7 @@ import { AppLayout } from './AppLayout'
 import { employeeNavItems } from '../router/routes'
 import { useAuth } from '../../hooks/useAuth'
 import { USER_ROLES } from '../../types/roles'
+import { getPlatformAdminUrl, getTenantRoutePath } from '../../lib/routing/appHost'
 
 const desktopMediaQuery = '(min-width: 768px)'
 
@@ -19,9 +20,10 @@ export function EmployeeLayout() {
   const { clearOrganizationView, currentOrganization, role, signOut } = useAuth()
   const [isDesktopViewport, setIsDesktopViewport] = useState(getIsDesktopViewport)
   const organizationSlug = currentOrganization?.slug
-  const navItems = organizationSlug
-    ? employeeNavItems.map((item) => ({ ...item, path: `/${organizationSlug}${item.path}` }))
-    : employeeNavItems
+  const navItems = employeeNavItems.map((item) => ({
+    ...item,
+    path: getTenantRoutePath(item.path, organizationSlug),
+  }))
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(desktopMediaQuery)
@@ -39,7 +41,7 @@ export function EmployeeLayout() {
 
   const handleBackToPlatform = () => {
     clearOrganizationView()
-    navigate('/platform', { replace: true })
+    window.location.assign(getPlatformAdminUrl())
   }
 
   if (!isDesktopViewport) {

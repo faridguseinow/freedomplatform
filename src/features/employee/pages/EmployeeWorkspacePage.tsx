@@ -143,7 +143,11 @@ const getComboIncludedMinutes = (componentPreview: unknown) => {
   return minutes > 0 ? Math.min(1440, Math.round(minutes)) : null
 }
 
-const calculateCurrentSessionAmount = (place: EmployeeWorkspacePlaceRow, nowMs: number) => {
+const calculateCurrentSessionAmount = (
+  place: EmployeeWorkspacePlaceRow,
+  nowMs: number,
+  includedMinutes = 0,
+) => {
   if (!place.active_session_started_at || !place.active_session_hourly_rate) return 0
   const actualMinutes = Math.max(1, Math.ceil(getTimedSessionElapsedMs(place, nowMs) / 60_000))
   const minimum = place.active_session_minimum_minutes ?? 60
@@ -152,7 +156,8 @@ const calculateCurrentSessionAmount = (place: EmployeeWorkspacePlaceRow, nowMs: 
     actualMinutes <= minimum + BILLING_GRACE_MINUTES
       ? minimum
       : minimum + Math.ceil((actualMinutes - minimum - BILLING_GRACE_MINUTES) / step) * step
-  return (place.active_session_hourly_rate * billable) / 60
+  const chargeableMinutes = Math.max(0, billable - includedMinutes)
+  return (place.active_session_hourly_rate * chargeableMinutes) / 60
 }
 
 const getSessionGraceNotice = (place: EmployeeWorkspacePlaceRow, nowMs: number) => {
@@ -307,6 +312,10 @@ export function EmployeeWorkspacePage() {
 
   const places = useMemo(() => workspaceQuery.data?.places ?? [], [workspaceQuery.data?.places])
   const orders = useMemo(() => workspaceQuery.data?.orders ?? [], [workspaceQuery.data?.orders])
+  const comboItems = useMemo(
+    () => workspaceQuery.data?.comboItems ?? [],
+    [workspaceQuery.data?.comboItems],
+  )
   const placeLayout = useMemo(() => buildWorkspaceLayout(places), [places])
   const selectedOrder = useMemo(
     () => orders.find((order) => order.id === selectedOrderId) ?? null,
@@ -332,6 +341,19 @@ export function EmployeeWorkspacePage() {
     Math.abs(splitPaymentTotal - splitPaymentTargetTotal) < 0.01
   const orderItems = orderItemsQuery.data ?? []
   const placesById = useMemo(() => new Map(places.map((place) => [place.id, place])), [places])
+  const comboGiftMinutesByOrderId = useMemo(() => {
+    const combosById = new Map((combosQuery.data ?? []).map((combo) => [combo.id, combo]))
+    const result = new Map<string, number>()
+
+    for (const item of comboItems) {
+      if (!item.combo_id) continue
+      const includedMinutes = getComboIncludedMinutes(combosById.get(item.combo_id)?.component_preview)
+      if (!includedMinutes) continue
+      result.set(item.order_id, (result.get(item.order_id) ?? 0) + includedMinutes * item.quantity)
+    }
+
+    return result
+  }, [comboItems, combosQuery.data])
   const selectedOrderPlace = selectedOrder?.place_id ? placesById.get(selectedOrder.place_id) ?? null : null
   const ordersWithoutPlace = orders.filter((order) => !order.place_id && order.status !== 'paid')
 
@@ -768,7 +790,10 @@ export function EmployeeWorkspacePage() {
                 : isTable && hasActiveOrder
                   ? place.active_order_opened_at
                   : null
-            const sessionAmount = calculateCurrentSessionAmount(place, nowMs)
+            const comboGiftMinutes = place.active_order_id
+              ? comboGiftMinutesByOrderId.get(place.active_order_id) ?? 0
+              : 0
+            const sessionAmount = calculateCurrentSessionAmount(place, nowMs, comboGiftMinutes)
             const sessionGraceNotice = getSessionGraceNotice(place, nowMs)
             const sessionLimitInfo = getSessionLimitInfo(place, nowMs)
             const vipEquipmentSummary = isVipEquipmentPlace(place) ? formatVipEquipmentSummary(place) : null
@@ -841,7 +866,9 @@ export function EmployeeWorkspacePage() {
                       >
                         {sessionLimitInfo.isExpired
                           ? t("ui.limit_istek_a337232")
-                          : `${t("ui.ostalos_76a8eb1")}: ${sessionLimitInfo.remainingText}`}
+                          : comboGiftMinutes > 0
+                            ? t('session.giftTimeRemaining', { time: sessionLimitInfo.remainingText })
+                            : `${t("ui.ostalos_76a8eb1")}: ${sessionLimitInfo.remainingText}`}
                       </span>
                     ) : null}
                   </div>
@@ -1320,6 +1347,8 @@ export function EmployeeWorkspacePage() {
                   const selectedSessionLimitInfo = selectedPlace
                     ? getSessionLimitInfo(selectedPlace, nowMs)
                     : null
+                  const comboGiftMinutes = comboGiftMinutesByOrderId.get(selectedOrder.id) ?? 0
+                  const hasComboGiftTime = comboGiftMinutes > 0
                   const isSelectedTable = Boolean(selectedPlace && isTablePlace(selectedPlace))
                   const tableOpenedAt =
                     isSelectedTable && selectedOrder.status !== 'paid'
@@ -1449,20 +1478,43 @@ export function EmployeeWorkspacePage() {
                           </div>
                           {hasActiveSession ? (
                             <div className="shrink-0 rounded-md border border-cyan-100 bg-cyan-50 px-2.5 py-1.5 text-right text-sm text-cyan-900">
-                              <div className="flex items-center justify-end gap-1.5 font-semibold">
-                                <Timer className="size-4" />
-                                {selectedPlace ? formatTimedSessionElapsed(selectedPlace, nowMs) : '00:00'}
-                              </div>
+                              {hasComboGiftTime && selectedSessionLimitInfo ? (
+                                <div
+                                  className={cn(
+                                    'flex items-center justify-end gap-1.5 font-semibold',
+                                    selectedSessionLimitInfo.isExpired ? 'text-red-800' : 'text-emerald-800',
+                                  )}
+                                >
+                                  <Hourglass className="size-4" />
+                                  {selectedSessionLimitInfo.isExpired
+                                    ? t('ui.limit_istek_a337232')
+                                    : t('session.giftTimeRemaining', {
+                                        time: selectedSessionLimitInfo.remainingText,
+                                      })}
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-end gap-1.5 font-semibold">
+                                  <Timer className="size-4" />
+                                  {selectedPlace ? formatTimedSessionElapsed(selectedPlace, nowMs) : '00:00'}
+                                </div>
+                              )}
                               <div className="mt-0.5 text-xs">
+                                {hasComboGiftTime && selectedPlace
+                                  ? `${t('session.elapsed', { time: formatTimedSessionElapsed(selectedPlace, nowMs) })} · `
+                                  : null}
                                 {isSessionPaused ? 'Pauzadadır' : 'Hazırda'}:{' '}
-                                {formatAzn(selectedPlace ? calculateCurrentSessionAmount(selectedPlace, nowMs) : 0)}
+                                {formatAzn(
+                                  selectedPlace
+                                    ? calculateCurrentSessionAmount(selectedPlace, nowMs, comboGiftMinutes)
+                                    : 0,
+                                )}
                               </div>
                               {selectedSessionGraceNotice ? (
                                 <div className="mt-0.5 text-xs font-semibold text-orange-700">
                                   {selectedSessionGraceNotice}
                                 </div>
                               ) : null}
-                              {selectedSessionLimitInfo ? (
+                              {selectedSessionLimitInfo && !hasComboGiftTime ? (
                                 <div
                                   className={cn(
                                     'mt-0.5 text-xs font-semibold',

@@ -45,7 +45,7 @@ After the platform owner exists, create the organization with RPC:
 select *
 from public.create_organization_with_admin(
   name := 'The Liga',
-  slug := 'the-liga',
+  slug := 'theliga',
   description := 'Main operating organization.',
   logo_path := null,
   default_locale := 'ru',

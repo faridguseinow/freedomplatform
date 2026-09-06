@@ -1,6 +1,7 @@
 import { Box, MapPin, Package, Tags } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../hooks/useAuth'
+import { getTenantRoutePath } from '../../../lib/routing/appHost'
 
 const catalogSections = [
   {
@@ -32,7 +33,7 @@ const catalogSections = [
 export function AdminCatalogPage() {
   const { currentOrganization } = useAuth()
   const buildAdminPath = (path: string) =>
-    currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
+    getTenantRoutePath(path, currentOrganization?.slug)
 
   return (
     <section className="grid gap-5">

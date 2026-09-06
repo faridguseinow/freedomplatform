@@ -1,4 +1,5 @@
 import type { AppRole } from '../lib/supabase/database.types'
+import { getCurrentAppHost, getPlatformRoutePath, getTenantRoutePath } from '../lib/routing/appHost'
 
 export type UserRole = AppRole
 
@@ -27,6 +28,12 @@ export const isUserRole = (value: string | null | undefined): value is UserRole 
 
 export const getRoleHomePath = (role: UserRole | null, organizationSlug?: string | null): string => {
   if (!role) return '/login'
-  if (role === USER_ROLES.platformOwner) return ROLE_HOME_PATH[role]
-  return organizationSlug ? `/${organizationSlug}${ROLE_HOME_PATH[role]}` : ROLE_HOME_PATH[role]
+  const host = getCurrentAppHost()
+  if (host.mode === 'platform-admin' && role !== USER_ROLES.platformOwner) return '/access-denied'
+  if (role === USER_ROLES.platformOwner) {
+    return host.mode === 'tenant'
+      ? getTenantRoutePath('/admin', organizationSlug)
+      : getPlatformRoutePath('/')
+  }
+  return getTenantRoutePath(ROLE_HOME_PATH[role], organizationSlug)
 }

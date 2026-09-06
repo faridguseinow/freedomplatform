@@ -1411,6 +1411,28 @@ export type Database = {
       finance_dashboard_summary: { Row: FinanceDashboardSummaryRow; Relationships: [] }
     }
     Functions: {
+      resolve_organization_login: {
+        Args: {
+          target_slug: string
+        }
+        Returns: {
+          organization_id: string
+          organization_name: string
+          organization_slug: string
+          organization_logo_path: string | null
+          organization_status: OrganizationStatus
+        }[]
+      }
+      resolve_organization_host: {
+        Args: {
+          target_slug: string
+        }
+        Returns: {
+          organization_id: string
+          organization_slug: string
+          organization_status: OrganizationStatus
+        }[]
+      }
       create_organization_with_admin: {
         Args: {
           name: string
@@ -1423,6 +1445,12 @@ export type Database = {
           admin_user_id?: string | null
         }
         Returns: OrganizationRow
+      }
+      claim_demo_access: {
+        Args: {
+          target_role: Extract<AppRole, 'organization_admin' | 'employee'>
+        }
+        Returns: AppRole
       }
       reset_organization_test_orders: {
         Args: {

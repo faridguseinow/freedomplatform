@@ -14,7 +14,7 @@ Preserved data:
 
 Created data:
 
-- Organization `The Liga`, slug `the-liga`
+- Organization `The Liga`, slug `theliga`
 - Organization admin membership for `249f97ea-f12a-43a7-bb52-5f08bfc2c7ec`
 - Azerbaijani place categories, timed places, normal tables, hourly services
 - Two shift templates: `Birinci növbə`, `İkinci növbə`

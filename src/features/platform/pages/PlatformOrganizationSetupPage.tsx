@@ -18,6 +18,7 @@ import { EmptyState } from '../../../components/common/EmptyState'
 import { supabase } from '../../../lib/supabase/client'
 import type { OrganizationReadiness } from '../../../lib/supabase/database.types'
 import { usePlatformOrganizations } from '../platformApi'
+import { getPlatformRoutePath } from '../../../lib/routing/appHost'
 
 const checklistItems: Array<{
   key: keyof OrganizationReadiness
@@ -115,7 +116,7 @@ export function PlatformOrganizationSetupPage() {
       <header className="grid gap-4">
         <Link
           className="inline-flex w-fit items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-950"
-          to="/platform/organizations"
+          to={getPlatformRoutePath('/organizations')}
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
           Организации
@@ -141,7 +142,7 @@ export function PlatformOrganizationSetupPage() {
             </div>
             <Link
               className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 px-4 text-sm font-medium text-slate-800 hover:bg-slate-50"
-              to={`/platform/finance/organizations/${organizationId}`}
+              to={getPlatformRoutePath(`/finance/organizations/${organizationId}`)}
             >
               Финансы организации
             </Link>

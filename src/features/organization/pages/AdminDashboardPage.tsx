@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom'
 import { CatalogImage } from '../../../components/common/CatalogImage'
 import { Button } from '../../../components/ui/Button'
 import { useAuth } from '../../../hooks/useAuth'
+import { getTenantRoutePath } from '../../../lib/routing/appHost'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import type {
   AdjustmentRequestStatus,
@@ -192,7 +193,7 @@ export function AdminDashboardPage() {
     revenueBreakdownQuery.error ??
     usageHoursQuery.error
   const buildAdminPath = (path: string) =>
-    currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
+    getTenantRoutePath(path, currentOrganization?.slug)
   const recentOrders = orders.slice(0, 5)
   const recentAdjustments = adjustments.slice(0, 5)
   const recentActivityEvents = activityEvents.slice(0, 5)

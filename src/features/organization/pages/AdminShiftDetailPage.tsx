@@ -5,6 +5,7 @@ import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '../../../components/ui/Button'
 import { useAuth } from '../../../hooks/useAuth'
+import { getTenantRoutePath } from '../../../lib/routing/appHost'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import type { OrderRow, PaymentMethod, PaymentStatus, TimedSessionStatus } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
@@ -391,7 +392,7 @@ export function AdminShiftDetailPage() {
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false)
   const isPlatformOwner = role === 'platform_owner'
   const buildAdminPath = (path: string) =>
-    currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
+    getTenantRoutePath(path, currentOrganization?.slug)
 
   if (detailQuery.isLoading) {
     return (

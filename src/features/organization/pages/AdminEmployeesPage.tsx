@@ -71,14 +71,14 @@ const filterLabels: Record<EmployeeFilter, string> = {
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat(getCurrentLocale(), {
     day: '2-digit',
-    month: 'short',
+    month: '2-digit',
     year: 'numeric',
   }).format(new Date(value))
 
 const formatDateTime = (value: string) =>
   new Intl.DateTimeFormat(getCurrentLocale(), {
     day: '2-digit',
-    month: 'short',
+    month: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(value))

@@ -8,6 +8,11 @@ import { useAuth } from '../../hooks/useAuth'
 import { useI18n } from '../../lib/i18n/I18nContext'
 import { ROLE_LABEL, USER_ROLES } from '../../types/roles'
 import { pageTitles, type NavItem } from '../router/routes'
+import {
+  getCurrentAppHost,
+  getPlatformAdminUrl,
+  getTenantRoutePath,
+} from '../../lib/routing/appHost'
 
 type AppLayoutProps = {
   productArea: string
@@ -38,13 +43,19 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
   })
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
 
+  const host = getCurrentAppHost()
   const normalizedPath =
-    currentOrganization && location.pathname.startsWith(`/${currentOrganization.slug}/`)
+    host.mode === 'platform-admin'
+      ? location.pathname === '/'
+        ? '/platform'
+        : `/platform${location.pathname}`
+      : currentOrganization && location.pathname.startsWith(`/${currentOrganization.slug}/`)
       ? location.pathname.replace(`/${currentOrganization.slug}`, '')
       : location.pathname
   const currentTitle =
     pageTitles.find((item) => item.path === normalizedPath)?.label ?? productArea
   const productAreaLabel = t(productArea)
+  const isPlatformArea = productArea === 'Freedom Platform'
 
   const displayName = profile?.full_name || user?.email || 'Пользователь'
   const mobileNavItems = navItems.filter((item) => item.mobile !== false)
@@ -102,12 +113,12 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
   const handleExitOrganizationView = () => {
     clearOrganizationView()
     setIsUserMenuOpen(false)
-    navigate('/platform', { replace: true })
+    window.location.assign(getPlatformAdminUrl())
   }
 
   const handleBackToAdmin = () => {
     setIsUserMenuOpen(false)
-    navigate(currentOrganization?.slug ? `/${currentOrganization.slug}/admin` : '/admin', { replace: true })
+    navigate(getTenantRoutePath('/admin', currentOrganization?.slug), { replace: true })
   }
 
   return (
@@ -128,6 +139,12 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                       alt={currentOrganization.name}
                       className="size-10"
                       imagePath={currentOrganization.logo_path}
+                    />
+                  ) : isPlatformArea ? (
+                    <img
+                      alt="Freedom Platform"
+                      className="size-10 rounded-lg bg-emerald-700 object-cover"
+                      src="/pwa/freedom-platform.svg"
                     />
                   ) : null}
                   <p className="truncate text-sm font-semibold text-slate-950">

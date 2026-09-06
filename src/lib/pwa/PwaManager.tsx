@@ -3,6 +3,7 @@ import { useEffect, useMemo } from 'react'
 import { resolveCatalogImageUrl } from '../../features/catalog/catalogImages'
 import { useAuth } from '../../hooks/useAuth'
 import { USER_ROLES } from '../../types/roles'
+import { getPlatformRoutePath, getTenantRoutePath } from '../routing/appHost'
 
 const defaultThemeColor = '#047857'
 const defaultBackgroundColor = '#f8fafc'
@@ -96,8 +97,8 @@ export function PwaManager() {
         name: organizationName,
         shortName: organizationName.length > 12 ? organizationName.slice(0, 12) : organizationName,
         description: `${organizationName} admin workspace`,
-        startUrl: `/${currentOrganization.slug}/admin`,
-        scope: `/${currentOrganization.slug}/`,
+        startUrl: getTenantRoutePath('/admin', currentOrganization.slug),
+        scope: getTenantRoutePath('/', currentOrganization.slug),
         iconUrl: organizationLogo.data ?? organizationFallbackIcon,
       }
     }
@@ -106,7 +107,7 @@ export function PwaManager() {
       name: 'Freedom Platform',
       shortName: 'Freedom',
       description: 'Freedom Platform owner workspace',
-      startUrl: '/platform',
+      startUrl: getPlatformRoutePath('/'),
       scope: '/',
       iconUrl: freedomIcon,
       appleIconUrl: freedomAppleIcon,

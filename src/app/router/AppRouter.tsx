@@ -14,6 +14,13 @@ import { AccessNotConfiguredPage } from '../../features/auth/pages/AccessNotConf
 import { LoginPage } from '../../features/auth/pages/LoginPage'
 import { NotFoundPage } from '../../pages/NotFoundPage'
 import { USER_ROLES } from '../../types/roles'
+import { getCurrentAppHost } from '../../lib/routing/appHost'
+import {
+  AccessDeniedRoute,
+  CanonicalHostRedirect,
+  PlatformAdminRoute,
+  TenantHostBoundary,
+} from './HostRoutes'
 
 const AdminDashboardPage = lazy(() =>
   import('../../features/organization/pages/AdminDashboardPage').then((module) => ({
@@ -240,104 +247,125 @@ const lazyPage = (element: ReactNode) => (
   <Suspense fallback={<FullPageLoader />}>{element}</Suspense>
 )
 
+const platformRoutes = (path: string) => (
+  <Route element={<PlatformLayout />} path={path}>
+    <Route element={lazyPage(<PlatformOverviewPage />)} index />
+    <Route element={lazyPage(<PlatformOrganizationsPage />)} path="organizations" />
+    <Route element={lazyPage(<PlatformOrganizationUsersPage />)} path="organizations/:organizationId/users" />
+    <Route element={lazyPage(<PlatformOrganizationSetupPage />)} path="organizations/:organizationId/setup" />
+    <Route element={lazyPage(<PlatformFinancePage />)} path="finance" />
+    <Route element={lazyPage(<PlatformFinanceOrganizationPage />)} path="finance/organizations/:organizationId" />
+    <Route element={lazyPage(<PlatformFinancePeriodPage />)} path="finance/periods/:periodId" />
+    <Route element={lazyPage(<PlatformFinancePaymentsPage />)} path="finance/payments" />
+    <Route element={lazyPage(<PlatformSettingsPage />)} path="settings" />
+  </Route>
+)
+
+const organizationRoutes = (rootPath: string) => (
+  <>
+    <Route element={<OrganizationSlugRoute />}>
+      <Route element={<OrganizationSlugHomeRedirect />} path={rootPath || '/'} />
+      <Route element={<RoleRoute allowedRoles={[USER_ROLES.platformOwner, USER_ROLES.organizationAdmin]} />}>
+        <Route element={<AdminLayout />} path={`${rootPath}/admin`}>
+          <Route element={lazyPage(<AdminDashboardPage />)} index />
+          <Route element={lazyPage(<AdminDashboardPage />)} path="dashboard" />
+          <Route element={lazyPage(<AdminLiveMonitorPage />)} path="live" />
+          <Route element={lazyPage(<AdminEmployeesPage />)} path="employees" />
+          <Route element={lazyPage(<AdminCatalogPage />)} path="catalog" />
+          <Route element={lazyPage(<AdminCategoriesPage />)} path="categories" />
+          <Route element={lazyPage(<AdminPlacesPage />)} path="places" />
+          <Route element={lazyPage(<AdminProductsPage />)} path="products" />
+          <Route element={lazyPage(<AdminServicesPage />)} path="services" />
+          <Route element={lazyPage(<AdminInventoryPage />)} path="inventory" />
+          <Route element={lazyPage(<AdminInventoryDocumentsPage />)} path="inventory/documents" />
+          <Route element={lazyPage(<AdminInventoryProductPage />)} path="inventory/products/:productId" />
+          <Route element={lazyPage(<AdminCombosPage />)} path="combos" />
+          <Route element={lazyPage(<AdminOrdersPage />)} path="orders" />
+          <Route element={lazyPage(<AdminOrderDetailPage />)} path="orders/:orderId" />
+          <Route element={lazyPage(<AdminAdjustmentRequestsPage />)} path="adjustment-requests" />
+          <Route element={lazyPage(<AdminActivityPage />)} path="activity" />
+          <Route element={lazyPage(<AdminShiftsPage />)} path="shifts" />
+          <Route element={lazyPage(<AdminShiftDetailPage />)} path="shifts/:shiftId" />
+          <Route element={lazyPage(<AdminShiftTemplatesPage />)} path="shift-templates" />
+          <Route element={lazyPage(<AdminOperationalDaysPage />)} path="operational-days" />
+          <Route element={lazyPage(<AdminNotificationSettingsPage />)} path="notification-settings" />
+          <Route element={lazyPage(<AdminFinancePage />)} path="finance" />
+          <Route element={lazyPage(<AdminFinanceIncomePage />)} path="finance/income" />
+          <Route element={lazyPage(<AdminFinanceExpensesPage />)} path="finance/expenses" />
+          <Route element={lazyPage(<AdminFinanceRecurringPage />)} path="finance/recurring" />
+          <Route element={lazyPage(<AdminFinancePurchasesPage />)} path="finance/purchases" />
+          <Route element={lazyPage(<AdminFinanceCashFlowPage />)} path="finance/cash-flow" />
+          <Route element={lazyPage(<AdminFinanceProfitLossPage />)} path="finance/profit-loss" />
+          <Route element={lazyPage(<AdminFinancePeriodsPage />)} path="finance/periods" />
+          <Route element={lazyPage(<AdminFinancePeriodDetailPage />)} path="finance/periods/:periodId" />
+          <Route element={lazyPage(<AdminFinanceSettingsPage />)} path="finance/settings" />
+          <Route element={lazyPage(<AdminSettingsPage />)} path="settings" />
+        </Route>
+      </Route>
+      <Route element={<RoleRoute allowedRoles={[USER_ROLES.platformOwner, USER_ROLES.organizationAdmin, USER_ROLES.employee]} />}>
+        <Route element={<EmployeeLayout />} path={`${rootPath}/employee`}>
+          <Route element={lazyPage(<EmployeeWorkspacePage />)} index />
+          <Route element={lazyPage(<EmployeeWorkspacePage />)} path="workspace" />
+          <Route element={lazyPage(<EmployeeShiftPage />)} path="shift" />
+          <Route element={lazyPage(<EmployeeMenuPage />)} path="menu" />
+        </Route>
+      </Route>
+    </Route>
+  </>
+)
+
+const publicRoutes = (
+  <>
+    <Route element={<LoginPage />} path="/login" />
+    <Route element={<AccessNotConfiguredPage />} path="/access-not-configured" />
+    <Route element={<AccessDeniedRoute />} path="/access-denied" />
+  </>
+)
+
 export function AppRouter() {
+  const host = getCurrentAppHost()
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route element={<RootRedirect />} path="/" />
-        <Route element={<LoginPage />} path="/login" />
-        <Route element={<AccessNotConfiguredPage />} path="/access-not-configured" />
-
-        <Route element={<ProtectedRoute />}>
-          <Route element={<RoleRoute allowedRoles={[USER_ROLES.platformOwner]} />}>
-            <Route element={<PlatformLayout />} path="/platform">
-              <Route element={lazyPage(<PlatformOverviewPage />)} index />
-              <Route element={lazyPage(<PlatformOrganizationsPage />)} path="organizations" />
-              <Route
-                element={lazyPage(<PlatformOrganizationUsersPage />)}
-                path="organizations/:organizationId/users"
-              />
-              <Route
-                element={lazyPage(<PlatformOrganizationSetupPage />)}
-                path="organizations/:organizationId/setup"
-              />
-              <Route element={lazyPage(<PlatformFinancePage />)} path="finance" />
-              <Route
-                element={lazyPage(<PlatformFinanceOrganizationPage />)}
-                path="finance/organizations/:organizationId"
-              />
-              <Route
-                element={lazyPage(<PlatformFinancePeriodPage />)}
-                path="finance/periods/:periodId"
-              />
-              <Route element={lazyPage(<PlatformFinancePaymentsPage />)} path="finance/payments" />
-              <Route element={lazyPage(<PlatformSettingsPage />)} path="settings" />
+        {host.mode === 'platform-admin' ? (
+          <>
+            {publicRoutes}
+            <Route element={<CanonicalHostRedirect area="platform" />} path="/platform/*" />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<PlatformAdminRoute />}>{platformRoutes('/')}</Route>
             </Route>
-          </Route>
+          </>
+        ) : null}
 
-          <Route element={<OrganizationSlugRoute />}>
-            <Route element={<OrganizationSlugHomeRedirect />} path="/:organizationSlug" />
+        {host.mode === 'tenant' ? (
+          <Route element={<TenantHostBoundary />}>
+            {publicRoutes}
+            <Route element={<CanonicalHostRedirect area="admin" />} path="/:organizationSlug/admin/*" />
+            <Route element={<CanonicalHostRedirect area="employee" />} path="/:organizationSlug/employee/*" />
+            <Route element={<CanonicalHostRedirect area="admin" />} path="/:organizationSlug" />
+            <Route element={<ProtectedRoute />}>{organizationRoutes('')}</Route>
           </Route>
+        ) : null}
 
-          <Route element={<RoleRoute allowedRoles={[USER_ROLES.organizationAdmin]} />}>
-            <Route element={<LegacyOrganizationRedirect area="admin" />} path="/admin/*" />
-          </Route>
-
-          <Route element={<OrganizationSlugRoute />}>
-            <Route element={<RoleRoute allowedRoles={[USER_ROLES.platformOwner, USER_ROLES.organizationAdmin]} />}>
-              <Route element={<AdminLayout />} path="/:organizationSlug/admin">
-              <Route element={lazyPage(<AdminDashboardPage />)} index />
-              <Route element={lazyPage(<AdminDashboardPage />)} path="dashboard" />
-              <Route element={lazyPage(<AdminLiveMonitorPage />)} path="live" />
-              <Route element={lazyPage(<AdminEmployeesPage />)} path="employees" />
-              <Route element={lazyPage(<AdminCatalogPage />)} path="catalog" />
-              <Route element={lazyPage(<AdminCategoriesPage />)} path="categories" />
-              <Route element={lazyPage(<AdminPlacesPage />)} path="places" />
-              <Route element={lazyPage(<AdminProductsPage />)} path="products" />
-              <Route element={lazyPage(<AdminServicesPage />)} path="services" />
-              <Route element={lazyPage(<AdminInventoryPage />)} path="inventory" />
-              <Route element={lazyPage(<AdminInventoryDocumentsPage />)} path="inventory/documents" />
-              <Route element={lazyPage(<AdminInventoryProductPage />)} path="inventory/products/:productId" />
-              <Route element={lazyPage(<AdminCombosPage />)} path="combos" />
-              <Route element={lazyPage(<AdminOrdersPage />)} path="orders" />
-              <Route element={lazyPage(<AdminOrderDetailPage />)} path="orders/:orderId" />
-              <Route element={lazyPage(<AdminAdjustmentRequestsPage />)} path="adjustment-requests" />
-              <Route element={lazyPage(<AdminActivityPage />)} path="activity" />
-              <Route element={lazyPage(<AdminShiftsPage />)} path="shifts" />
-              <Route element={lazyPage(<AdminShiftDetailPage />)} path="shifts/:shiftId" />
-              <Route element={lazyPage(<AdminShiftTemplatesPage />)} path="shift-templates" />
-              <Route element={lazyPage(<AdminOperationalDaysPage />)} path="operational-days" />
-              <Route element={lazyPage(<AdminNotificationSettingsPage />)} path="notification-settings" />
-              <Route element={lazyPage(<AdminFinancePage />)} path="finance" />
-              <Route element={lazyPage(<AdminFinanceIncomePage />)} path="finance/income" />
-              <Route element={lazyPage(<AdminFinanceExpensesPage />)} path="finance/expenses" />
-              <Route element={lazyPage(<AdminFinanceRecurringPage />)} path="finance/recurring" />
-              <Route element={lazyPage(<AdminFinancePurchasesPage />)} path="finance/purchases" />
-              <Route element={lazyPage(<AdminFinanceCashFlowPage />)} path="finance/cash-flow" />
-              <Route element={lazyPage(<AdminFinanceProfitLossPage />)} path="finance/profit-loss" />
-              <Route element={lazyPage(<AdminFinancePeriodsPage />)} path="finance/periods" />
-              <Route element={lazyPage(<AdminFinancePeriodDetailPage />)} path="finance/periods/:periodId" />
-              <Route element={lazyPage(<AdminFinanceSettingsPage />)} path="finance/settings" />
-              <Route element={lazyPage(<AdminSettingsPage />)} path="settings" />
+        {host.mode === 'legacy' ? (
+          <>
+            {publicRoutes}
+            <Route element={<RootRedirect />} path="/" />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<RoleRoute allowedRoles={[USER_ROLES.platformOwner]} />}>
+                {platformRoutes('/platform')}
               </Route>
-            </Route>
-          </Route>
-
-          <Route element={<RoleRoute allowedRoles={[USER_ROLES.organizationAdmin, USER_ROLES.employee]} />}>
-            <Route element={<LegacyOrganizationRedirect area="employee" />} path="/employee/*" />
-          </Route>
-
-          <Route element={<OrganizationSlugRoute />}>
-            <Route element={<RoleRoute allowedRoles={[USER_ROLES.platformOwner, USER_ROLES.organizationAdmin, USER_ROLES.employee]} />}>
-              <Route element={<EmployeeLayout />} path="/:organizationSlug/employee">
-              <Route element={lazyPage(<EmployeeWorkspacePage />)} index />
-              <Route element={lazyPage(<EmployeeWorkspacePage />)} path="workspace" />
-              <Route element={lazyPage(<EmployeeShiftPage />)} path="shift" />
-              <Route element={lazyPage(<EmployeeMenuPage />)} path="menu" />
+              <Route element={<RoleRoute allowedRoles={[USER_ROLES.organizationAdmin]} />}>
+                <Route element={<LegacyOrganizationRedirect area="admin" />} path="/admin/*" />
               </Route>
+              <Route element={<RoleRoute allowedRoles={[USER_ROLES.organizationAdmin, USER_ROLES.employee]} />}>
+                <Route element={<LegacyOrganizationRedirect area="employee" />} path="/employee/*" />
+              </Route>
+              {organizationRoutes('/:organizationSlug')}
             </Route>
-          </Route>
-        </Route>
+          </>
+        ) : null}
 
         <Route element={<NotFoundPage />} path="*" />
       </Routes>

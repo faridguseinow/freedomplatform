@@ -1,5 +1,5 @@
 {
-  "organization_slug": "the-liga",
+  "organization_slug": "theliga",
   "status": "pending_exact_business_data",
   "reason": "Exact The Liga product names, sale prices, purchase prices, stock quantities, units, categories, and SKU values were not found in the repository.",
   "instructions": "Fill products with real business data before seeding inventory. Do not invent products for live stock.",

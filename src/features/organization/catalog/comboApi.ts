@@ -13,6 +13,7 @@ export const comboComponentSelect =
 
 export type ComboInput = Omit<ComboRow, 'id' | 'created_at' | 'updated_at' | 'archived_at'>
 export type ComboComponentInput = Omit<ComboComponentRow, 'id' | 'created_at'>
+type EditableComboComponentInput = ComboComponentInput & { id?: string }
 
 export function useCombos(organizationId: string | null) {
   return useQuery({
@@ -95,6 +96,48 @@ export function useComboMutations(organizationId: string | null) {
           .select(comboComponentSelect)
         if (error) throw new Error(error.message)
         return data
+      },
+      onSuccess: invalidate,
+    }),
+    saveComponents: useMutation({
+      mutationFn: async ({
+        comboId,
+        components,
+        existingIds,
+      }: {
+        comboId: string
+        components: EditableComboComponentInput[]
+        existingIds: string[]
+      }) => {
+        const retainedIds = new Set(components.flatMap((component) => (component.id ? [component.id] : [])))
+        const staleIds = existingIds.filter((id) => !retainedIds.has(id))
+        const existingComponents = components.filter(
+          (component): component is EditableComboComponentInput & { id: string } => Boolean(component.id),
+        )
+        const newComponents = components.flatMap(({ id, ...component }) => (id ? [] : [component]))
+
+        const results = await Promise.all([
+          ...existingComponents.map(({ id, ...component }) =>
+            supabase.from('combo_components').update(component).eq('id', id).eq('combo_id', comboId),
+          ),
+          ...(newComponents.length
+            ? [supabase.from('combo_components').insert(newComponents).select(comboComponentSelect)]
+            : []),
+        ])
+
+        const failedResult = results.find((result) => result.error)
+        if (failedResult?.error) throw new Error(failedResult.error.message)
+
+        if (staleIds.length) {
+          const { error } = await supabase
+            .from('combo_components')
+            .delete()
+            .eq('combo_id', comboId)
+            .in('id', staleIds)
+          if (error) throw new Error(error.message)
+        }
+
+        return components
       },
       onSuccess: invalidate,
     }),

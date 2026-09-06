@@ -37,6 +37,7 @@ const comboSchema = z.object({
   components: z
     .array(
       z.object({
+        id: z.string().uuid().optional(),
         component_type: z.enum(['product', 'service']),
         product_id: z.string().uuid().optional().or(z.literal('')),
         service_id: z.string().uuid().optional().or(z.literal('')),
@@ -157,6 +158,7 @@ export function AdminCombosPage() {
       components: components
         .filter((c) => c.combo_id === combo.id)
         .map((c) => ({
+          id: c.id,
           component_type: c.component_type,
           product_id: c.product_id ?? '',
           service_id: c.service_id ?? '',
@@ -197,20 +199,31 @@ export function AdminCombosPage() {
         await comboMutations.upsertCombo.mutateAsync({ id: saved.id, input: { ...input, image_path: imagePath } })
       }
 
-      if (!editingCombo) {
-        const nextComponents: ComboComponentInput[] = values.components.map((component) => ({
+      const existingComponentIds = editingCombo
+        ? components.filter((component) => component.combo_id === editingCombo.id).map((component) => component.id)
+        : []
+      const nextComponents: (ComboComponentInput & { id?: string })[] = values.components.map((component) => {
+        const selectedService = services.find((service) => service.id === component.service_id)
+
+        return {
+          ...(component.id ? { id: component.id } : {}),
           organization_id: organizationId,
           combo_id: saved.id,
           component_type: component.component_type,
           product_id: component.component_type === 'product' ? component.product_id || null : null,
           service_id: component.component_type === 'service' ? component.service_id || null : null,
           quantity: component.quantity,
-          included_minutes: component.component_type === 'service' ? component.included_minutes ?? null : null,
+          included_minutes:
+            component.component_type === 'service' && selectedService?.pricing_type === 'hourly' ? 60 : null,
           is_required: component.is_required,
           sort_order: component.sort_order,
-        }))
-        await comboMutations.addComponents.mutateAsync(nextComponents)
-      }
+        }
+      })
+      await comboMutations.saveComponents.mutateAsync({
+        comboId: saved.id,
+        components: nextComponents,
+        existingIds: existingComponentIds,
+      })
 
       setIsModalOpen(false)
       setEditingCombo(null)
@@ -307,12 +320,23 @@ export function AdminCombosPage() {
               <h4 className="text-sm font-semibold text-slate-950">Компоненты</h4>
               {fields.map((field, index) => {
                 const type = watchedComponents[index]?.component_type
+                const selectedService = services.find(
+                  (service) => service.id === watchedComponents[index]?.service_id,
+                )
+                const isHourlyService = type === 'service' && selectedService?.pricing_type === 'hourly'
                 return (
-                  <div className="grid gap-3 rounded-md border border-slate-200 p-3 sm:grid-cols-[120px_1fr_100px_auto]" key={field.id}>
-                    <label className="grid gap-1.5 text-sm font-medium text-slate-700"><span>Тип</span><select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register(`components.${index}.component_type`)}><option value="product">Товар</option><option value="service">Услуга</option></select></label>
-                    {type === 'service' ? <label className="grid gap-1.5 text-sm font-medium text-slate-700"><span>Услуга</span><select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register(`components.${index}.service_id`)}><option value="">Выберите</option>{services.map((service) => <option key={service.id} value={service.id}>{service.name}</option>)}</select></label> : <label className="grid gap-1.5 text-sm font-medium text-slate-700"><span>Товар</span><select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register(`components.${index}.product_id`)}><option value="">Выберите</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>}
-                    <Input id={`combo_qty_${field.id}`} label="Кол-во" min={0.001} step="0.001" type="number" {...register(`components.${index}.quantity`, { valueAsNumber: true })} />
+                  <div className="grid min-w-0 gap-3 rounded-md border border-slate-200 p-3 sm:grid-cols-[7rem_minmax(0,1fr)_5.5rem_auto]" key={field.id}>
+                    <label className="grid min-w-0 gap-1.5 text-sm font-medium text-slate-700"><span>Тип</span><select className="min-h-11 min-w-0 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register(`components.${index}.component_type`)}><option value="product">Товар</option><option value="service">Услуга</option></select></label>
+                    {type === 'service' ? <label className="grid min-w-0 gap-1.5 text-sm font-medium text-slate-700"><span>Услуга</span><select className="min-h-11 min-w-0 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register(`components.${index}.service_id`)}><option value="">Выберите</option>{services.map((service) => <option key={service.id} value={service.id}>{service.name}</option>)}</select></label> : <label className="grid min-w-0 gap-1.5 text-sm font-medium text-slate-700"><span>Товар</span><select className="min-h-11 min-w-0 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register(`components.${index}.product_id`)}><option value="">Выберите</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>}
+                    <Input id={`combo_qty_${field.id}`} label={isHourlyService ? t('combo.hours') : 'Кол-во'} min={0.001} step={isHourlyService ? '0.5' : '0.001'} type="number" {...register(`components.${index}.quantity`, { valueAsNumber: true })} />
                     <div className="flex items-end"><Button onClick={() => remove(index)} type="button" variant="danger">Убрать</Button></div>
+                    {isHourlyService ? (
+                      <p className="text-xs text-emerald-800 sm:col-span-3 sm:col-start-2">
+                        {t('combo.includedMinutes', {
+                          minutes: formatNumber((watchedComponents[index]?.quantity ?? 0) * 60),
+                        })}
+                      </p>
+                    ) : null}
                   </div>
                 )
               })}

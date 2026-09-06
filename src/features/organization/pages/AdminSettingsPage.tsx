@@ -8,6 +8,7 @@ import { useAuth } from '../../../hooks/useAuth'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import { languageLabels, supportedLanguages, type SystemLanguage } from '../../../lib/i18n/translations'
 import { USER_ROLES } from '../../../types/roles'
+import { getTenantRoutePath } from '../../../lib/routing/appHost'
 import {
   type OrganizationTestOrderResetSummary,
   useOrganizationMaintenanceMutations,
@@ -47,7 +48,7 @@ export function AdminSettingsPage() {
   const [resetError, setResetError] = useState<string | null>(null)
   const [resetSummary, setResetSummary] = useState<OrganizationTestOrderResetSummary | null>(null)
   const buildAdminPath = (path: string) =>
-    currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
+    getTenantRoutePath(path, currentOrganization?.slug)
   const handleLanguageChange = (event: ChangeEvent<HTMLSelectElement>) => {
     setLanguage(event.target.value as SystemLanguage)
   }

@@ -17,6 +17,7 @@ import type {
 } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
 import { useI18n } from '../../../lib/i18n/I18nContext'
+import { getPlatformRoutePath } from '../../../lib/routing/appHost'
 
 const organizationSelect = 'id,name,slug,status,created_at'
 
@@ -29,7 +30,7 @@ const money = (value: number | null | undefined) =>
 const formatDateTime = (value: string) =>
   new Intl.DateTimeFormat(getCurrentLocale(), {
     day: '2-digit',
-    month: 'short',
+    month: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(value))
@@ -223,7 +224,7 @@ export function PlatformOverviewPage() {
               Главное для владельца платформы: кто сколько заработал, какая прибыль и сколько должны по ежемесячной оплате.
             </p>
           </div>
-          <Link className="shrink-0 text-sm font-medium text-emerald-700 hover:text-emerald-800" to="/platform/finance">
+          <Link className="shrink-0 text-sm font-medium text-emerald-700 hover:text-emerald-800" to={getPlatformRoutePath('/finance')}>
             Все финансы
           </Link>
         </div>
@@ -279,7 +280,7 @@ export function PlatformOverviewPage() {
                   <td className="px-4 py-3 text-right">
                     <Link
                       className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-800 hover:bg-slate-50"
-                      to={`/platform/finance/organizations/${row.organization_id}`}
+                      to={getPlatformRoutePath(`/finance/organizations/${row.organization_id}`)}
                     >
                       Финансы
                     </Link>

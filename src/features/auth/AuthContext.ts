@@ -13,6 +13,21 @@ export type SignInCredentials = {
   password: string
 }
 
+export type DemoRole = Extract<AppRole, 'organization_admin' | 'employee'>
+
+export type OrganizationLoginBrand = Pick<
+  OrganizationRow,
+  'id' | 'name' | 'slug' | 'logo_path' | 'status'
+>
+
+export type HostOrganizationState =
+  | 'not-applicable'
+  | 'loading'
+  | 'resolved'
+  | 'not-found'
+  | 'unavailable'
+  | 'error'
+
 export type AuthContextValue = {
   user: User | null
   session: Session | null
@@ -22,10 +37,13 @@ export type AuthContextValue = {
   currentOrganization: OrganizationRow | null
   memberships: OrganizationMembershipRow[]
   availableOrganizations: OrganizationRow[]
+  hostOrganization: OrganizationLoginBrand | null
+  hostOrganizationState: HostOrganizationState
   isLoading: boolean
   authError: string | null
   profileError: string | null
   signIn: (credentials: SignInCredentials) => Promise<AppRole | null>
+  signInDemo: (role: DemoRole) => Promise<AppRole | null>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<ProfileRow | null>
   refreshAccessContext: () => Promise<AppRole | null>

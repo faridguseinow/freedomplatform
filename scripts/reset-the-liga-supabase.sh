@@ -207,10 +207,10 @@ begin
 
   if not exists (
     select 1 from public.organizations
-    where slug = 'the-liga'
+    where slug = 'theliga'
       and default_locale = 'az'
   ) then
-    raise exception 'Expected organization slug=the-liga and default_locale=az.';
+    raise exception 'Expected organization slug=theliga and default_locale=az.';
   end if;
 
   if (select count(*) from public.places) <> 12 then raise exception 'Expected places count = 12.'; end if;
@@ -249,7 +249,7 @@ select
   (select count(*) from public.organization_notification_settings) as notification_settings;
 select public.get_organization_readiness(id) as readiness
 from public.organizations
-where slug = 'the-liga';
+where slug = 'theliga';
 "
 
 if [ "$skip_backup" = true ]; then
