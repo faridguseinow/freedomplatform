@@ -205,9 +205,11 @@ function MetricCard({
 }) {
   const { t } = useI18n()
   return (
-    <div className="relative rounded-md border border-slate-200 bg-white p-4">
-      <div className="flex items-center gap-2">
-        <p className="text-xs font-medium uppercase text-slate-500">{t(label)}</p>
+    <div className="relative min-w-0 rounded-md border border-slate-200 bg-white p-3 sm:p-4">
+      <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+        <p className="min-w-0 text-[10px] font-medium uppercase leading-4 text-slate-500 sm:text-xs">
+          {t(label)}
+        </p>
         {description ? (
           <div className="group relative">
             <button
@@ -224,7 +226,9 @@ function MetricCard({
           </div>
         ) : null}
       </div>
-      <p className="mt-2 text-xl font-semibold text-slate-950">{money(Number(value ?? 0))}</p>
+      <p className="mt-1.5 truncate text-lg font-semibold text-slate-950 sm:mt-2 sm:text-xl">
+        {money(Number(value ?? 0))}
+      </p>
     </div>
   )
 }
@@ -240,10 +244,12 @@ function InfoCard({
 }) {
   const { t } = useI18n()
   return (
-    <div className="rounded-md border border-slate-200 bg-white p-4">
-      <p className="text-xs font-medium uppercase text-slate-500">{t(label)}</p>
-      <p className="mt-2 text-xl font-semibold text-slate-950">{value}</p>
-      {description ? <p className="mt-2 text-sm leading-5 text-slate-600">{t(description)}</p> : null}
+    <div className="min-w-0 rounded-md border border-slate-200 bg-white p-3 sm:p-4">
+      <p className="text-[10px] font-medium uppercase leading-4 text-slate-500 sm:text-xs">{t(label)}</p>
+      <p className="mt-1.5 text-base font-semibold leading-5 text-slate-950 sm:mt-2 sm:text-xl">{value}</p>
+      {description ? (
+        <p className="mt-2 hidden text-sm leading-5 text-slate-600 sm:block">{t(description)}</p>
+      ) : null}
     </div>
   )
 }
@@ -318,7 +324,7 @@ function StatGrid({
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
       {items.map(({ description, label, value }) => (
         <MetricCard description={description} key={label} label={label} value={value} />
       ))}
@@ -375,7 +381,7 @@ function RevenueBreakdownGrid({
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
       {items.map((item) => (
         <MetricCard
           description={item.description}
@@ -426,7 +432,7 @@ function UsageHoursGrid({
   ]
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
       {items.map((item) => (
         <InfoCard
           description={item.description}
@@ -439,18 +445,103 @@ function UsageHoursGrid({
   )
 }
 
-function PaymentTrafficAnalytics({ organizationId }: { organizationId: string | null }) {
+type PaymentChartPoint = {
+  amount: number
+  count: number
+  hour: number
+}
+
+function PaymentBarChart({ compact = false, points }: { compact?: boolean; points: PaymentChartPoint[] }) {
   const { t } = useI18n()
-  const analytics = usePaymentTrafficAnalytics(organizationId)
-  const points = analytics.data?.points ?? []
-  const peakHour = analytics.data?.peakHour
-  const peakMinute = analytics.data?.peakMinute
   const maxAmount = Math.max(...points.map((point) => point.amount), 0)
   const chartMaximum = maxAmount || 1
   const yAxisTicks = [1, 0.75, 0.5, 0.25, 0]
 
   return (
-    <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4">
+    <div className={compact ? 'w-full' : 'min-w-[64rem]'}>
+      <div className={cn('grid gap-2', compact ? 'grid-cols-[3.25rem_1fr]' : 'grid-cols-[4rem_1fr]')}>
+        <div
+          className={cn(
+            'flex flex-col justify-between pr-1 text-right text-[10px] text-slate-500 sm:text-xs',
+            compact ? 'h-52' : 'h-64',
+          )}
+        >
+          {yAxisTicks.map((tick) => (
+            <span key={tick}>{money(maxAmount * tick)}</span>
+          ))}
+        </div>
+        <div className="min-w-0">
+          <div
+            aria-label={t("ui.vertikalnaya_diagramma_summy_oplat_po_chasam_c511fe8")}
+            className={cn(
+              'relative border-b border-l border-slate-300',
+              compact ? 'h-52' : 'h-64',
+            )}
+            role="img"
+          >
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 flex flex-col justify-between">
+              {yAxisTicks.map((tick) => (
+                <span className="border-t border-dashed border-slate-200" key={tick} />
+              ))}
+            </div>
+            <div
+              className={cn('absolute inset-x-1 bottom-0 top-0 grid items-end', compact ? 'gap-1' : 'gap-1.5')}
+              style={{ gridTemplateColumns: `repeat(${Math.max(points.length, 1)}, minmax(0, 1fr))` }}
+            >
+              {points.map((point) => {
+                const height = point.amount > 0 ? Math.max((point.amount / chartMaximum) * 100, 3) : 0
+                const details = `${String(point.hour).padStart(2, '0')}:00 — ${money(point.amount)}, ${point.count} ${t("ui.oplat_feb6c81")}`
+
+                return (
+                  <div className="flex h-full items-end justify-center" key={point.hour}>
+                    <div
+                      aria-label={details}
+                      className="w-full rounded-t-sm bg-emerald-600 transition-colors hover:bg-emerald-700"
+                      style={{ height: `${height}%` }}
+                      title={details}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+          <div
+            className={cn(
+              'grid px-1 pt-2 text-center font-medium text-slate-500',
+              compact ? 'gap-1 text-[9px]' : 'gap-1.5 text-[10px]',
+            )}
+            style={{ gridTemplateColumns: `repeat(${Math.max(points.length, 1)}, minmax(0, 1fr))` }}
+          >
+            {points.map((point) => (
+              <span key={point.hour}>{String(point.hour).padStart(2, '0')}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+      <p className="mt-3 text-center text-xs text-slate-500">
+        {t("ui.po_gorizontali_chas_po_vertikali_summa_oplat_0ead36f")}
+      </p>
+    </div>
+  )
+}
+
+function PaymentTrafficAnalytics({ organizationId }: { organizationId: string | null }) {
+  const { t } = useI18n()
+  const analytics = usePaymentTrafficAnalytics(organizationId)
+  const points = analytics.data?.points ?? []
+  const peakHour = analytics.data?.peakHour
+  const mobilePoints = Array.from({ length: 12 }, (_, interval) => {
+    const intervalPoints = points.slice(interval * 2, interval * 2 + 2)
+
+    return {
+      amount: intervalPoints.reduce((total, point) => total + point.amount, 0),
+      count: intervalPoints.reduce((total, point) => total + point.count, 0),
+      hour: interval * 2,
+    }
+  })
+
+  return (
+    <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-3 sm:p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-slate-950">{t("ui.finansovaya_analitika_8b45181")}</h3>
@@ -462,9 +553,6 @@ function PaymentTrafficAnalytics({ organizationId }: { organizationId: string | 
           <span>
             {t("ui.chas_pik_fbb92ba")}: {peakHour ? `${String(peakHour.hour).padStart(2, '0')}:00` : '—'}
           </span>
-          <span>
-            {t("ui.samaya_chastaya_minuta_31c7cbc")}: {peakMinute === null || peakMinute === undefined ? '—' : `:${String(peakMinute).padStart(2, '0')}`}
-          </span>
         </div>
       </div>
 
@@ -474,54 +562,11 @@ function PaymentTrafficAnalytics({ organizationId }: { organizationId: string | 
         </div>
       ) : null}
 
-      <div className="overflow-x-auto pb-2">
-        <div className="min-w-[64rem]">
-          <div className="grid grid-cols-[4rem_1fr] gap-2">
-            <div className="flex h-64 flex-col justify-between pr-1 text-right text-xs text-slate-500">
-              {yAxisTicks.map((tick) => (
-                <span key={tick}>{money(maxAmount * tick)}</span>
-              ))}
-            </div>
-            <div>
-              <div
-                aria-label={t("ui.vertikalnaya_diagramma_summy_oplat_po_chasam_c511fe8")}
-                className="relative h-64 border-b border-l border-slate-300"
-                role="img"
-              >
-                <div aria-hidden="true" className="pointer-events-none absolute inset-0 flex flex-col justify-between">
-                  {yAxisTicks.map((tick) => (
-                    <span className="border-t border-dashed border-slate-200" key={tick} />
-                  ))}
-                </div>
-                <div className="absolute inset-x-2 bottom-0 top-0 grid grid-cols-24 items-end gap-1.5">
-                  {points.map((point) => {
-                    const height = point.amount > 0 ? Math.max((point.amount / chartMaximum) * 100, 3) : 0
-                    const details = `${String(point.hour).padStart(2, '0')}:00 — ${money(point.amount)}, ${point.count} ${t("ui.oplat_feb6c81")}`
-
-                    return (
-                      <div className="flex h-full items-end justify-center" key={point.hour}>
-                        <div
-                          aria-label={details}
-                          className="w-full rounded-t-sm bg-emerald-600 transition-colors hover:bg-emerald-700"
-                          style={{ height: `${height}%` }}
-                          title={details}
-                        />
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-              <div className="grid grid-cols-24 gap-1.5 px-2 pt-2 text-center text-[10px] font-medium text-slate-500">
-                {points.map((point) => (
-                  <span key={point.hour}>{String(point.hour).padStart(2, '0')}</span>
-                ))}
-              </div>
-            </div>
-          </div>
-          <p className="mt-3 text-center text-xs text-slate-500">
-            {t("ui.po_gorizontali_chas_po_vertikali_summa_oplat_0ead36f")}
-          </p>
-        </div>
+      <div className="min-w-0 sm:hidden">
+        <PaymentBarChart compact points={mobilePoints} />
+      </div>
+      <div className="hidden overflow-x-auto pb-2 sm:block">
+        <PaymentBarChart points={points} />
       </div>
     </section>
   )
@@ -574,7 +619,7 @@ function MonthlyForecastAnalytics({
   ]
 
   return (
-    <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4">
+    <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-3 sm:p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-slate-950">{t("ui.prognoz_mesyatsa_0f85546")}</h3>
@@ -592,7 +637,7 @@ function MonthlyForecastAnalytics({
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
         {cards.map((card) => (
           <MetricCard
             description={card.description}
@@ -973,19 +1018,18 @@ export function AdminFinancePage() {
     currentOrganization?.slug ? `/${currentOrganization.slug}${path}` : path
 
   return (
-    <section className="grid gap-5">
+    <section className="grid gap-4 sm:gap-5">
       <PageHeader
         title="Финансы"
         description="Финансовый центр организации: доходы, расходы, P&L, движение денег и аналитика оплат."
       />
       <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-900">
-        {t("ui.tekuschiy_raschetnyy_period_f675682")}: {currentCycle.start} - {currentDate}.{' '}
-        {t("ui.kartochki_dohoda_cogs_pribyli_i_oplaty_kartoy_schita_d6a4e0b")}
+        {t("ui.tekuschiy_raschetnyy_period_f675682")}: {currentCycle.start} - {currentDate}
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         {financeLinks.map(({ href, label, Icon }) => (
           <Link
-            className="flex min-h-16 items-center gap-3 rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50"
+            className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-xs font-medium text-slate-800 hover:bg-slate-50 sm:min-h-16 sm:flex-row sm:justify-start sm:gap-3 sm:px-4 sm:text-sm"
             key={href}
             to={buildAdminPath(href)}
           >

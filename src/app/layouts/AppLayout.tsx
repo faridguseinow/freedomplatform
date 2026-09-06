@@ -348,8 +348,8 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
           <main
             className={
               fullWidthContent
-                ? 'min-w-0 flex-1 px-2 py-2 pb-24 sm:px-3 md:pb-3'
-                : 'min-w-0 flex-1 px-4 py-5 pb-24 sm:px-6 md:pb-6'
+                ? 'min-w-0 flex-1 px-2 py-2 pb-28 sm:px-3 md:pb-3'
+                : 'min-w-0 flex-1 px-4 py-5 pb-28 sm:px-6 md:pb-6'
             }
           >
             <div
@@ -395,7 +395,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
       </div>
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 grid border-t border-slate-200 bg-white px-2 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid border-t border-slate-200 bg-white px-2 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-1 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] md:hidden"
         style={{ gridTemplateColumns: `repeat(${mobileNavItems.length}, minmax(0, 1fr))` }}
         aria-label={`${productAreaLabel}: ${t("ui.mobilnaya_navigatsiya_09a11d6")}`}
       >
