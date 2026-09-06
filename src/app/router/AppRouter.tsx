@@ -170,11 +170,6 @@ const AdminFinancePeriodDetailPage = lazy(() =>
     default: module.AdminFinancePeriodDetailPage,
   })),
 )
-const AdminFinancePlatformSharePage = lazy(() =>
-  import('../../features/finance/pages/AdminFinancePages').then((module) => ({
-    default: module.AdminFinancePlatformSharePage,
-  })),
-)
 const AdminFinanceSettingsPage = lazy(() =>
   import('../../features/finance/pages/AdminFinancePages').then((module) => ({
     default: module.AdminFinanceSettingsPage,
@@ -322,7 +317,6 @@ export function AppRouter() {
               <Route element={lazyPage(<AdminFinanceProfitLossPage />)} path="finance/profit-loss" />
               <Route element={lazyPage(<AdminFinancePeriodsPage />)} path="finance/periods" />
               <Route element={lazyPage(<AdminFinancePeriodDetailPage />)} path="finance/periods/:periodId" />
-              <Route element={lazyPage(<AdminFinancePlatformSharePage />)} path="finance/platform-share" />
               <Route element={lazyPage(<AdminFinanceSettingsPage />)} path="finance/settings" />
               <Route element={lazyPage(<AdminSettingsPage />)} path="settings" />
               </Route>

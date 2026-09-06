@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import {
   Building2,
   CheckCircle2,
@@ -13,6 +14,7 @@ import { Link, useParams } from 'react-router-dom'
 import { EmptyState } from '../../../components/common/EmptyState'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
+import { useI18n } from '../../../lib/i18n/I18nContext'
 import { usePaymentMethodSummary, useRevenueBreakdown } from '../../orders/paymentsApi'
 import { usePlatformOrganizations } from '../../platform/platformApi'
 import { todayDate, useFinanceSettings, useFinanceSettingsMutation } from '../financeApi'
@@ -27,7 +29,7 @@ import {
 } from '../platformShareApi'
 
 const money = (value: number | null | undefined) =>
-  new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(
+  new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(
     value ?? 0,
   )
 
@@ -44,7 +46,7 @@ const statusLabel: Record<string, string> = {
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return '—'
-  return new Intl.DateTimeFormat('ru-RU', {
+  return new Intl.DateTimeFormat(getCurrentLocale(), {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
@@ -97,6 +99,7 @@ export function PlatformFinancePage() {
 }
 
 export function PlatformFinanceOrganizationPage() {
+  const { t } = useI18n()
   const { organizationId } = useParams()
   const finance = usePlatformOrganizationFinance(organizationId ?? null)
   const settings = useFinanceSettings(organizationId ?? null)
@@ -141,9 +144,9 @@ export function PlatformFinanceOrganizationPage() {
   }
 
   const handlePeriodDelete = (periodId: string) => {
-    if (!window.confirm('Удалить финансовый период навсегда? Это действие нельзя отменить.')) return
+    if (!window.confirm(t('platform.deletePeriodForeverConfirm'))) return
     periodMutations.delete.mutate({
-      comment: 'Удалено навсегда владельцем платформы',
+      comment: t('platform.deletedForeverReason'),
       periodId,
     })
   }

@@ -1,10 +1,11 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { EmptyState } from '../../../components/common/EmptyState'
 import { stockDocumentTypeLabel, useProductMovements } from '../catalog/inventoryApi'
 
 const formatNumber = (value: number | null) =>
-  new Intl.NumberFormat('ru', { maximumFractionDigits: 3 }).format(value ?? 0)
+  new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 3 }).format(value ?? 0)
 
 export function AdminInventoryProductPage() {
   const { productId } = useParams<{ productId: string }>()
@@ -56,7 +57,7 @@ export function AdminInventoryProductPage() {
             <div>
               <p className="font-semibold text-slate-950">{stockDocumentTypeLabel[movement.movement_type]}</p>
               <p className="mt-1 text-slate-600">
-                {new Date(movement.created_at).toLocaleString('ru')} · {movement.comment || 'Без комментария'}
+                {new Date(movement.created_at).toLocaleString(getCurrentLocale())} · {movement.comment || 'Без комментария'}
               </p>
             </div>
             <dl className="grid grid-cols-3 gap-3 text-right">

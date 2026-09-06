@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Archive, Loader2, Plus, Save, Search, Trash2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -40,7 +41,7 @@ const documentSchema = z.object({
 type DocumentFormValues = z.infer<typeof documentSchema>
 
 const formatNumber = (value: number | null | undefined) =>
-  new Intl.NumberFormat('ru', { maximumFractionDigits: 3 }).format(value ?? 0)
+  new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 3 }).format(value ?? 0)
 
 export function AdminInventoryPage() {
   const { organizationId, user } = useAuth()
@@ -139,24 +140,24 @@ export function AdminInventoryPage() {
   const getProductDeleteError = (error: unknown) => {
     const message = error instanceof Error ? error.message : ''
     if (message.includes('Product has already been used')) {
-      return t('Товар уже использовался в заказах, складе или комбо. Удаление невозможно, архивируйте товар.')
+      return t("ui.tovar_uzhe_ispolzovalsya_v_zakazah_sklade_ili_kombo__f22fa56")
     }
     if (message.includes('Product stock must be zero')) {
-      return t('Перед удалением остаток товара должен быть 0.')
+      return t("ui.pered_udaleniem_ostatok_tovara_dolzhen_byt_0_b908662")
     }
-    return message || t('Не удалось удалить товар.')
+    return message || t("ui.ne_udalos_udalit_tovar_f3762ba")
   }
 
   const deleteProduct = async (product: { id: string; name: string }) => {
     const confirmed = window.confirm(
-      `${t('Удалить товар навсегда?')}\n\n${t(
-        'Удалить можно только товар без заказов, складских документов, движений, резервов и комбо. Если история уже есть, используйте архив.',
+      `${t("ui.udalit_tovar_navsegda_9797c20")}\n\n${t(
+        "ui.udalit_mozhno_tolko_tovar_bez_zakazov_skladskih_doku_bcfe87a",
       )}`,
     )
 
     if (!confirmed) return
 
-    const reason = window.prompt(t('Причина удаления товара'))
+    const reason = window.prompt(t("ui.prichina_udaleniya_tovara_6c2e861"))
     if (reason === null) return
 
     try {
@@ -282,7 +283,7 @@ export function AdminInventoryPage() {
           <article className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm shadow-sm sm:flex-row sm:items-center sm:justify-between" key={document.id}>
             <div>
               <p className="font-medium text-slate-950">#{document.document_number} · {stockDocumentTypeLabel[document.type]}</p>
-              <p className="text-slate-500">{document.status} · {new Date(document.document_date).toLocaleDateString('ru')}</p>
+              <p className="text-slate-500">{document.status} · {new Date(document.document_date).toLocaleDateString(getCurrentLocale())}</p>
             </div>
             <p className="font-medium text-slate-900">{formatNumber(document.total_amount)} AZN</p>
           </article>

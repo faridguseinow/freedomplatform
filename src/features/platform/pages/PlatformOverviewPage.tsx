@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { useQuery } from '@tanstack/react-query'
 import {
   AlertTriangle,
@@ -15,17 +16,18 @@ import type {
   PlatformSharePaymentRow,
 } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
+import { useI18n } from '../../../lib/i18n/I18nContext'
 
 const organizationSelect = 'id,name,slug,status,created_at'
 
 const money = (value: number | null | undefined) =>
-  new Intl.NumberFormat('ru-RU', {
+  new Intl.NumberFormat(getCurrentLocale(), {
     maximumFractionDigits: 2,
     minimumFractionDigits: 2,
   }).format(value ?? 0)
 
 const formatDateTime = (value: string) =>
-  new Intl.DateTimeFormat('ru-RU', {
+  new Intl.DateTimeFormat(getCurrentLocale(), {
     day: '2-digit',
     month: 'short',
     hour: '2-digit',
@@ -74,6 +76,7 @@ function OverviewMetric({ hint, icon: Icon, label, tone = 'default', value }: Ov
 }
 
 export function PlatformOverviewPage() {
+  const { t } = useI18n()
   const overviewQuery = useQuery({
     queryKey: ['platform', 'overview'],
     queryFn: async (): Promise<PlatformOverviewData> => {
@@ -166,28 +169,28 @@ export function PlatformOverviewPage() {
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <OverviewMetric
-          hint={`активных организаций: ${activeOrganizations.length}`}
+          hint={t('overview.activeOrganizations', { count: activeOrganizations.length })}
           icon={Building2}
           label="Организации"
           tone="cyan"
           value={organizations.length}
         />
         <OverviewMetric
-          hint={`организаций с долгом: ${organizationsWithDebt}`}
+          hint={t('overview.organizationsWithDebt', { count: organizationsWithDebt })}
           icon={AlertTriangle}
           label="Оплата платформе"
           tone={outstandingShare > 0 ? 'orange' : 'green'}
           value={money(outstandingShare)}
         />
         <OverviewMetric
-          hint={`ожидает подтверждения: ${pendingPlatformPayments.length}`}
+          hint={t('overview.pendingPayments', { count: pendingPlatformPayments.length })}
           icon={CreditCard}
           label="Сообщили оплату"
           tone={pendingPaymentsTotal > 0 ? 'orange' : 'default'}
           value={money(pendingPaymentsTotal)}
         />
         <OverviewMetric
-          hint={`периодов на проверке: ${periodsWaitingReview}`}
+          hint={t('overview.periodsWaitingReview', { count: periodsWaitingReview })}
           icon={Landmark}
           label="Периоды"
           tone={periodsWaitingReview > 0 ? 'orange' : 'default'}

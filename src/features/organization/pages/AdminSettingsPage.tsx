@@ -57,18 +57,18 @@ export function AdminSettingsPage() {
     if (!currentOrganization) return
 
     const confirmed = window.confirm(
-      `${t('Очистить тестовые заказы организации?')}\n\n${t(
-        'Будут удалены заказы, платежи, смены, операционные дни, доходы от заказов и складские списания по заказам. Товары, услуги, комбо, складские документы и расходы останутся.',
+      `${t("ui.ochistit_testovye_zakazy_organizatsii_aebd268")}\n\n${t(
+        "ui.budut_udaleny_zakazy_platezhi_smeny_operatsionnye_dn_e175c29",
       )}`,
     )
 
     if (!confirmed) return
 
-    const confirmation = window.prompt(t('Введите RESET_TEST_ORDERS для окончательной очистки.'))
+    const confirmation = window.prompt(t("ui.vvedite_reset_test_orders_dlya_okonchatelnoy_ochistk_e1b6df2"))
     if (confirmation === null) return
     if (confirmation.trim() !== 'RESET_TEST_ORDERS') {
       setResetSummary(null)
-      setResetError(t('Код подтверждения неверный. Очистка не выполнена.'))
+      setResetError(t("ui.kod_podtverzhdeniya_nevernyy_ochistka_ne_vypolnena_b861da4"))
       return
     }
 
@@ -82,7 +82,7 @@ export function AdminSettingsPage() {
       })
       setResetSummary(summary)
     } catch (error) {
-      setResetError(error instanceof Error ? error.message : t('Не удалось очистить тестовые заказы.'))
+      setResetError(error instanceof Error ? error.message : t("ui.ne_udalos_ochistit_testovye_zakazy_0c0dee7"))
     }
   }
 
@@ -109,16 +109,16 @@ export function AdminSettingsPage() {
 
       <article className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <div className="grid gap-1">
-          <h3 className="text-lg font-semibold text-slate-950">{t('Язык системы')}</h3>
+          <h3 className="text-lg font-semibold text-slate-950">{t("ui.yazyk_sistemy_8763972")}</h3>
           <p className="text-sm leading-6 text-slate-600">
             {t(
-              'Язык интерфейса хранится локально на этом устройстве и применяется для администратора и рабочего места сотрудника в этом браузере.',
+              "ui.yazyk_interfeysa_hranitsya_lokalno_na_etom_ustroystv_5e54628",
             )}
           </p>
         </div>
 
         <label className="grid max-w-sm gap-1 text-sm font-medium text-slate-700">
-          <span>{t('Язык')}</span>
+          <span>{t("ui.yazyk_ed3f0e5")}</span>
           <select
             className="h-11 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950 shadow-sm outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20"
             onChange={handleLanguageChange}
@@ -176,11 +176,11 @@ export function AdminSettingsPage() {
             </span>
             <div className="min-w-0">
               <h3 className="text-lg font-semibold text-red-950">
-                {t('Очистка тестовых заказов')}
+                {t("ui.ochistka_testovyh_zakazov_a79b66d")}
               </h3>
               <p className="mt-1 text-sm leading-6 text-red-800">
                 {t(
-                  'Удаляет только тестовую операционную историю: заказы, платежи, смены, операционные дни, доходы от заказов и складские списания по заказам. Каталог, услуги, товары, складские документы и расходы остаются.',
+                  "ui.udalyaet_tolko_testovuyu_operatsionnuyu_istoriyu_zak_d45fa6a",
                 )}
               </p>
             </div>
@@ -188,7 +188,7 @@ export function AdminSettingsPage() {
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm leading-6 text-slate-600">
-              {t('Доступно только владельцу платформы. Действие необратимое.')}
+              {t("ui.dostupno_tolko_vladeltsu_platformy_deystvie_neobrati_0ea767f")}
             </p>
             <Button
               disabled={maintenanceMutations.resetTestOrders.isPending}
@@ -198,8 +198,8 @@ export function AdminSettingsPage() {
             >
               <Trash2 className="size-4" />
               {maintenanceMutations.resetTestOrders.isPending
-                ? t('Очистка...')
-                : t('Очистить тестовые заказы')}
+                ? t("ui.ochistka_c62df82")
+                : t("ui.ochistit_testovye_zakazy_8660a48")}
             </Button>
           </div>
 
@@ -211,10 +211,10 @@ export function AdminSettingsPage() {
 
           {resetSummary ? (
             <div className="grid gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 sm:grid-cols-2 lg:grid-cols-4">
-              <span>{t('Удалено заказов')}: {resetSummary.orders_deleted}</span>
-              <span>{t('Удалено платежей')}: {resetSummary.payments_deleted}</span>
-              <span>{t('Удалено смен')}: {resetSummary.shifts_deleted}</span>
-              <span>{t('Пересчитано товаров')}: {resetSummary.affected_products}</span>
+              <span>{t("ui.udaleno_zakazov_63b1673")}: {resetSummary.orders_deleted}</span>
+              <span>{t("ui.udaleno_platezhey_31b2488")}: {resetSummary.payments_deleted}</span>
+              <span>{t("ui.udaleno_smen_2a3f588")}: {resetSummary.shifts_deleted}</span>
+              <span>{t("ui.pereschitano_tovarov_f3b6db9")}: {resetSummary.affected_products}</span>
             </div>
           ) : null}
         </article>

@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import {
   Banknote,
   Calculator,
@@ -58,13 +59,12 @@ import {
   useRecurringExpenses,
   type RecurringExpenseInput,
 } from '../recurringExpensesApi'
-import { usePlatformShareAccruals, usePlatformShareMutations } from '../platformShareApi'
 
 const DEFAULT_START = monthStartDate()
 const DEFAULT_END = todayDate()
 
 const money = (value: number | null | undefined) =>
-  new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(
+  new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(
     value ?? 0,
   )
 
@@ -73,9 +73,9 @@ const formatUsageDuration = (hours: number | null | undefined, t: (value: string
   const wholeHours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
 
-  if (wholeHours && minutes) return `${wholeHours} ${t('ч')} ${minutes} ${t('мин')}`
-  if (wholeHours) return `${wholeHours} ${t('ч')}`
-  return `${minutes} ${t('мин')}`
+  if (wholeHours && minutes) return `${wholeHours} ${t("ui.ch_285cc40")} ${minutes} ${t("ui.min_d6035dc")}`
+  if (wholeHours) return `${wholeHours} ${t("ui.ch_285cc40")}`
+  return `${minutes} ${t("ui.min_d6035dc")}`
 }
 
 function formatDateInput(date: Date) {
@@ -127,7 +127,7 @@ function useCurrentDate() {
 
 function financialPeriodMutationMessage(message: string, t: (value: string) => string) {
   if (message.includes('public.cancel_financial_period')) {
-    return t('Удаление периодов ещё не подключено в базе. Примените последнюю миграцию Supabase и обновите schema cache.')
+    return t("ui.udalenie_periodov_esche_ne_podklyucheno_v_baze_prime_382939e")
   }
 
   return message
@@ -170,7 +170,6 @@ const financeLinks: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: '/admin/finance/income', label: 'Доходы', Icon: Banknote },
   { href: '/admin/finance/expenses', label: 'Расходы', Icon: ReceiptText },
   { href: '/admin/finance/periods', label: 'Периоды', Icon: CalendarCheck },
-  { href: '/admin/finance/settings', label: 'Настройки', Icon: Settings },
 ]
 
 function PageHeader({
@@ -212,7 +211,7 @@ function MetricCard({
         {description ? (
           <div className="group relative">
             <button
-              aria-label={t(`Как считается: ${label}`)}
+              aria-label={`${t('ui.kak_schitaetsya_5d5b2b3')} ${t(label)}`}
               className="flex size-5 items-center justify-center rounded-full text-slate-400 outline-none hover:text-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
               title={t(description)}
               type="button"
@@ -252,13 +251,15 @@ function InfoCard({
 function StatGrid({
   cardPayment,
   showCardPayment = false,
+  showCashFlow = false,
   summary,
 }: {
   cardPayment?: number | null
   showCardPayment?: boolean
+  showCashFlow?: boolean
   summary: FinancialPeriodSummary | null | undefined
 }) {
-  const items = [
+  const items: { description: string; label: string; value: number | null | undefined }[] = [
     {
       label: 'Доход',
       value: summary?.revenue,
@@ -286,38 +287,38 @@ function StatGrid({
     {
       label: 'Чистая прибыль',
       value: summary?.net_profit_before_platform_share,
-      description:
-        'Валовая прибыль минус операционные расходы. Это прибыль до ежемесячной оплаты платформы.',
-    },
-    {
-      label: 'Ежемесячная оплата платформы',
-      value: summary?.platform_share_amount,
-      description:
-        'Фиксированная месячная сумма за использование Freedom Platform. Сейчас по умолчанию 200 AZN и не зависит от процента или прибыли.',
-    },
-    showCardPayment
-      ? {
-          label: 'Оплата картой',
-          value: cardPayment,
-          description:
-            'Сумма завершённых платежей по карте за текущий период. Считается напрямую из платежей, чтобы видеть безналичный оборот.',
-        }
-      : {
-          label: 'Cash in',
-          value: summary?.cash_inflow,
-          description:
-            'Фактически полученные деньги за текущий период по дате оплаты: оплаченные и частично оплаченные доходы.',
-        },
-    {
-      label: 'Cash out',
-      value: summary?.cash_outflow,
-      description:
-        'Фактически потраченные деньги за текущий период по дате оплаты: оплаченные расходы, закупки и платежи платформе.',
+      description: 'Валовая прибыль минус операционные расходы.',
     },
   ]
 
+  if (showCardPayment) {
+    items.push({
+      label: 'Оплата картой',
+      value: cardPayment,
+      description:
+        'Сумма завершённых платежей по карте за текущий период. Считается напрямую из платежей, чтобы видеть безналичный оборот.',
+    })
+  }
+
+  if (showCashFlow) {
+    items.push(
+      {
+        label: 'Cash in',
+        value: summary?.cash_inflow,
+        description:
+          'Фактически полученные деньги за текущий период по дате оплаты: оплаченные и частично оплаченные доходы.',
+      },
+      {
+        label: 'Cash out',
+        value: summary?.cash_outflow,
+        description:
+          'Фактически потраченные деньги за текущий период по дате оплаты: оплаченные расходы и закупки.',
+      },
+    )
+  }
+
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {items.map(({ description, label, value }) => (
         <MetricCard description={description} key={label} label={label} value={value} />
       ))}
@@ -445,50 +446,82 @@ function PaymentTrafficAnalytics({ organizationId }: { organizationId: string | 
   const peakHour = analytics.data?.peakHour
   const peakMinute = analytics.data?.peakMinute
   const maxAmount = Math.max(...points.map((point) => point.amount), 0)
+  const chartMaximum = maxAmount || 1
+  const yAxisTicks = [1, 0.75, 0.5, 0.25, 0]
 
   return (
     <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-slate-950">{t('Финансовая аналитика')}</h3>
+          <h3 className="text-lg font-semibold text-slate-950">{t("ui.finansovaya_analitika_8b45181")}</h3>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            {t('Все завершённые платежи до сегодняшнего дня: распределение по 24 часам и шкала трафика от 1 до 10.')}
+            {t("ui.vse_zavershennye_platezhi_do_segodnyashnego_dnya_sum_0c8e581")}
           </p>
         </div>
         <div className="grid gap-1 text-sm text-slate-700 sm:text-right">
           <span>
-            {t('Час пик')}: {peakHour ? `${String(peakHour.hour).padStart(2, '0')}:00` : '—'}
+            {t("ui.chas_pik_fbb92ba")}: {peakHour ? `${String(peakHour.hour).padStart(2, '0')}:00` : '—'}
           </span>
           <span>
-            {t('Самая частая минута')}: {peakMinute === null || peakMinute === undefined ? '—' : `:${String(peakMinute).padStart(2, '0')}`}
+            {t("ui.samaya_chastaya_minuta_31c7cbc")}: {peakMinute === null || peakMinute === undefined ? '—' : `:${String(peakMinute).padStart(2, '0')}`}
           </span>
         </div>
       </div>
 
       {analytics.isLoading ? (
         <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-          {t('Загрузка аналитики...')}
+          {t("ui.zagruzka_analitiki_0be70ab")}
         </div>
       ) : null}
 
-      <div className="grid gap-2">
-        {points.map((point) => {
-          const amountWidth = maxAmount > 0 ? Math.max((point.amount / maxAmount) * 100, point.amount > 0 ? 4 : 0) : 0
-          return (
-            <div className="grid grid-cols-[3.5rem_1fr_7rem] items-center gap-3 text-sm" key={point.hour}>
-              <span className="font-medium text-slate-700">{String(point.hour).padStart(2, '0')}:00</span>
-              <div className="h-4 overflow-hidden rounded-sm bg-slate-100">
-                <div
-                  className="h-full rounded-sm bg-emerald-600"
-                  style={{ width: `${amountWidth}%` }}
-                />
-              </div>
-              <span className="text-right text-xs text-slate-600">
-                {money(point.amount)} · {point.count} {t('оплат')} · {point.trafficScore}/10
-              </span>
+      <div className="overflow-x-auto pb-2">
+        <div className="min-w-[64rem]">
+          <div className="grid grid-cols-[4rem_1fr] gap-2">
+            <div className="flex h-64 flex-col justify-between pr-1 text-right text-xs text-slate-500">
+              {yAxisTicks.map((tick) => (
+                <span key={tick}>{money(maxAmount * tick)}</span>
+              ))}
             </div>
-          )
-        })}
+            <div>
+              <div
+                aria-label={t("ui.vertikalnaya_diagramma_summy_oplat_po_chasam_c511fe8")}
+                className="relative h-64 border-b border-l border-slate-300"
+                role="img"
+              >
+                <div aria-hidden="true" className="pointer-events-none absolute inset-0 flex flex-col justify-between">
+                  {yAxisTicks.map((tick) => (
+                    <span className="border-t border-dashed border-slate-200" key={tick} />
+                  ))}
+                </div>
+                <div className="absolute inset-x-2 bottom-0 top-0 grid grid-cols-24 items-end gap-1.5">
+                  {points.map((point) => {
+                    const height = point.amount > 0 ? Math.max((point.amount / chartMaximum) * 100, 3) : 0
+                    const details = `${String(point.hour).padStart(2, '0')}:00 — ${money(point.amount)}, ${point.count} ${t("ui.oplat_feb6c81")}`
+
+                    return (
+                      <div className="flex h-full items-end justify-center" key={point.hour}>
+                        <div
+                          aria-label={details}
+                          className="w-full rounded-t-sm bg-emerald-600 transition-colors hover:bg-emerald-700"
+                          style={{ height: `${height}%` }}
+                          title={details}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+              <div className="grid grid-cols-24 gap-1.5 px-2 pt-2 text-center text-[10px] font-medium text-slate-500">
+                {points.map((point) => (
+                  <span key={point.hour}>{String(point.hour).padStart(2, '0')}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+          <p className="mt-3 text-center text-xs text-slate-500">
+            {t("ui.po_gorizontali_chas_po_vertikali_summa_oplat_0ead36f")}
+          </p>
+        </div>
       </div>
     </section>
   )
@@ -534,7 +567,7 @@ function MonthlyForecastAnalytics({
       value: projectedGross,
     },
     {
-      description: 'Примерная прибыль за месяц с учётом COGS и операционных расходов, до ежемесячной оплаты платформы.',
+      description: 'Примерная прибыль за месяц с учётом COGS и операционных расходов.',
       label: 'Прогноз с расходами',
       value: projectedNet,
     },
@@ -544,17 +577,17 @@ function MonthlyForecastAnalytics({
     <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-slate-950">{t('Прогноз месяца')}</h3>
+          <h3 className="text-lg font-semibold text-slate-950">{t("ui.prognoz_mesyatsa_0f85546")}</h3>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            {t('Оценка не попадает в финансовые периоды: она только показывает ожидание по текущему месячному циклу на основе факта с начала периода.')}
+            {t("ui.otsenka_ne_popadaet_v_finansovye_periody_ona_tolko_p_48f8d8f")}
           </p>
         </div>
         <div className="grid gap-1 text-sm text-slate-700 sm:text-right">
           <span>
-            {t('Период')}: {cycleStart} - {cycleEnd}
+            {t("ui.period_b2822e2")}: {cycleStart} - {cycleEnd}
           </span>
           <span>
-            {t('Прошло дней')}: {elapsedDays}/{cycleDays} · {progress}%
+            {t("ui.proshlo_dney_5bc0101")}: {elapsedDays}/{cycleDays} · {progress}%
           </span>
         </div>
       </div>
@@ -572,15 +605,15 @@ function MonthlyForecastAnalytics({
 
       <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700 sm:grid-cols-3">
         <div>
-          <span className="font-medium text-slate-950">{t('Осталось дней')}:</span> {remainingDays}
+          <span className="font-medium text-slate-950">{t("ui.ostalos_dney_498f6cb")}:</span> {remainingDays}
         </div>
         <div>
-          <span className="font-medium text-slate-950">{t('Текущая чистая прибыль')}:</span>{' '}
+          <span className="font-medium text-slate-950">{t("ui.tekuschaya_chistaya_pribyl_3d2a62f")}:</span>{' '}
           {money(netProfit)}
         </div>
         <div>
-          <span className="font-medium text-slate-950">{t('Метод')}:</span>{' '}
-          {t('среднее за день × дней в периоде')}
+          <span className="font-medium text-slate-950">{t("ui.metod_cc9a1c8")}:</span>{' '}
+          {t("ui.srednee_za_den_dney_v_periode_772f8cc")}
         </div>
       </div>
     </section>
@@ -946,41 +979,10 @@ export function AdminFinancePage() {
         description="Финансовый центр организации: доходы, расходы, P&L, движение денег и аналитика оплат."
       />
       <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-900">
-        {t('Текущий расчётный период')}: {currentCycle.start} - {currentDate}.{' '}
-        {t('Карточки дохода, COGS, прибыли, ежемесячной оплаты платформы, оплаты картой и cash out считаются с начала периода до сегодняшнего дня.')}
+        {t("ui.tekuschiy_raschetnyy_period_f675682")}: {currentCycle.start} - {currentDate}.{' '}
+        {t("ui.kartochki_dohoda_cogs_pribyli_i_oplaty_kartoy_schita_d6a4e0b")}
       </div>
-      <StatGrid
-        cardPayment={paymentMethodSummary.data?.card ?? null}
-        showCardPayment
-        summary={periodSummary.data}
-      />
-      <section className="grid gap-3">
-        <h3 className="text-lg font-semibold text-slate-950">{t('Выручка по направлениям (итого)')}</h3>
-        <RevenueBreakdownGrid
-          billiard={revenueBreakdownData.billiard}
-          goods={revenueBreakdownData.goods}
-          other={revenueBreakdownData.other}
-          playstation={revenueBreakdownData.playstation}
-          tables={revenueBreakdownData.tables}
-        />
-        {revenueBreakdown.error ? (
-          <p className="text-sm text-rose-700">
-            {t('Не удалось загрузить выручку по направлениям')}: {revenueBreakdown.error.message}
-          </p>
-        ) : null}
-      </section>
-      {usageHours.data ? (
-        <section className="grid gap-3">
-          <h3 className="text-lg font-semibold text-slate-950">{t('Время по направлениям (период)')}</h3>
-          <UsageHoursGrid
-            billiard={usageHours.data.billiard}
-            playstation={usageHours.data.playstation}
-            tables={usageHours.data.tables}
-            total={usageHours.data.total}
-          />
-        </section>
-      ) : null}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {financeLinks.map(({ href, label, Icon }) => (
           <Link
             className="flex min-h-16 items-center gap-3 rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50"
@@ -992,6 +994,37 @@ export function AdminFinancePage() {
           </Link>
         ))}
       </div>
+      <StatGrid
+        cardPayment={paymentMethodSummary.data?.card ?? null}
+        showCardPayment
+        summary={periodSummary.data}
+      />
+      <section className="grid gap-3">
+        <h3 className="text-lg font-semibold text-slate-950">{t("ui.vyruchka_po_napravleniyam_itogo_42a6e73")}</h3>
+        <RevenueBreakdownGrid
+          billiard={revenueBreakdownData.billiard}
+          goods={revenueBreakdownData.goods}
+          other={revenueBreakdownData.other}
+          playstation={revenueBreakdownData.playstation}
+          tables={revenueBreakdownData.tables}
+        />
+        {revenueBreakdown.error ? (
+          <p className="text-sm text-rose-700">
+            {t("ui.ne_udalos_zagruzit_vyruchku_po_napravleniyam_fb0e0dd")}: {revenueBreakdown.error.message}
+          </p>
+        ) : null}
+      </section>
+      {usageHours.data ? (
+        <section className="grid gap-3">
+          <h3 className="text-lg font-semibold text-slate-950">{t("ui.vremya_po_napravleniyam_period_fc0f31c")}</h3>
+          <UsageHoursGrid
+            billiard={usageHours.data.billiard}
+            playstation={usageHours.data.playstation}
+            tables={usageHours.data.tables}
+            total={usageHours.data.total}
+          />
+        </section>
+      ) : null}
       <PaymentTrafficAnalytics organizationId={organizationId} />
       <MonthlyForecastAnalytics
         currentDate={currentDate}
@@ -1042,7 +1075,7 @@ export function AdminFinanceCashFlowPage() {
   return (
     <section className="grid gap-5">
       <PageHeader description="Движение денег по датам оплаты за текущий финансовый период." title="Cash flow" />
-      <StatGrid summary={summary.data} />
+      <StatGrid showCashFlow summary={summary.data} />
     </section>
   )
 }
@@ -1152,12 +1185,10 @@ export function AdminFinancePeriodsPage() {
   const totals = visiblePeriods.reduce(
     (result, period) => ({
       cogs: result.cogs + period.cogs,
-      owner: result.owner + period.organization_owner_amount,
-      platform: result.platform + period.platform_share_amount,
       profit: result.profit + period.net_profit_before_platform_share,
       revenue: result.revenue + period.revenue,
     }),
-    { cogs: 0, owner: 0, platform: 0, profit: 0, revenue: 0 },
+    { cogs: 0, profit: 0, revenue: 0 },
   )
   const mutationError =
     mutations.submit.error ?? mutations.update.error ?? mutations.cancel.error
@@ -1225,7 +1256,7 @@ export function AdminFinancePeriodsPage() {
         to={buildAdminPath(`/admin/finance/periods/${period.id}`)}
       >
         <Eye aria-hidden="true" className="size-4" />
-        {t('Открыть')}
+        {t("ui.otkryt_1259571")}
       </Link>
       <Button
         disabled={!canChangePeriod(period) || mutations.update.isPending}
@@ -1234,7 +1265,7 @@ export function AdminFinancePeriodsPage() {
         variant="secondary"
       >
         <Edit3 aria-hidden="true" className="size-4" />
-        {t('Изменить')}
+        {t("ui.izmenit_9d809f8")}
       </Button>
       <Button
         disabled={!canChangePeriod(period) || mutations.cancel.isPending}
@@ -1243,14 +1274,14 @@ export function AdminFinancePeriodsPage() {
         variant="danger"
       >
         <Trash2 aria-hidden="true" className="size-4" />
-        {t('Удалить')}
+        {t("ui.udalit_86ea33a")}
       </Button>
     </div>
   )
 
   return (
     <section className="grid gap-5">
-      <PageHeader description={t('Закрытие финансовых периодов и отправка на проверку платформе.')} title={t('Финансовые периоды')} />
+      <PageHeader description={t("ui.zakrytie_finansovyh_periodov_i_otpravka_na_proverku__893d161")} title={t("ui.finansovye_periody_32fa387")} />
 
       {mutationErrorMessage ? (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -1260,17 +1291,17 @@ export function AdminFinancePeriodsPage() {
 
       <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4">
         <div>
-          <h3 className="font-semibold text-slate-950">{t('Создать период')}</h3>
+          <h3 className="font-semibold text-slate-950">{t("ui.sozdat_period_e3ec01e")}</h3>
           <p className="mt-1 text-sm text-slate-600">
-            {t('Выберите даты, система пересчитает доходы, COGS, расходы, прибыль и отправит период на проверку.')}
+            {t("ui.vyberite_daty_sistema_pereschitaet_dohody_cogs_rasho_c964825")}
           </p>
         </div>
         <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={handleSubmit}>
-          <Input defaultValue={DEFAULT_START} label={t('Начало')} name="period_start" required type="date" />
-          <Input defaultValue={DEFAULT_END} label={t('Конец')} name="period_end" required type="date" />
+          <Input defaultValue={DEFAULT_START} label={t("ui.nachalo_cb26bdc")} name="period_start" required type="date" />
+          <Input defaultValue={DEFAULT_END} label={t("ui.konets_4e895fd")} name="period_end" required type="date" />
           <Button disabled={mutations.submit.isPending} type="submit">
             <ListChecks aria-hidden="true" className="size-4" />
-            {t('Отправить')}
+            {t("ui.otpravit_76dcf73")}
           </Button>
         </form>
       </section>
@@ -1278,42 +1309,38 @@ export function AdminFinancePeriodsPage() {
       <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h3 className="font-semibold text-slate-950">{t('Список периодов')}</h3>
+            <h3 className="font-semibold text-slate-950">{t("ui.spisok_periodov_806ed64")}</h3>
             <p className="mt-1 text-sm text-slate-600">
-              {t('Редактирование пересчитывает период. Удаление помечает период как удалённый, закрытые периоды остаются архивом.')}
+              {t("ui.redaktirovanie_pereschityvaet_period_udalenie_pomech_0c49cda")}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button className={filterClassName('active')} onClick={() => setPeriodFilter('active')} type="button">{t('Активные')}</button>
-            <button className={filterClassName('all')} onClick={() => setPeriodFilter('all')} type="button">{t('Все')}</button>
-            <button className={filterClassName('cancelled')} onClick={() => setPeriodFilter('cancelled')} type="button">{t('Удалённые')}</button>
+            <button className={filterClassName('active')} onClick={() => setPeriodFilter('active')} type="button">{t("ui.aktivnye_6009f6c")}</button>
+            <button className={filterClassName('all')} onClick={() => setPeriodFilter('all')} type="button">{t("ui.vse_fd08da7")}</button>
+            <button className={filterClassName('cancelled')} onClick={() => setPeriodFilter('cancelled')} type="button">{t("ui.udalennye_655b54d")}</button>
           </div>
         </div>
 
-        <div className="grid gap-2 md:grid-cols-5">
+        <div className="grid gap-2 md:grid-cols-3">
           <MetricCard label="Доход" value={totals.revenue} />
           <MetricCard label="COGS" value={totals.cogs} />
           <MetricCard label="Чистая прибыль" value={totals.profit} />
-          <MetricCard label="Ежемесячная оплата платформы" value={totals.platform} />
-          <MetricCard label="Итого владельцу" value={totals.owner} />
         </div>
 
         {rows.isLoading ? (
-          <div className="rounded-md border border-slate-200 p-4 text-sm text-slate-600">{t('Периоды загружаются...')}</div>
+          <div className="rounded-md border border-slate-200 p-4 text-sm text-slate-600">{t("ui.periody_zagruzhayutsya_56da31c")}</div>
         ) : null}
 
         <div className="hidden overflow-x-auto rounded-lg border border-slate-200 lg:block">
           <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-3 py-3 font-medium">{t('Период')}</th>
-                <th className="px-3 py-3 font-medium">{t('Статус')}</th>
-                <th className="px-3 py-3 font-medium">{t('Доход')}</th>
+                <th className="px-3 py-3 font-medium">{t("ui.period_b2822e2")}</th>
+                <th className="px-3 py-3 font-medium">{t("ui.status_f7f293b")}</th>
+                <th className="px-3 py-3 font-medium">{t("ui.dohod_40b65a7")}</th>
                 <th className="px-3 py-3 font-medium">COGS</th>
-                <th className="px-3 py-3 font-medium">{t('Прибыль')}</th>
-                <th className="px-3 py-3 font-medium">{t('Оплата платформы')}</th>
-                <th className="px-3 py-3 font-medium">{t('Владельцу')}</th>
-                <th className="px-3 py-3 text-right font-medium">{t('Действия')}</th>
+                <th className="px-3 py-3 font-medium">{t("ui.pribyl_539b700")}</th>
+                <th className="px-3 py-3 text-right font-medium">{t("ui.deystviya_9978ac3")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
@@ -1324,8 +1351,6 @@ export function AdminFinancePeriodsPage() {
                   <td className="px-3 py-3">{money(period.revenue)}</td>
                   <td className="px-3 py-3">{money(period.cogs)}</td>
                   <td className="px-3 py-3 font-semibold text-slate-950">{money(period.net_profit_before_platform_share)}</td>
-                  <td className="px-3 py-3">{money(period.platform_share_amount)}</td>
-                  <td className="px-3 py-3">{money(period.organization_owner_amount)}</td>
                   <td className="px-3 py-3">{periodActions(period)}</td>
                 </tr>
               ))}
@@ -1344,10 +1369,8 @@ export function AdminFinancePeriodsPage() {
                 <div className="text-right text-sm font-semibold text-slate-950">{money(period.net_profit_before_platform_share)}</div>
               </div>
               <dl className="grid grid-cols-2 gap-2 text-sm">
-                <div><dt className="text-xs uppercase text-slate-500">{t('Доход')}</dt><dd>{money(period.revenue)}</dd></div>
+                <div><dt className="text-xs uppercase text-slate-500">{t("ui.dohod_40b65a7")}</dt><dd>{money(period.revenue)}</dd></div>
                 <div><dt className="text-xs uppercase text-slate-500">COGS</dt><dd>{money(period.cogs)}</dd></div>
-                <div><dt className="text-xs uppercase text-slate-500">{t('Оплата платформы')}</dt><dd>{money(period.platform_share_amount)}</dd></div>
-                <div><dt className="text-xs uppercase text-slate-500">{t('Владельцу')}</dt><dd>{money(period.organization_owner_amount)}</dd></div>
               </dl>
               {periodActions(period)}
             </article>
@@ -1356,7 +1379,7 @@ export function AdminFinancePeriodsPage() {
 
         {!rows.isLoading && !visiblePeriods.length ? (
           <div className="rounded-md border border-dashed border-slate-200 p-6 text-sm text-slate-500">
-            {t('Периодов в этом фильтре нет.')}
+            {t("ui.periodov_v_etom_filtre_net_87c056b")}
           </div>
         ) : null}
       </section>
@@ -1366,22 +1389,22 @@ export function AdminFinancePeriodsPage() {
           <form className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-xl" onSubmit={handleEditSubmit}>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-lg font-semibold text-slate-950">{t('Изменить период')}</h3>
-                <p className="mt-1 text-sm text-slate-600">{t('После сохранения суммы будут пересчитаны по новым датам.')}</p>
+                <h3 className="text-lg font-semibold text-slate-950">{t("ui.izmenit_period_06af0f5")}</h3>
+                <p className="mt-1 text-sm text-slate-600">{t("ui.posle_sohraneniya_summy_budut_pereschitany_po_novym__2376a1b")}</p>
               </div>
               <Button className="px-2" onClick={() => setEditingPeriod(null)} type="button" variant="ghost">
                 <X aria-hidden="true" className="size-4" />
               </Button>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Input defaultValue={editingPeriod.period_start} label={t('Начало')} name="period_start" required type="date" />
-              <Input defaultValue={editingPeriod.period_end} label={t('Конец')} name="period_end" required type="date" />
+              <Input defaultValue={editingPeriod.period_start} label={t("ui.nachalo_cb26bdc")} name="period_start" required type="date" />
+              <Input defaultValue={editingPeriod.period_end} label={t("ui.konets_4e895fd")} name="period_end" required type="date" />
             </div>
             <div className="flex justify-end gap-2">
-              <Button onClick={() => setEditingPeriod(null)} type="button" variant="secondary">{t('Отмена')}</Button>
+              <Button onClick={() => setEditingPeriod(null)} type="button" variant="secondary">{t("ui.otmena_0ec753b")}</Button>
               <Button disabled={mutations.update.isPending} type="submit">
                 <Save aria-hidden="true" className="size-4" />
-                {t('Сохранить')}
+                {t("ui.sohranit_4864057")}
               </Button>
             </div>
           </form>
@@ -1393,21 +1416,21 @@ export function AdminFinancePeriodsPage() {
           <form className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-xl" onSubmit={handleCancelSubmit}>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-lg font-semibold text-slate-950">{t('Удалить период')}</h3>
+                <h3 className="text-lg font-semibold text-slate-950">{t("ui.udalit_period_631f3f9")}</h3>
                 <p className="mt-1 text-sm text-slate-600">
-                  {t('Период будет помечен как удалённый. Физически финансовые записи не удаляются.')}
+                  {t("ui.period_budet_pomechen_kak_udalennyy_fizicheski_finan_b7cb449")}
                 </p>
               </div>
               <Button className="px-2" onClick={() => setCancellingPeriod(null)} type="button" variant="ghost">
                 <X aria-hidden="true" className="size-4" />
               </Button>
             </div>
-            <Input label={t('Комментарий')} name="comment" placeholder={t('Например: неверные даты периода')} />
+            <Input label={t("ui.kommentariy_829038c")} name="comment" placeholder={t("ui.naprimer_nevernye_daty_perioda_851114e")} />
             <div className="flex justify-end gap-2">
-              <Button onClick={() => setCancellingPeriod(null)} type="button" variant="secondary">{t('Отмена')}</Button>
+              <Button onClick={() => setCancellingPeriod(null)} type="button" variant="secondary">{t("ui.otmena_0ec753b")}</Button>
               <Button disabled={mutations.cancel.isPending} type="submit" variant="danger">
                 <Trash2 aria-hidden="true" className="size-4" />
-                {t('Удалить')}
+                {t("ui.udalit_86ea33a")}
               </Button>
             </div>
           </form>
@@ -1423,58 +1446,19 @@ export function AdminFinancePeriodDetailPage() {
 
   return (
     <section className="grid gap-5">
-      <PageHeader description="Детальный финансовый период и ежемесячная оплата Freedom Platform." title="Финансовый период" />
+      <PageHeader description="Детальный финансовый период организации." title="Финансовый период" />
       {period.data ? <StatGrid summary={period.data} /> : null}
     </section>
   )
 }
 
-export function AdminFinancePlatformSharePage() {
-  const { organizationId } = useAuth()
-  const rows = usePlatformShareAccruals(organizationId)
-  const mutations = usePlatformShareMutations(organizationId)
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>, accrualId: string) => {
-    event.preventDefault()
-    const form = new FormData(event.currentTarget)
-    mutations.reportPayment.mutate({
-      accrualId,
-      amount: Number(form.get('amount') ?? 0),
-      paymentMethod: String(form.get('payment_method') || 'bank_transfer') as FinancePaymentMethod,
-      paymentDate: String(form.get('payment_date') || DEFAULT_END),
-      reference: String(form.get('reference') || '') || null,
-    })
-  }
-
-  return (
-    <section className="grid gap-5">
-      <PageHeader description="Начисления и платежи ежемесячной оплаты Freedom Platform." title="Ежемесячная оплата платформы" />
-      {rows.data?.map((row) => (
-        <div className="grid gap-3 rounded-md border border-slate-200 bg-white p-4" key={row.id}>
-          <p className="font-medium text-slate-950">{money(row.accrued_amount)} · оплачено {money(row.paid_amount)} · {statusLabel[row.status] ?? row.status}</p>
-          <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={(event) => handleSubmit(event, row.id)}>
-            <Input label="Сумма" max={row.outstanding_amount} min="0.01" name="amount" step="0.01" type="number" />
-            <Input defaultValue={DEFAULT_END} label="Дата" name="payment_date" type="date" />
-            <Input label="Reference" name="reference" />
-            <input name="payment_method" type="hidden" value="bank_transfer" />
-            <Button disabled={row.outstanding_amount <= 0 || mutations.reportPayment.isPending} type="submit">Сообщить об оплате</Button>
-          </form>
-        </div>
-      ))}
-    </section>
-  )
-}
-
 export function AdminFinanceSettingsPage() {
-  const { organizationId, role } = useAuth()
+  const { organizationId } = useAuth()
   const { t } = useI18n()
   const settings = useFinanceSettings(organizationId)
   const mutation = useFinanceSettingsMutation(organizationId)
-  const isPlatformOwner = role === 'platform_owner'
   const closeDay = settings.data?.financial_month_close_day ?? 15
   const reportingCurrency = settings.data?.reporting_currency_code || 'AZN'
-  const monthlyPlatformFee = settings.data?.monthly_platform_fee ?? 200
-  const platformPaymentDueDays = settings.data?.platform_share_payment_due_days ?? 10
   const cycle = getFinancialCycle(closeDay)
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -1487,67 +1471,48 @@ export function AdminFinanceSettingsPage() {
       financial_month_close_day: Number(form.get('financial_month_close_day') ?? 0) || 15,
     }
 
-    mutation.mutate(
-      isPlatformOwner
-        ? {
-            ...input,
-            default_platform_share_percentage: 0,
-            monthly_platform_fee: Number(form.get('monthly_platform_fee') ?? 0) || 0,
-            platform_share_payment_due_days: Number(form.get('platform_share_payment_due_days') ?? 0) || 10,
-          }
-        : input,
-    )
+    mutation.mutate(input)
   }
 
   return (
     <section className="grid gap-5">
       <PageHeader
-        description={t('Финансовые настройки организации. Ежемесячную оплату платформы меняет только владелец платформы.')}
-        title={t('Настройки финансов')}
+        description={t("ui.rabochie_finansovye_nastroyki_organizatsii_b15930d")}
+        title={t("ui.nastroyki_finansov_079ad77")}
       />
 
       <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4">
         <div>
-          <h3 className="font-semibold text-slate-950">{t('Текущие правила расчёта')}</h3>
+          <h3 className="font-semibold text-slate-950">{t("ui.tekuschie_pravila_rascheta_1f6afb3")}</h3>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            {t('Эти показатели показывают фиксированную оплату платформы и финансовый цикл периодов.')}
+            {t("ui.zdes_pokazan_tekuschiy_finansovyy_tsikl_periodov_2c431fa")}
           </p>
         </div>
-        <div className="grid gap-3 md:grid-cols-3">
-          <InfoCard
-            description="Фиксированная сумма за месяц. Она начисляется при утверждении финансового периода и не зависит от процента прибыли."
-            label="Ежемесячная оплата платформы"
-            value={money(monthlyPlatformFee)}
-          />
+        <div className="grid gap-3">
           <InfoCard
             description="Если день 15, текущий период идёт с 15-го числа до 14-го числа следующего месяца."
             label="Текущий финансовый период"
             value={`${cycle.start} - ${cycle.end}`}
           />
-          <InfoCard
-            description="После закрытия периода ежемесячную оплату платформы нужно оплатить в течение этого количества дней."
-            label="Срок оплаты платформы"
-            value={`${platformPaymentDueDays} ${t('дней')}`}
-          />
         </div>
         <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900">
-          {t('Следующее закрытие финансового месяца')}: {cycle.nextClose}.{' '}
-          {t('Проверьте, что все смены закрыты, расходы внесены, а спорные оплаты исправлены до отправки периода.')}
+          {t("ui.sleduyuschee_zakrytie_finansovogo_mesyatsa_9ec43f2")}: {cycle.nextClose}.{' '}
+          {t("ui.proverte_chto_vse_smeny_zakryty_rashody_vneseny_a_sp_3d41fb3")}
         </p>
       </section>
 
       <form className="grid gap-4 rounded-md border border-slate-200 bg-white p-4" onSubmit={handleSubmit}>
         <div>
-          <h3 className="font-semibold text-slate-950">{t('Рабочие настройки организации')}</h3>
+          <h3 className="font-semibold text-slate-950">{t("ui.rabochie_nastroyki_organizatsii_2af206e")}</h3>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            {t('Эти параметры влияют на отчёты, создание периодов и проверку крупных расходов.')}
+            {t("ui.eti_parametry_vliyayut_na_otchety_sozdanie_periodov__b9cc599")}
           </p>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
           <Input
             defaultValue={settings.data?.large_expense_threshold ?? ''}
-            label={t('Порог крупного расхода')}
+            label={t("ui.porog_krupnogo_rashoda_140afa5")}
             min="0"
             name="large_expense_threshold"
             placeholder="Например: 100"
@@ -1556,14 +1521,14 @@ export function AdminFinanceSettingsPage() {
           />
           <Input
             defaultValue={reportingCurrency}
-            label={t('Валюта отчёта')}
+            label={t("ui.valyuta_otcheta_59de5ee")}
             maxLength={3}
             name="reporting_currency_code"
             placeholder="AZN"
           />
           <Input
             defaultValue={closeDay}
-            label={t('День закрытия месяца')}
+            label={t("ui.den_zakrytiya_mesyatsa_e84ae96")}
             max="28"
             min="1"
             name="financial_month_close_day"
@@ -1571,58 +1536,28 @@ export function AdminFinanceSettingsPage() {
           />
           <label className="flex min-h-11 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700">
             <input defaultChecked={settings.data?.require_large_expense_approval ?? false} name="require_large_expense_approval" type="checkbox" />
-            {t('Требовать подтверждение крупных расходов')}
+            {t("ui.trebovat_podtverzhdenie_krupnyh_rashodov_780ba89")}
           </label>
-        </div>
-
-        <div className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
-          <div>
-            <h4 className="text-sm font-semibold text-slate-950">{t('Настройки владельца платформы')}</h4>
-            <p className="mt-1 text-sm leading-6 text-slate-600">
-              {isPlatformOwner
-                ? t('Вы можете изменить ежемесячную оплату платформы для этой организации.')
-                : t('Эти значения назначает только владелец платформы.')}
-            </p>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input
-              defaultValue={monthlyPlatformFee}
-              disabled={!isPlatformOwner}
-              label={t('Ежемесячная оплата платформы')}
-              min="0"
-              name="monthly_platform_fee"
-              step="0.01"
-              type="number"
-            />
-            <Input
-              defaultValue={platformPaymentDueDays}
-              disabled={!isPlatformOwner}
-              label={t('Срок оплаты платформы, дней')}
-              min="0"
-              name="platform_share_payment_due_days"
-              type="number"
-            />
-          </div>
         </div>
 
         <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-600">
           <p>
-            <span className="font-medium text-slate-800">{t('День закрытия месяца')}:</span>{' '}
-            {t('для The Liga сейчас логично держать 15, потому что организация начала работу 15 августа.')}
+            <span className="font-medium text-slate-800">{t("ui.den_zakrytiya_mesyatsa_e84ae96")}:</span>{' '}
+            {t("ui.dlya_the_liga_seychas_logichno_derzhat_15_potomu_cht_6850744")}
           </p>
           <p>
-            <span className="font-medium text-slate-800">{t('Порог крупного расхода')}:</span>{' '}
-            {t('если включено подтверждение, расходы от этой суммы будут попадать на проверку перед закрытием периода.')}
+            <span className="font-medium text-slate-800">{t("ui.porog_krupnogo_rashoda_140afa5")}:</span>{' '}
+            {t("ui.esli_vklyucheno_podtverzhdenie_rashody_ot_etoy_summy_1017151")}
           </p>
           <p>
-            <span className="font-medium text-slate-800">{t('Валюта отчёта')}:</span>{' '}
-            {t('используется только как валюта отображения финансовых отчётов.')}
+            <span className="font-medium text-slate-800">{t("ui.valyuta_otcheta_59de5ee")}:</span>{' '}
+            {t("ui.ispolzuetsya_tolko_kak_valyuta_otobrazheniya_finanso_dd1a8f2")}
           </p>
         </div>
 
         <Button className="justify-self-start" disabled={mutation.isPending} type="submit">
           <Settings aria-hidden="true" className="size-4" />
-          {t('Сохранить')}
+          {t("ui.sohranit_4864057")}
         </Button>
       </form>
     </section>

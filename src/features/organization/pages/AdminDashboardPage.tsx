@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import {
   AlertTriangle,
   Clock3,
@@ -32,21 +33,21 @@ import { usePlaces, useProducts, useServices } from '../catalog/catalogApi'
 import { useAdminActivityEvents } from '../activity/activityApi'
 
 const formatMoney = (value: number | null | undefined) =>
-  new Intl.NumberFormat('ru', { maximumFractionDigits: 2 }).format(value ?? 0)
+  new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
 
 const formatUsageDuration = (hours: number | null | undefined, t: (value: string) => string) => {
   const totalMinutes = Math.round(Math.max(0, hours ?? 0) * 60)
   const wholeHours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
 
-  if (wholeHours && minutes) return `${wholeHours} ${t('ч')} ${minutes} ${t('мин')}`
-  if (wholeHours) return `${wholeHours} ${t('ч')}`
-  return `${minutes} ${t('мин')}`
+  if (wholeHours && minutes) return `${wholeHours} ${t("ui.ch_285cc40")} ${minutes} ${t("ui.min_d6035dc")}`
+  if (wholeHours) return `${wholeHours} ${t("ui.ch_285cc40")}`
+  return `${minutes} ${t("ui.min_d6035dc")}`
 }
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return '-'
-  return new Intl.DateTimeFormat('ru', {
+  return new Intl.DateTimeFormat(getCurrentLocale(), {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
@@ -95,7 +96,7 @@ function StatCard({ description, label, tone = 'default', value }: StatCardProps
         {description ? (
           <div className="group relative">
             <button
-              aria-label={t(`Как считается: ${label}`)}
+              aria-label={`${t('ui.kak_schitaetsya_5d5b2b3')} ${t(label)}`}
               className="flex size-5 items-center justify-center rounded-full text-slate-400 outline-none hover:text-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
               title={t(description)}
               type="button"
@@ -159,7 +160,7 @@ export function AdminDashboardPage() {
   const openShifts = shifts.filter((shift) => shift.status === 'open' || shift.status === 'closing').length
   const timedPlaces = places.filter((place) => place.has_timer).length
   const lowStock = inventory.filter((item) => item.stock_quantity <= item.minimum_stock_quantity).length
-  const operationalDayLabel = currentDayShifts.length ? reportBusinessDate : t('Смена не открыта')
+  const operationalDayLabel = currentDayShifts.length ? reportBusinessDate : t("ui.smena_ne_otkryta_a04a370")
 
   const isLoading =
     ordersQuery.isLoading ||
@@ -206,23 +207,23 @@ export function AdminDashboardPage() {
             imagePath={currentOrganization?.logo_path}
           />
           <div className="min-w-0">
-            <p className="text-xs font-medium uppercase text-slate-500">{t('Обзор организации')}</p>
+            <p className="text-xs font-medium uppercase text-slate-500">{t("ui.obzor_organizatsii_fbbfa22")}</p>
             <h2 className="mt-1 truncate text-2xl font-semibold text-slate-950 sm:text-3xl">
-              {currentOrganization?.name ?? t('Организация')}
+              {currentOrganization?.name ?? t("ui.organizatsiya_48b493a")}
             </h2>
             <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
               {currentOrganization?.description ||
-                t('Операционная сводка по заказам, сменам, рабочим местам, складу и финансам.')}
+                t("ui.operatsionnaya_svodka_po_zakazam_smenam_rabochim_mes_16b8238")}
             </p>
             <p className="mt-2 text-xs font-medium text-slate-500">
-              {t('Операционный день')}: {operationalDayLabel}
+              {t("ui.operatsionnyy_den_70810bd")}: {operationalDayLabel}
             </p>
           </div>
         </div>
         <Button className="w-full shrink-0 justify-center sm:w-auto" type="button">
           <Link className="inline-flex items-center gap-2" to={buildAdminPath('/admin/live')}>
             <Eye aria-hidden="true" className="size-4" />
-            {t('Смотреть места')}
+            {t("ui.smotret_mesta_e5cfd88")}
           </Link>
         </Button>
       </header>
@@ -235,7 +236,7 @@ export function AdminDashboardPage() {
 
       {isLoading ? (
         <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm font-medium text-slate-600 shadow-sm">
-          {t('Загрузка показателей...')}
+          {t("ui.zagruzka_pokazateley_d2ecfc9")}
         </div>
       ) : null}
 
@@ -249,7 +250,7 @@ export function AdminDashboardPage() {
 
       <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-lg font-semibold text-slate-950">{t('Выручка по направлениям (сегодня)')}</h3>
+          <h3 className="text-lg font-semibold text-slate-950">{t("ui.vyruchka_po_napravleniyam_segodnya_99f8f48")}</h3>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
           <StatCard
@@ -281,7 +282,7 @@ export function AdminDashboardPage() {
 
       <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-lg font-semibold text-slate-950">{t('Время по направлениям (сегодня)')}</h3>
+          <h3 className="text-lg font-semibold text-slate-950">{t("ui.vremya_po_napravleniyam_segodnya_58b54d7")}</h3>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
           <StatCard
@@ -310,25 +311,25 @@ export function AdminDashboardPage() {
       <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
         <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold text-slate-950">{t('Рабочее состояние')}</h3>
+            <h3 className="text-lg font-semibold text-slate-950">{t("ui.rabochee_sostoyanie_135cf32")}</h3>
             <LayoutDashboard className="size-5 text-emerald-700" />
           </div>
           <div className="grid grid-cols-2 gap-2 sm:gap-3">
-            <StatCard label="Места" value={`${places.length} / ${t('таймер')} ${timedPlaces}`} />
+            <StatCard label="Места" value={`${places.length} / ${t("ui.taymer_831d20c")} ${timedPlaces}`} />
             <StatCard label="Товары" value={products.length} />
             <StatCard label="Услуги" value={services.length} />
             <StatCard label="Комбо" value={combos.length} />
           </div>
           <div className="grid gap-2 md:grid-cols-3">
-            <Button type="button" variant="secondary"><Link className="inline-flex items-center gap-2" to={buildAdminPath('/admin/live')}><Eye className="size-4" />{t('Мониторинг')}</Link></Button>
-            <Button type="button" variant="secondary"><Link className="inline-flex items-center gap-2" to={buildAdminPath('/admin/orders')}><ReceiptText className="size-4" />{t('Заказы')}</Link></Button>
-            <Button type="button" variant="secondary"><Link className="inline-flex items-center gap-2" to={buildAdminPath('/admin/shifts')}><Clock3 className="size-4" />{t('Смены')}</Link></Button>
+            <Button type="button" variant="secondary"><Link className="inline-flex items-center gap-2" to={buildAdminPath('/admin/live')}><Eye className="size-4" />{t("ui.monitoring_6e44fdc")}</Link></Button>
+            <Button type="button" variant="secondary"><Link className="inline-flex items-center gap-2" to={buildAdminPath('/admin/orders')}><ReceiptText className="size-4" />{t("ui.zakazy_22ac845")}</Link></Button>
+            <Button type="button" variant="secondary"><Link className="inline-flex items-center gap-2" to={buildAdminPath('/admin/shifts')}><Clock3 className="size-4" />{t("ui.smeny_415748c")}</Link></Button>
           </div>
         </section>
 
         <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold text-slate-950">{t('Контроль')}</h3>
+            <h3 className="text-lg font-semibold text-slate-950">{t("ui.kontrol_3468f38")}</h3>
             <AlertTriangle className="size-5 text-amber-600" />
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-1 sm:gap-3">
@@ -342,9 +343,9 @@ export function AdminDashboardPage() {
       <section className="grid gap-3 xl:grid-cols-3">
         <section className="grid content-start gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold text-slate-950">{t('Последние заказы')}</h3>
+            <h3 className="text-lg font-semibold text-slate-950">{t("ui.poslednie_zakazy_24d3598")}</h3>
             <Link className="text-sm font-medium text-emerald-700 hover:text-emerald-800" to={buildAdminPath('/admin/orders')}>
-              {t('Смотреть все')}
+              {t("ui.smotret_vse_5c3f478")}
             </Link>
           </div>
           <div className="grid gap-2">
@@ -357,7 +358,7 @@ export function AdminDashboardPage() {
                 >
                   <span className="flex min-w-0 items-center justify-between gap-3">
                     <span className="truncate font-medium text-slate-950">
-                      #{order.order_number} · {order.current_place_name_snapshot ?? t('Без места')}
+                      #{order.order_number} · {order.current_place_name_snapshot ?? t("ui.bez_mesta_da3a88d")}
                     </span>
                     <span className="shrink-0 font-semibold text-slate-950">{formatMoney(order.total_amount)}</span>
                   </span>
@@ -368,7 +369,7 @@ export function AdminDashboardPage() {
               ))
             ) : (
               <div className="rounded-md border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
-                {t('Заказов нет')}
+                {t("ui.zakazov_net_5ddb25e")}
               </div>
             )}
           </div>
@@ -376,12 +377,12 @@ export function AdminDashboardPage() {
 
         <section className="grid content-start gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold text-slate-950">{t('Последние исправления')}</h3>
+            <h3 className="text-lg font-semibold text-slate-950">{t("ui.poslednie_ispravleniya_9479799")}</h3>
             <Link
               className="text-sm font-medium text-emerald-700 hover:text-emerald-800"
               to={buildAdminPath('/admin/adjustment-requests')}
             >
-              {t('Смотреть все')}
+              {t("ui.smotret_vse_5c3f478")}
             </Link>
           </div>
           <div className="grid gap-2">
@@ -403,7 +404,7 @@ export function AdminDashboardPage() {
               ))
             ) : (
               <div className="rounded-md border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
-                {t('Исправлений нет')}
+                {t("ui.ispravleniy_net_a9223b1")}
               </div>
             )}
           </div>
@@ -411,9 +412,9 @@ export function AdminDashboardPage() {
 
         <section className="grid content-start gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold text-slate-950">{t('Последний журнал')}</h3>
+            <h3 className="text-lg font-semibold text-slate-950">{t("ui.posledniy_zhurnal_74fd894")}</h3>
             <Link className="text-sm font-medium text-emerald-700 hover:text-emerald-800" to={buildAdminPath('/admin/activity')}>
-              {t('Смотреть все')}
+              {t("ui.smotret_vse_5c3f478")}
             </Link>
           </div>
           <div className="grid gap-2">
@@ -435,7 +436,7 @@ export function AdminDashboardPage() {
               ))
             ) : (
               <div className="rounded-md border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
-                {t('Событий пока нет.')}
+                {t("ui.sobytiy_poka_net_69cb057")}
               </div>
             )}
           </div>

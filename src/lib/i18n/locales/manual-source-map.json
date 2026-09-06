@@ -1,0 +1,11 @@
+{
+  "день открытия": "internal.openingDay",
+  "первая": "internal.first",
+  "вторая": "internal.second",
+  "Выберите первую или вторую смену.": "employeeShift.chooseFirstOrSecond",
+  "Удалить финансовый период навсегда? Это действие нельзя отменить.": "platform.deletePeriodForeverConfirm",
+  "Удалено навсегда владельцем платформы": "platform.deletedForeverReason",
+  "Система": "common.system",
+  "Не оплачено": "payment.unpaid",
+  "Задана ежемесячная оплата Freedom Platform.": "platform.monthlyFeeConfigured"
+}

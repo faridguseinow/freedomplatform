@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { Eye, Loader2, ReceiptText, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -12,11 +13,11 @@ import { useAdminOrders } from '../../orders/ordersApi'
 type StatusFilter = OrderStatus | 'all'
 
 const formatMoney = (value: number | null | undefined) =>
-  new Intl.NumberFormat('ru', { maximumFractionDigits: 2 }).format(value ?? 0)
+  new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return '-'
-  return new Intl.DateTimeFormat('ru', {
+  return new Intl.DateTimeFormat(getCurrentLocale(), {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
@@ -65,29 +66,29 @@ export function AdminOrdersPage() {
       {t(orderStatusLabel[orderStatus] ?? orderStatus)}
     </span>
   )
-  const orderPlace = (order: AdminOrderRow) => order.current_place_name_snapshot ?? t('Без места')
+  const orderPlace = (order: AdminOrderRow) => order.current_place_name_snapshot ?? t("ui.bez_mesta_da3a88d")
   const orderNote = (order: AdminOrderRow) => order.payment_refusal_comment ?? order.comment
   const itemsPreview = (order: AdminOrderRow) =>
-    order.items_preview.length ? order.items_preview.join(', ') : t('Позиции не указаны')
+    order.items_preview.length ? order.items_preview.join(', ') : t("ui.pozitsii_ne_ukazany_b87d5f2")
 
   return (
     <section className="grid gap-5">
       <header className="grid gap-2">
-        <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">{t('Заказы')}</h2>
+        <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">{t("ui.zakazy_22ac845")}</h2>
         <p className="max-w-3xl text-sm leading-6 text-slate-600">
-          {t('История продаж, неоплаченные заказы, отказы от оплаты и платежи.')}
+          {t("ui.istoriya_prodazh_neoplachennye_zakazy_otkazy_ot_opla_0843ca8")}
         </p>
       </header>
 
       <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_auto]">
         <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-          <span>{t('Поиск')}</span>
+          <span>{t("ui.poisk_6433b52")}</span>
           <span className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
             <input
               className="min-h-11 w-full rounded-md border border-slate-200 bg-white px-3 pl-10 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
               onChange={(event) => setSearch(event.target.value)}
-              placeholder={t('Номер, место, клиент')}
+              placeholder={t("ui.nomer_mesto_klient_022dfc8")}
               type="search"
               value={search}
             />
@@ -106,7 +107,7 @@ export function AdminOrdersPage() {
               onClick={() => setStatus(item)}
               type="button"
             >
-              {item === 'all' ? t('Все') : t(orderStatusLabel[item] ?? item)}
+              {item === 'all' ? t("ui.vse_fd08da7") : t(orderStatusLabel[item] ?? item)}
             </button>
           ))}
         </div>
@@ -114,7 +115,7 @@ export function AdminOrdersPage() {
 
       {ordersQuery.isLoading ? (
         <div className="inline-flex min-h-28 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600">
-          <Loader2 className="size-4 animate-spin text-emerald-700" /> {t('Загрузка заказов')}
+          <Loader2 className="size-4 animate-spin text-emerald-700" /> {t("ui.zagruzka_zakazov_ea84195")}
         </div>
       ) : null}
 
@@ -123,16 +124,16 @@ export function AdminOrdersPage() {
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t('Заказ')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t('Статус')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t('Место / клиент')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t('Состав')}</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">{t('Итого')}</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">{t('Оплачено')}</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">{t('Долг')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t('Открыт в')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t('Закрыт в')}</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">{t('Детали')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.zakaz_c7b64dd")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.status_f7f293b")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.mesto_klient_3ada2ee")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.sostav_c374072")}</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">{t("ui.itogo_d27a475")}</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">{t("ui.oplacheno_13d79e6")}</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">{t("ui.dolg_949c1d8")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.otkryt_v_c50a347")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.zakryt_v_63ac42a")}</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">{t("ui.detali_85a76a7")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -147,7 +148,7 @@ export function AdminOrdersPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="max-w-56 text-slate-700">{itemsPreview(order)}</div>
-                    <div className="mt-1 text-xs text-slate-500">{t('Позиций')}: {order.items_count}</div>
+                    <div className="mt-1 text-xs text-slate-500">{t("ui.pozitsiy_58206ed")}: {order.items_count}</div>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-slate-950">{formatMoney(order.total_amount)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-emerald-800">{formatMoney(order.paid_amount)}</td>
@@ -159,7 +160,7 @@ export function AdminOrdersPage() {
                       className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
                       to={buildAdminPath(`/admin/orders/${order.id}`)}
                     >
-                      <Eye className="size-4" /> {t('Открыть')}
+                      <Eye className="size-4" /> {t("ui.otkryt_1259571")}
                     </Link>
                   </td>
                 </tr>
@@ -177,23 +178,23 @@ export function AdminOrdersPage() {
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h3 className="text-base font-semibold text-slate-950">{t('Заказ')} #{order.order_number}</h3>
+                <h3 className="text-base font-semibold text-slate-950">{t("ui.zakaz_c7b64dd")} #{order.order_number}</h3>
                 <p className="mt-0.5 text-xs text-slate-500">{orderPlace(order)} · {formatDateTime(order.opened_at)}</p>
               </div>
               {statusBadge(order.status)}
             </div>
             <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
-              <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2"><dt className="text-[11px] font-semibold uppercase text-slate-500">{t('Итого')}</dt><dd className="mt-0.5 font-semibold text-slate-950">{formatMoney(order.total_amount)}</dd></div>
-              <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2"><dt className="text-[11px] font-semibold uppercase text-slate-500">{t('Оплачено')}</dt><dd className="mt-0.5 font-semibold text-emerald-800">{formatMoney(order.paid_amount)}</dd></div>
-              <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2"><dt className="text-[11px] font-semibold uppercase text-slate-500">{t('Долг')}</dt><dd className="mt-0.5 font-semibold text-slate-950">{formatMoney(order.unpaid_amount)}</dd></div>
+              <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2"><dt className="text-[11px] font-semibold uppercase text-slate-500">{t("ui.itogo_d27a475")}</dt><dd className="mt-0.5 font-semibold text-slate-950">{formatMoney(order.total_amount)}</dd></div>
+              <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2"><dt className="text-[11px] font-semibold uppercase text-slate-500">{t("ui.oplacheno_13d79e6")}</dt><dd className="mt-0.5 font-semibold text-emerald-800">{formatMoney(order.paid_amount)}</dd></div>
+              <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2"><dt className="text-[11px] font-semibold uppercase text-slate-500">{t("ui.dolg_949c1d8")}</dt><dd className="mt-0.5 font-semibold text-slate-950">{formatMoney(order.unpaid_amount)}</dd></div>
             </dl>
             <p className="mt-3 text-sm text-slate-700">{itemsPreview(order)}</p>
-            <p className="mt-1 text-xs text-slate-500">{t('Позиций')}: {order.items_count} · {t('Закрыт в')}: {formatDateTime(order.closed_at)}</p>
+            <p className="mt-1 text-xs text-slate-500">{t("ui.pozitsiy_58206ed")}: {order.items_count} · {t("ui.zakryt_v_63ac42a")}: {formatDateTime(order.closed_at)}</p>
             <Link
               className="mt-3 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
               to={buildAdminPath(`/admin/orders/${order.id}`)}
             >
-              <Eye className="size-4" /> {t('Открыть')}
+              <Eye className="size-4" /> {t("ui.otkryt_1259571")}
             </Link>
           </article>
         ))}
@@ -202,7 +203,7 @@ export function AdminOrdersPage() {
       {!ordersQuery.isLoading && !visibleOrders.length ? (
         <div className="grid min-h-32 place-items-center rounded-lg border border-dashed border-slate-300 bg-white text-sm text-slate-600">
           <ReceiptText className="mb-2 size-6 text-slate-400" />
-          {t('Заказов по фильтру нет')}
+          {t("ui.zakazov_po_filtru_net_0a13454")}
         </div>
       ) : null}
     </section>

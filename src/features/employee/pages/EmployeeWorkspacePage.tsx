@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import {
   Banknote,
   ChevronDown,
@@ -15,7 +16,7 @@ import {
   Timer,
   X,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CatalogImage } from '../../../components/common/CatalogImage'
 import { Button } from '../../../components/ui/Button'
@@ -54,7 +55,7 @@ const BILLING_GRACE_MINUTES = 10
 const SESSION_LIMIT_WARNING_MINUTES = 10
 
 const formatMoney = (value: number | null | undefined) =>
-  new Intl.NumberFormat('ru', { maximumFractionDigits: 2 }).format(value ?? 0)
+  new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
 
 const formatAzn = (value: number | null | undefined) => `${formatMoney(value)} AZN`
 const parseMoneyInput = (value: string) => Number(value.replace(',', '.'))
@@ -70,9 +71,24 @@ const formatElapsed = (startedAt: string | null, nowMs: number) => {
     : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
+const getTimedSessionElapsedMs = (place: EmployeeWorkspacePlaceRow, nowMs: number) => {
+  if (!place.active_session_started_at) return 0
+  const startedAtMs = new Date(place.active_session_started_at).getTime()
+  const storedPausedMs = (place.active_session_total_paused_seconds ?? 0) * 1000
+  const currentPauseMs = place.active_session_paused_at
+    ? Math.max(0, nowMs - new Date(place.active_session_paused_at).getTime())
+    : 0
+  return Math.max(0, nowMs - startedAtMs - storedPausedMs - currentPauseMs)
+}
+
+const formatTimedSessionElapsed = (place: EmployeeWorkspacePlaceRow, nowMs: number) => {
+  const effectiveStartedAt = nowMs - getTimedSessionElapsedMs(place, nowMs)
+  return formatElapsed(new Date(effectiveStartedAt).toISOString(), nowMs)
+}
+
 const formatQuantity = (value: number | null | undefined) => {
   if (value === null || value === undefined) return null
-  return new Intl.NumberFormat('ru', { maximumFractionDigits: 3 }).format(value)
+  return new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 3 }).format(value)
 }
 
 const formatDurationMinutes = (minutes: number | null | undefined, hourLabel: string, minuteLabel: string) => {
@@ -96,11 +112,9 @@ const formatRemainingMs = (remainingMs: number) => {
 
 const getSessionLimitInfo = (place: EmployeeWorkspacePlaceRow | null, nowMs: number) => {
   if (!place?.active_session_started_at || !place.active_session_planned_minutes) return null
-  const endMs =
-    new Date(place.active_session_started_at).getTime() + place.active_session_planned_minutes * 60_000
-  const remainingMs = endMs - nowMs
+  const remainingMs = place.active_session_planned_minutes * 60_000 - getTimedSessionElapsedMs(place, nowMs)
   return {
-    endMs,
+    endMs: nowMs + remainingMs,
     isExpired: remainingMs <= 0,
     isWarning: remainingMs > 0 && remainingMs <= SESSION_LIMIT_WARNING_MINUTES * 60_000,
     remainingMs,
@@ -108,12 +122,30 @@ const getSessionLimitInfo = (place: EmployeeWorkspacePlaceRow | null, nowMs: num
   }
 }
 
+type ComboComponentPreview = {
+  included_minutes?: number | string | null
+  quantity?: number | string | null
+  type?: string | null
+}
+
+const getComboIncludedMinutes = (componentPreview: unknown) => {
+  if (!Array.isArray(componentPreview)) return null
+
+  const minutes = componentPreview.reduce((total, component) => {
+    if (!component || typeof component !== 'object') return total
+    const preview = component as ComboComponentPreview
+    const includedMinutes = Number(preview.included_minutes)
+    const quantity = Number(preview.quantity ?? 1)
+    if (preview.type !== 'service' || !Number.isFinite(includedMinutes) || includedMinutes <= 0) return total
+    return total + includedMinutes * (Number.isFinite(quantity) && quantity > 0 ? quantity : 1)
+  }, 0)
+
+  return minutes > 0 ? Math.min(1440, Math.round(minutes)) : null
+}
+
 const calculateCurrentSessionAmount = (place: EmployeeWorkspacePlaceRow, nowMs: number) => {
   if (!place.active_session_started_at || !place.active_session_hourly_rate) return 0
-  const actualMinutes = Math.max(
-    1,
-    Math.ceil((nowMs - new Date(place.active_session_started_at).getTime()) / 60_000),
-  )
+  const actualMinutes = Math.max(1, Math.ceil(getTimedSessionElapsedMs(place, nowMs) / 60_000))
   const minimum = place.active_session_minimum_minutes ?? 60
   const step = place.active_session_billing_step_minutes ?? 30
   const billable =
@@ -125,10 +157,7 @@ const calculateCurrentSessionAmount = (place: EmployeeWorkspacePlaceRow, nowMs: 
 
 const getSessionGraceNotice = (place: EmployeeWorkspacePlaceRow, nowMs: number) => {
   if (!place.active_session_started_at || !place.active_session_hourly_rate) return null
-  const actualMinutes = Math.max(
-    1,
-    Math.ceil((nowMs - new Date(place.active_session_started_at).getTime()) / 60_000),
-  )
+  const actualMinutes = Math.max(1, Math.ceil(getTimedSessionElapsedMs(place, nowMs) / 60_000))
   const minimum = place.active_session_minimum_minutes ?? 60
   const step = place.active_session_billing_step_minutes ?? 30
 
@@ -262,6 +291,15 @@ export function EmployeeWorkspacePage() {
   const autoCompletingSessionsRef = useRef(new Set<string>())
   const orderItemsQuery = useEmployeeOrderItems(selectedOrderId)
 
+  const runAction = useCallback(async (action: () => Promise<unknown>) => {
+    setError(null)
+    try {
+      await action()
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'Əməliyyat yerinə yetirilmədi.')
+    }
+  }, [])
+
   useEffect(() => {
     const intervalId = window.setInterval(() => setNowMs(Date.now()), 1000)
     return () => window.clearInterval(intervalId)
@@ -300,7 +338,7 @@ export function EmployeeWorkspacePage() {
   useEffect(() => {
     const expiredSessions = places.filter((place) => {
       const limitInfo = getSessionLimitInfo(place, nowMs)
-      return place.active_session_id && limitInfo?.isExpired
+      return place.active_session_id && !place.active_session_paused_at && limitInfo?.isExpired
     })
 
     for (const place of expiredSessions) {
@@ -309,7 +347,7 @@ export function EmployeeWorkspacePage() {
       autoCompletingSessionsRef.current.add(sessionId)
       void runAction(() => orderMutations.completeSession.mutateAsync(sessionId))
     }
-  }, [nowMs, orderMutations.completeSession, places])
+  }, [nowMs, orderMutations.completeSession, places, runAction])
 
   const filteredProducts = (productsQuery.data ?? []).filter((item) =>
     [item.name, item.sku, item.characteristics].filter(Boolean).join(' ').toLowerCase().includes(search.toLowerCase()),
@@ -322,15 +360,6 @@ export function EmployeeWorkspacePage() {
   const filteredCombos = (combosQuery.data ?? []).filter((item) =>
     item.name.toLowerCase().includes(search.toLowerCase()),
   )
-
-  const runAction = async (action: () => Promise<unknown>) => {
-    setError(null)
-    try {
-      await action()
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Əməliyyat yerinə yetirilmədi.')
-    }
-  }
 
   const markCatalogPress = (key: string) => {
     setPressedCatalogItemKey(key)
@@ -460,7 +489,28 @@ export function EmployeeWorkspacePage() {
       } else if (kind === 'services') {
         await orderMutations.addService.mutateAsync({ orderId: selectedOrderId, serviceId: id, quantity: 1 })
       } else {
+        const combo = (combosQuery.data ?? []).find((item) => item.id === id)
+        const comboIncludedMinutes = getComboIncludedMinutes(combo?.component_preview)
         await orderMutations.addCombo.mutateAsync({ orderId: selectedOrderId, comboId: id, quantity: 1 })
+        if (
+          comboIncludedMinutes &&
+          selectedOrderPlace?.has_timer &&
+          !isTablePlace(selectedOrderPlace)
+        ) {
+          if (selectedOrderPlace.active_session_id) {
+            await orderMutations.extendSessionPlan.mutateAsync({
+              sessionId: selectedOrderPlace.active_session_id,
+              addedMinutes: comboIncludedMinutes,
+            })
+          } else {
+            await orderMutations.startSession.mutateAsync({
+              placeId: selectedOrderPlace.id,
+              orderId: selectedOrderId,
+              plannedMinutes: comboIncludedMinutes,
+            })
+          }
+          setPlannedSessionMinutes(comboIncludedMinutes)
+        }
       }
     })
 
@@ -765,7 +815,8 @@ export function EmployeeWorkspacePage() {
                     {occupancyStartedAt ? (
                       <span className="inline-flex items-center gap-1 font-semibold text-red-900">
                         <Timer className="size-3.5" />
-                        {formatElapsed(occupancyStartedAt, nowMs)}
+                        {hasActiveSession ? formatTimedSessionElapsed(place, nowMs) : formatElapsed(occupancyStartedAt, nowMs)}
+                        {place.active_session_paused_at ? ' · Pauzada' : null}
                       </span>
                     ) : (
                       <span>{isTable ? 'Masa' : place.has_timer ? 'Sessiya başlanmayıb' : 'Taymersiz'}</span>
@@ -789,8 +840,8 @@ export function EmployeeWorkspacePage() {
                         )}
                       >
                         {sessionLimitInfo.isExpired
-                          ? t('Лимит истёк')
-                          : `${t('Осталось')}: ${sessionLimitInfo.remainingText}`}
+                          ? t("ui.limit_istek_a337232")
+                          : `${t("ui.ostalos_76a8eb1")}: ${sessionLimitInfo.remainingText}`}
                       </span>
                     ) : null}
                   </div>
@@ -1257,6 +1308,12 @@ export function EmployeeWorkspacePage() {
                 {(() => {
                   const selectedPlace = placesById.get(selectedOrder.place_id ?? '') ?? null
                   const hasActiveSession = Boolean(selectedPlace?.active_session_id)
+                  const isSessionPaused = Boolean(selectedPlace?.active_session_paused_at)
+                  const isSessionActionPending =
+                    orderMutations.startSession.isPending ||
+                    orderMutations.pauseSession.isPending ||
+                    orderMutations.resumeSession.isPending ||
+                    orderMutations.completeSession.isPending
                   const selectedSessionGraceNotice = selectedPlace
                     ? getSessionGraceNotice(selectedPlace, nowMs)
                     : null
@@ -1321,7 +1378,7 @@ export function EmployeeWorkspacePage() {
                                   const quantity = formatQuantity(product.stock_quantity)
                                   const stockLabel =
                                     quantity != null
-                                      ? `${t('Осталось')}: ${quantity}${product.unit_name ? ` ${product.unit_name}` : ''}`
+                                      ? `${t("ui.ostalos_76a8eb1")}: ${quantity}${product.unit_name ? ` ${product.unit_name}` : ''}`
                                       : null
 
                                   return (
@@ -1394,10 +1451,11 @@ export function EmployeeWorkspacePage() {
                             <div className="shrink-0 rounded-md border border-cyan-100 bg-cyan-50 px-2.5 py-1.5 text-right text-sm text-cyan-900">
                               <div className="flex items-center justify-end gap-1.5 font-semibold">
                                 <Timer className="size-4" />
-                                {formatElapsed(selectedPlace?.active_session_started_at ?? null, nowMs)}
+                                {selectedPlace ? formatTimedSessionElapsed(selectedPlace, nowMs) : '00:00'}
                               </div>
                               <div className="mt-0.5 text-xs">
-                                Hazırda: {formatAzn(selectedPlace ? calculateCurrentSessionAmount(selectedPlace, nowMs) : 0)}
+                                {isSessionPaused ? 'Pauzadadır' : 'Hazırda'}:{' '}
+                                {formatAzn(selectedPlace ? calculateCurrentSessionAmount(selectedPlace, nowMs) : 0)}
                               </div>
                               {selectedSessionGraceNotice ? (
                                 <div className="mt-0.5 text-xs font-semibold text-orange-700">
@@ -1412,8 +1470,8 @@ export function EmployeeWorkspacePage() {
                                   )}
                                 >
                                   {selectedSessionLimitInfo.isExpired
-                                    ? t('Лимит истёк')
-                                    : `${t('Осталось')}: ${selectedSessionLimitInfo.remainingText}`}
+                                    ? t("ui.limit_istek_a337232")
+                                    : `${t("ui.ostalos_76a8eb1")}: ${selectedSessionLimitInfo.remainingText}`}
                                 </div>
                               ) : null}
                             </div>
@@ -1434,12 +1492,12 @@ export function EmployeeWorkspacePage() {
                               <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-2">
                                 <div className="flex items-center justify-between gap-2">
                                   <span className="text-xs font-semibold uppercase text-slate-500">
-                                    {t('Лимит сессии')}
+                                    {t("ui.limit_sessii_4fbcee7")}
                                   </span>
                                   <span className="text-xs font-semibold text-slate-800">
                                     {plannedSessionMinutes
-                                      ? formatDurationMinutes(plannedSessionMinutes, t('ч'), t('мин'))
-                                      : t('Без лимита')}
+                                      ? formatDurationMinutes(plannedSessionMinutes, t("ui.ch_285cc40"), t("ui.min_d6035dc"))
+                                      : t("ui.bez_limita_aa6e7b2")}
                                   </span>
                                 </div>
                                 <div className="grid grid-cols-4 gap-1.5">
@@ -1504,33 +1562,46 @@ export function EmployeeWorkspacePage() {
                             ) : null}
                             <div className="grid grid-cols-3 gap-2">
                             <Button
-                              className="min-h-9"
-                              disabled={!canStartSession}
-                              onClick={() =>
-                                selectedPlace &&
-                                startSessionForOrder(selectedPlace, selectedOrder.id, plannedSessionMinutes)
-                              }
-                              title="Sessiyanı başlat"
+                              className="min-h-9 bg-emerald-700 text-white hover:bg-emerald-800 focus-visible:ring-emerald-700"
+                              disabled={(!canStartSession && !isSessionPaused) || isSessionActionPending}
+                              onClick={() => {
+                                if (!selectedPlace) return
+                                if (isSessionPaused && selectedPlace.active_session_id) {
+                                  void runAction(() =>
+                                    orderMutations.resumeSession.mutateAsync(selectedPlace.active_session_id!),
+                                  )
+                                  return
+                                }
+                                void startSessionForOrder(selectedPlace, selectedOrder.id, plannedSessionMinutes)
+                              }}
+                              title="Play"
                               type="button"
-                              variant="secondary"
                             >
-                              <Play className="size-4" /> Başla
+                              <Play className="size-4" /> Play
                             </Button>
                             <Button
-                              className="min-h-9"
-                              disabled={!hasActiveSession}
+                              className="min-h-9 border border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200 focus-visible:ring-amber-500"
+                              disabled={!hasActiveSession || isSessionPaused || isSessionActionPending}
+                              onClick={() =>
+                                selectedPlace?.active_session_id &&
+                                runAction(() => orderMutations.pauseSession.mutateAsync(selectedPlace.active_session_id!))
+                              }
+                              title="Pause"
+                              type="button"
+                            >
+                              <Pause className="size-4" /> Pause
+                            </Button>
+                            <Button
+                              className="min-h-9 bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-600"
+                              disabled={!hasActiveSession || isSessionActionPending}
                               onClick={() =>
                                 selectedPlace?.active_session_id &&
                                 runAction(() => orderMutations.completeSession.mutateAsync(selectedPlace.active_session_id!))
                               }
-                              title="Sessiyanı dayandır"
+                              title="Stop"
                               type="button"
-                              variant="secondary"
                             >
-                              <Square className="size-4" /> Dayandır
-                            </Button>
-                            <Button className="min-h-9" disabled title="Sessiya pauzu hələ server tərəfindən dəstəklənmir" type="button" variant="secondary">
-                              <Pause className="size-4" /> Pauza
+                              <Square className="size-4" /> Stop
                             </Button>
                             </div>
                           </div>

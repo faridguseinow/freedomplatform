@@ -1,24 +1,25 @@
-import { useEffect, useMemo, useState, type PropsWithChildren } from 'react'
+import { useCallback, useEffect, useMemo, useState, type PropsWithChildren } from 'react'
+import { I18nextProvider } from 'react-i18next'
+import i18n from './i18n'
 import { I18nContext, type I18nContextValue } from './I18nContext'
 import type { SystemLanguage } from './translations'
 import {
-  getStoredSystemLanguage,
-  saveStoredSystemLanguage,
+  getCurrentLocale,
   translateDom,
   translateText,
 } from './translator'
+import { getStoredSystemLanguage, saveStoredSystemLanguage } from './translations'
 
 export function I18nProvider({ children }: PropsWithChildren) {
   const [language, setLanguageState] = useState<SystemLanguage>(getStoredSystemLanguage)
 
-  const setLanguage = (nextLanguage: SystemLanguage) => {
+  const setLanguage = useCallback((nextLanguage: SystemLanguage) => {
     saveStoredSystemLanguage(nextLanguage)
     setLanguageState(nextLanguage)
-  }
+  }, [])
 
   useEffect(() => {
     const syncLanguage = () => setLanguageState(getStoredSystemLanguage())
-
     window.addEventListener('storage', syncLanguage)
     window.addEventListener('freedom-platform:system-language-change', syncLanguage)
     return () => {
@@ -28,23 +29,19 @@ export function I18nProvider({ children }: PropsWithChildren) {
   }, [])
 
   useEffect(() => {
+    void i18n.changeLanguage(language)
+    document.documentElement.lang = language
     translateDom(document.body, language)
 
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
-        if (mutation.type === 'characterData') {
+        if (mutation.type === 'characterData' || mutation.type === 'attributes') {
           translateDom(mutation.target.parentNode ?? document.body, language)
           continue
         }
-
         for (const node of Array.from(mutation.addedNodes)) {
-          if (node instanceof Element || node instanceof Text) {
-            translateDom(node.parentNode ?? document.body, language)
-          }
-        }
-
-        if (mutation.type === 'attributes') {
-          translateDom(mutation.target.parentNode ?? document.body, language)
+          if (node instanceof Element) translateDom(node, language)
+          else if (node instanceof Text) translateDom(node.parentNode ?? document.body, language)
         }
       }
     })
@@ -56,18 +53,19 @@ export function I18nProvider({ children }: PropsWithChildren) {
       childList: true,
       subtree: true,
     })
-
     return () => observer.disconnect()
   }, [language])
 
-  const value = useMemo<I18nContextValue>(
-    () => ({
-      language,
-      setLanguage,
-      t: (text) => translateText(text, language),
-    }),
-    [language],
-  )
+  const value = useMemo<I18nContextValue>(() => ({
+    language,
+    locale: getCurrentLocale(language),
+    setLanguage,
+    t: (text, options) => translateText(text, language, options),
+  }), [language, setLanguage])
 
-  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>
+  return (
+    <I18nextProvider i18n={i18n}>
+      <I18nContext.Provider value={value}>{children}</I18nContext.Provider>
+    </I18nextProvider>
+  )
 }

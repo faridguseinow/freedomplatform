@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { Activity, Loader2 } from 'lucide-react'
 import { EmptyState } from '../../../components/common/EmptyState'
 import { useAuth } from '../../../hooks/useAuth'
@@ -7,7 +8,7 @@ import type { ActivityEvent } from '../activity/activityApi'
 import { useAdminActivityEvents } from '../activity/activityApi'
 
 const formatDateTime = (value: string) =>
-  new Intl.DateTimeFormat('ru', {
+  new Intl.DateTimeFormat(getCurrentLocale(), {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
@@ -33,15 +34,19 @@ export function AdminActivityPage() {
   const activityQuery = useAdminActivityEvents(organizationId)
   const events = activityQuery.data ?? []
   const detailsLabel = (event: ActivityEvent) =>
-    event.details.length ? event.details.map((detail) => t(detail)).join(' · ') : '-'
+    event.details.length
+      ? event.details.map((detail) => t(detail.key, {
+          value: detail.translateValue ? t(String(detail.value)) : detail.value,
+        })).join(' · ')
+      : '-'
   const objectIdLabel = (event: ActivityEvent) => event.entityId ? shortId(event.entityId) : '-'
 
   if (!currentOrganization) {
     return (
       <EmptyState
-        description={t('Активная организация не выбрана или доступ был приостановлен.')}
+        description={t("ui.aktivnaya_organizatsiya_ne_vybrana_ili_dostup_byl_pr_4d9ff46")}
         icon={Activity}
-        title={t('Журнал действий недоступен')}
+        title={t("ui.zhurnal_deystviy_nedostupen_4357bdb")}
       />
     )
   }
@@ -50,34 +55,34 @@ export function AdminActivityPage() {
     <section className="grid gap-5">
       <header className="grid gap-2">
         <h2 className="text-2xl font-semibold tracking-normal text-slate-950 sm:text-3xl">
-          {t('Журнал действий')}
+          {t("ui.zhurnal_deystviy_8fd2786")}
         </h2>
         <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
           {t(
-            'Понятная лента важных действий: кто заходил в ключевые разделы, создавал заказы, запускал сессии, принимал оплаты, закрывал смены и менял финансовые данные.',
+            "ui.ponyatnaya_lenta_vazhnyh_deystviy_kto_zahodil_v_klyu_ea888c6",
           )}
         </p>
       </header>
 
       <article className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
         {t(
-          'Здесь не записывается каждый клик. Логируются значимые переходы по админ-разделам и операции, которые меняют данные или деньги.',
+          "ui.zdes_ne_zapisyvaetsya_kazhdyy_klik_logiruyutsya_znac_9f9e4fb",
         )}
       </article>
 
       {activityQuery.isLoading ? (
         <div className="inline-flex min-h-28 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600">
-          <Loader2 className="size-4 animate-spin text-emerald-700" /> {t('Загрузка журнала')}
+          <Loader2 className="size-4 animate-spin text-emerald-700" /> {t("ui.zagruzka_zhurnala_2e726fc")}
         </div>
       ) : null}
 
       {!activityQuery.isLoading && !events.length ? (
         <EmptyState
           description={t(
-            'Когда администратор начнёт открывать разделы или выполнять операции, события появятся здесь.',
+            "ui.kogda_administrator_nachnet_otkryvat_razdely_ili_vyp_97c8d1c",
           )}
           icon={Activity}
-          title={t('Действий пока нет')}
+          title={t("ui.deystviy_poka_net_0ce75fe")}
         />
       ) : null}
 
@@ -86,12 +91,12 @@ export function AdminActivityPage() {
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t('Время')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t('Источник')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t('Кто')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t('Действие')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t('Объект')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t('Детали')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.vremya_c80d7e8")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.istochnik_8290a3d")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.kto_0c65a41")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.deystvie_4fe9c06")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.obekt_1f85d20")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.detali_85a76a7")}</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">ID</th>
               </tr>
             </thead>
@@ -145,7 +150,7 @@ export function AdminActivityPage() {
             </div>
             <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
               <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                <dt className="text-[11px] font-semibold uppercase text-slate-500">{t('Объект')}</dt>
+                <dt className="text-[11px] font-semibold uppercase text-slate-500">{t("ui.obekt_1f85d20")}</dt>
                 <dd className="mt-0.5 font-semibold text-slate-950">{t(event.entityType)}</dd>
               </div>
               <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">

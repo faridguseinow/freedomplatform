@@ -557,6 +557,8 @@ export type TimedSessionRow = {
   billing_step_minutes_snapshot: number
   planned_minutes: number | null
   started_at: string
+  paused_at: string | null
+  total_paused_seconds: number
   ended_at: string | null
   actual_minutes: number | null
   billable_minutes: number | null
@@ -655,6 +657,8 @@ export type EmployeeWorkspacePlaceRow = EmployeePlaceRow & {
   active_order_total: number | null
   active_session_id: string | null
   active_session_started_at: string | null
+  active_session_paused_at: string | null
+  active_session_total_paused_seconds: number | null
   active_session_hourly_rate: number | null
   active_session_minimum_minutes: number | null
   active_session_billing_step_minutes: number | null
@@ -1680,7 +1684,26 @@ export type Database = {
         }
         Returns: TimedSessionRow
       }
+      extend_timed_session_plan: {
+        Args: {
+          target_session_id: string
+          target_added_minutes: number
+        }
+        Returns: TimedSessionRow
+      }
       complete_timed_session: {
+        Args: {
+          target_session_id: string
+        }
+        Returns: TimedSessionRow
+      }
+      pause_timed_session: {
+        Args: {
+          target_session_id: string
+        }
+        Returns: TimedSessionRow
+      }
+      resume_timed_session: {
         Args: {
           target_session_id: string
         }

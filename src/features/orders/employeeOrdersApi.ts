@@ -58,6 +58,9 @@ const toWorkspacePlace = (
     active_order_item_count: 0,
     active_session_id: (activeSession?.id as string | undefined) ?? null,
     active_session_started_at: (activeSession?.started_at as string | undefined) ?? null,
+    active_session_paused_at: (activeSession?.paused_at as string | undefined) ?? null,
+    active_session_total_paused_seconds:
+      (activeSession?.total_paused_seconds as number | undefined) ?? 0,
     active_session_hourly_rate: (activeSession?.hourly_rate_snapshot as number | undefined) ?? null,
     active_session_minimum_minutes: (activeSession?.minimum_minutes_snapshot as number | undefined) ?? null,
     active_session_billing_step_minutes:
@@ -353,9 +356,46 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
       },
       onSuccess: (session) => invalidate(session.order_id),
     }),
+    extendSessionPlan: useMutation({
+      mutationFn: async ({
+        sessionId,
+        addedMinutes,
+      }: {
+        sessionId: string
+        addedMinutes: number
+      }) => {
+        const { data, error } = await supabase.rpc('extend_timed_session_plan', {
+          target_session_id: sessionId,
+          target_added_minutes: addedMinutes,
+        })
+        if (error) throw new Error(error.message)
+        return data
+      },
+      onSuccess: (session) => invalidate(session.order_id),
+    }),
     completeSession: useMutation({
       mutationFn: async (sessionId: string) => {
         const { data, error } = await supabase.rpc('complete_timed_session', {
+          target_session_id: sessionId,
+        })
+        if (error) throw new Error(error.message)
+        return data
+      },
+      onSuccess: (session) => invalidate(session.order_id),
+    }),
+    pauseSession: useMutation({
+      mutationFn: async (sessionId: string) => {
+        const { data, error } = await supabase.rpc('pause_timed_session', {
+          target_session_id: sessionId,
+        })
+        if (error) throw new Error(error.message)
+        return data
+      },
+      onSuccess: (session) => invalidate(session.order_id),
+    }),
+    resumeSession: useMutation({
+      mutationFn: async (sessionId: string) => {
+        const { data, error } = await supabase.rpc('resume_timed_session', {
           target_session_id: sessionId,
         })
         if (error) throw new Error(error.message)

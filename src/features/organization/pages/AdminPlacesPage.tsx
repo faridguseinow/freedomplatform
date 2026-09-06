@@ -23,6 +23,7 @@ import { ImageFileInput } from '../../../components/ui/ImageFileInput'
 import { Input } from '../../../components/ui/Input'
 import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
+import { useI18n } from '../../../lib/i18n/I18nContext'
 import type { CatalogItemStatus, PlaceRow, PlaceType } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
 import {
@@ -138,6 +139,7 @@ const placeToInput = (place: PlaceRow, patch: Partial<PlaceInput> = {}): PlaceIn
 
 export function AdminPlacesPage() {
   const { organizationId, user } = useAuth()
+  const { t } = useI18n()
   const boardRef = useRef<HTMLDivElement | null>(null)
   const placesQuery = usePlaces({ organizationId })
   const layoutSchemaQuery = usePlacesLayoutSchemaStatus(organizationId)
@@ -395,7 +397,7 @@ export function AdminPlacesPage() {
   }
 
   const archivePlaceFromBoard = (place: PlaceRow) => {
-    const confirmed = window.confirm(`Удалить рабочее место "${place.name}" из схемы?`)
+    const confirmed = window.confirm(t('dialog.archivePlace', { name: place.name }))
     if (!confirmed) return
     placeMutations.setStatus.mutate({ id: place.id, status: 'archived' })
   }

@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Check, Copy, Edit3, Loader2, Save, ShieldCheck, UserMinus, Users, X } from 'lucide-react'
@@ -37,7 +38,7 @@ const roleLabel: Record<OrganizationMembershipRow['role'], string> = {
 }
 
 const formatDate = (value: string) =>
-  new Intl.DateTimeFormat('ru', {
+  new Intl.DateTimeFormat(getCurrentLocale(), {
     day: '2-digit',
     month: 'short',
     year: 'numeric',

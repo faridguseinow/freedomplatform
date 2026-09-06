@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import {
   AlertTriangle,
   Banknote,
@@ -26,10 +27,10 @@ import {
 import type { ShiftTemplateRow } from '../../../lib/supabase/database.types'
 
 const formatMoney = (value: number | null | undefined) =>
-  new Intl.NumberFormat('ru', { maximumFractionDigits: 2 }).format(value ?? 0)
+  new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
 
 const formatDateTime = (value: string) =>
-  new Intl.DateTimeFormat('ru', {
+  new Intl.DateTimeFormat(getCurrentLocale(), {
     day: '2-digit',
     month: '2-digit',
     year: '2-digit',
@@ -37,11 +38,11 @@ const formatDateTime = (value: string) =>
     minute: '2-digit',
   }).format(new Date(value))
 
-const formatDuration = (openedAt: string | undefined, nowMs: number) => {
+const formatDuration = (openedAt: string | undefined, nowMs: number, t: (key: string, options?: Record<string, unknown>) => string) => {
   if (!openedAt || !nowMs) return '00:00'
   const minutes = Math.max(0, Math.floor((nowMs - new Date(openedAt).getTime()) / 60_000))
   const hours = Math.floor(minutes / 60)
-  return `${hours} ч ${minutes % 60} мин`
+  return t('common.durationHoursMinutes', { hours, minutes: minutes % 60 })
 }
 
 const isOpeningTemplateName = (name: string | null | undefined) => {
@@ -93,7 +94,7 @@ function ShiftMetric({ description, icon: Icon, label, tone = 'default', value }
         {description ? (
           <div className="group relative">
             <button
-              aria-label={`${t('Как считается:')} ${t(label)}`}
+              aria-label={`${t("ui.kak_schitaetsya_5d5b2b3")} ${t(label)}`}
               className="flex size-5 items-center justify-center rounded-full text-slate-400 outline-none hover:text-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
               title={t(description)}
               type="button"
@@ -195,7 +196,7 @@ export function EmployeeShiftPage() {
           <header className="min-w-0 self-center lg:pb-1">
             <h2 className="text-xl font-semibold text-slate-950">Открыть смену</h2>
             <p className="mt-1 truncate text-sm leading-5 text-slate-600">
-              {currentOrganization?.name ?? 'Организация'} · {new Date().toLocaleString('ru')}
+              {currentOrganization?.name ?? 'Организация'} · {new Date().toLocaleString(getCurrentLocale())}
             </p>
           </header>
           <div className="grid gap-1.5 text-sm font-medium text-slate-700">
@@ -245,9 +246,9 @@ export function EmployeeShiftPage() {
             <div className="flex items-start gap-3">
               <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-700" />
               <div className="min-w-0">
-                <h3 className="text-base font-semibold text-slate-950">{t('Правила кассы')}</h3>
+                <h3 className="text-base font-semibold text-slate-950">{t("ui.pravila_kassy_b2f6e94")}</h3>
                 <p className="mt-1 text-sm leading-5 text-slate-700">
-                  {t('Перед открытием смены сотрудник обязан прочитать и принять эти условия.')}
+                  {t("ui.pered_otkrytiem_smeny_sotrudnik_obyazan_prochitat_i__6a28e1d")}
                 </p>
               </div>
             </div>
@@ -285,7 +286,7 @@ export function EmployeeShiftPage() {
           <div className="rounded-md bg-slate-50 px-3 py-2">
             <div className="text-[11px] font-medium uppercase text-slate-500">Длительность</div>
             <div className="mt-0.5 text-base font-semibold text-slate-950">
-              {formatDuration(shift.opened_at, nowMs)}
+              {formatDuration(shift.opened_at, nowMs, t)}
             </div>
           </div>
           <div className="rounded-md bg-emerald-50 px-3 py-2">
@@ -344,14 +345,14 @@ export function EmployeeShiftPage() {
           </div>
 
           <section className="rounded-lg border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700 shadow-sm">
-            <h3 className="font-semibold text-slate-950">{t('Инструкция закрытия смены')}</h3>
+            <h3 className="font-semibold text-slate-950">{t("ui.instruktsiya_zakrytiya_smeny_9c23dca")}</h3>
             <ol className="mt-2 grid list-decimal gap-1 pl-5">
-              <li>{t('Пересчитайте реальные наличные в кассе.')}</li>
-              <li>{t('Введите эту сумму в поле «Фактическая наличность».')}</li>
-              <li>{t('Сравните фактическую сумму с ожидаемой кассой.')}</li>
-              <li>{t('Если суммы совпадают, смену можно закрыть без комментария.')}</li>
-              <li>{t('Если есть расхождение, обязательно напишите короткий комментарий с причиной.')}</li>
-              <li>{t('Нажмите «Завершить смену». Открытые заказы и активные сессии будут переданы следующей смене.')}</li>
+              <li>{t("ui.pereschitayte_realnye_nalichnye_v_kasse_9518776")}</li>
+              <li>{t("ui.vvedite_etu_summu_v_pole_fakticheskaya_nalichnost_a7d1a85")}</li>
+              <li>{t("ui.sravnite_fakticheskuyu_summu_s_ozhidaemoy_kassoy_4ba42ca")}</li>
+              <li>{t("ui.esli_summy_sovpadayut_smenu_mozhno_zakryt_bez_kommen_10dcacd")}</li>
+              <li>{t("ui.esli_est_rashozhdenie_obyazatelno_napishite_korotkiy_57254e5")}</li>
+              <li>{t("ui.nazhmite_zavershit_smenu_otkrytye_zakazy_i_aktivnye__bf5d6f4")}</li>
             </ol>
           </section>
 
@@ -389,7 +390,7 @@ export function EmployeeShiftPage() {
                 hasVariance ? 'bg-orange-50 text-orange-800' : 'bg-emerald-50 text-emerald-800'
               }`}
             >
-              {hasVariance ? `Расх. ${formatMoney(variance)}` : 'Баланс'}
+              {hasVariance ? t('employeeShift.variance', { amount: formatMoney(variance) }) : t('ui.balans_5266d4a')}
             </span>
           </div>
 

@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -27,6 +28,7 @@ import { Modal } from '../../../components/ui/Modal'
 import { supabase } from '../../../lib/supabase/client'
 import type { OrganizationRow } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
+import { useI18n } from '../../../lib/i18n/I18nContext'
 import { uploadOrganizationLogo } from '../../organization/catalog/imageUpload'
 
 const organizationSelect =
@@ -124,13 +126,14 @@ const statusClass: Record<OrganizationRow['status'], string> = {
 }
 
 const formatDate = (value: string) =>
-  new Intl.DateTimeFormat('ru', {
+  new Intl.DateTimeFormat(getCurrentLocale(), {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
   }).format(new Date(value))
 
 export function PlatformOrganizationsPage() {
+  const { t } = useI18n()
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingOrganization, setEditingOrganization] = useState<OrganizationRow | null>(null)
@@ -303,9 +306,7 @@ export function PlatformOrganizationsPage() {
 
   const archiveMutation = useMutation({
     mutationFn: async (organization: OrganizationRow) => {
-      const confirmed = window.confirm(
-        `Архивировать организацию "${organization.name}"? Рабочий доступ пользователей будет заблокирован.`,
-      )
+      const confirmed = window.confirm(t('dialog.archiveOrganization', { name: organization.name }))
 
       if (!confirmed) {
         return null

@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -21,6 +22,7 @@ import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
 import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
+import { useI18n } from '../../../lib/i18n/I18nContext'
 import { supabase } from '../../../lib/supabase/client'
 import type {
   AvailableUserSearchResult,
@@ -67,14 +69,14 @@ const filterLabels: Record<EmployeeFilter, string> = {
 }
 
 const formatDate = (value: string) =>
-  new Intl.DateTimeFormat('ru', {
+  new Intl.DateTimeFormat(getCurrentLocale(), {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
   }).format(new Date(value))
 
 const formatDateTime = (value: string) =>
-  new Intl.DateTimeFormat('ru', {
+  new Intl.DateTimeFormat(getCurrentLocale(), {
     day: '2-digit',
     month: 'short',
     hour: '2-digit',
@@ -92,6 +94,7 @@ const normalizePin = (value: string) => value.replace(/\D/g, '').slice(0, 4)
 const isPinValid = (value: string) => /^\d{4}$/.test(value)
 
 export function AdminEmployeesPage() {
+  const { t } = useI18n()
   const queryClient = useQueryClient()
   const { currentOrganization, organizationId, refreshAccessContext } = useAuth()
   const [search, setSearch] = useState('')
@@ -916,11 +919,11 @@ export function AdminEmployeesPage() {
                     {employeeLockStatesQuery.isLoading
                       ? 'Загрузка статуса PIN...'
                       : selectedEmployeeLockState?.has_pending_pin_change
-                        ? `Сотрудник запросил смену PIN${
-                            selectedEmployeeLockState.pending_pin_change_requested_at
+                        ? t('employeeShift.pinChangeRequested', {
+                            date: selectedEmployeeLockState.pending_pin_change_requested_at
                               ? ` ${formatDateTime(selectedEmployeeLockState.pending_pin_change_requested_at)}`
-                              : ''
-                          }.`
+                              : '',
+                          })
                         : selectedEmployeeLockState?.has_pin
                           ? 'PIN задан и может использоваться для блокировки рабочего экрана.'
                           : 'PIN ещё не задан.'}

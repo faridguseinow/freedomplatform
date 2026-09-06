@@ -1,6 +1,7 @@
 import { ArrowLeft, LogOut, Menu, PanelLeftClose, PanelLeftOpen, UserRound } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { CatalogImage } from '../../components/common/CatalogImage'
 import { Button } from '../../components/ui/Button'
 import { EmployeeLockScreen } from '../../features/employee/components/EmployeeLockScreen'
 import { useAuth } from '../../hooks/useAuth'
@@ -121,9 +122,15 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
           <div className={sidebarCollapsed ? 'border-b border-slate-200 p-3' : 'border-b border-slate-200 px-5 py-4'}>
             <div className={sidebarCollapsed ? 'flex justify-center' : 'flex items-start justify-between gap-3'}>
               {sidebarCollapsed ? null : (
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-950">Freedom Platform</p>
-                  <p className="mt-1 truncate text-xs text-slate-500">
+                <div className="flex min-w-0 items-center gap-3">
+                  {currentOrganization ? (
+                    <CatalogImage
+                      alt={currentOrganization.name}
+                      className="size-10"
+                      imagePath={currentOrganization.logo_path}
+                    />
+                  ) : null}
+                  <p className="truncate text-sm font-semibold text-slate-950">
                     {currentOrganization?.name ?? productAreaLabel}
                   </p>
                 </div>
@@ -189,11 +196,8 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                     <UserRound aria-hidden="true" className="size-4" />
                   </span>
                   {sidebarCollapsed ? null : (
-                    <span className="grid min-w-0">
+                    <span className="min-w-0">
                       <span className="truncate font-medium text-slate-800">{displayName}</span>
-                      <span className="text-xs text-slate-500">
-                        {role ? ROLE_LABEL[role] : 'Роль не задана'}
-                      </span>
                     </span>
                   )}
                 </button>
@@ -393,7 +397,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
       <nav
         className="fixed inset-x-0 bottom-0 z-30 grid border-t border-slate-200 bg-white px-2 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] md:hidden"
         style={{ gridTemplateColumns: `repeat(${mobileNavItems.length}, minmax(0, 1fr))` }}
-        aria-label={`${productAreaLabel}: ${t('мобильная навигация')}`}
+        aria-label={`${productAreaLabel}: ${t("ui.mobilnaya_navigatsiya_09a11d6")}`}
       >
         {mobileNavItems.map((item) => {
           const active = isActivePath(location.pathname, item)

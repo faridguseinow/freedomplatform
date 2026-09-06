@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { ArrowLeft, Loader2, PackageCheck } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { Button } from '../../../components/ui/Button'
@@ -5,7 +6,7 @@ import { orderStatusLabel } from '../../orders/employeeOrdersApi'
 import { useAdminOrderDetail } from '../../orders/ordersApi'
 
 const formatMoney = (value: number | null | undefined) =>
-  new Intl.NumberFormat('ru', { maximumFractionDigits: 2 }).format(value ?? 0)
+  new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
 
 export function AdminOrderDetailPage() {
   const { orderId } = useParams()

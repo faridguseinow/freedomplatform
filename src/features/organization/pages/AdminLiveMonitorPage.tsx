@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { Package, ReceiptText, Sofa, Timer } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { CatalogImage } from '../../../components/common/CatalogImage'
@@ -26,18 +27,18 @@ const placeTypeLabel: Record<PlaceType, string> = {
 }
 
 const formatMoney = (value: number | null | undefined) =>
-  new Intl.NumberFormat('ru', { maximumFractionDigits: 2 }).format(value ?? 0)
+  new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
 
 const formatAzn = (value: number | null | undefined) => `${formatMoney(value)} AZN`
 
 const formatQuantity = (value: number | null | undefined) => {
   if (value === null || value === undefined) return null
-  return new Intl.NumberFormat('ru', { maximumFractionDigits: 3 }).format(value)
+  return new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 3 }).format(value)
 }
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return '-'
-  return new Intl.DateTimeFormat('ru', {
+  return new Intl.DateTimeFormat(getCurrentLocale(), {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
@@ -45,14 +46,14 @@ const formatDateTime = (value: string | null | undefined) => {
   }).format(new Date(value))
 }
 
-const formatElapsed = (startedAt: string | null, nowMs: number) => {
+const formatElapsed = (startedAt: string | null, nowMs: number, t: (key: string, options?: Record<string, unknown>) => string) => {
   if (!startedAt) return '00:00'
   const totalSeconds = Math.max(0, Math.floor((nowMs - new Date(startedAt).getTime()) / 1000))
   const hours = Math.floor(totalSeconds / 3600)
   const minutes = Math.floor((totalSeconds % 3600) / 60)
   return hours > 0
     ? `${hours}:${String(minutes).padStart(2, '0')}`
-    : `${String(minutes).padStart(2, '0')} мин`
+    : t('common.durationMinutes', { minutes: String(minutes).padStart(2, '0') })
 }
 
 const calculateCurrentSessionAmount = (place: EmployeeWorkspacePlaceRow, nowMs: number) => {
@@ -127,10 +128,10 @@ export function AdminLiveMonitorPage() {
       <header className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-medium uppercase text-slate-500">{t('Мобильный мониторинг')}</p>
-            <h1 className="mt-1 text-2xl font-semibold text-slate-950">{t('Места онлайн')}</h1>
+            <p className="text-xs font-medium uppercase text-slate-500">{t("ui.mobilnyy_monitoring_8c73d15")}</p>
+            <h1 className="mt-1 text-2xl font-semibold text-slate-950">{t("ui.mesta_onlayn_e379342")}</h1>
             <p className="mt-1 text-sm leading-5 text-slate-600">
-              {t('Просмотр смены, мест, заказов и товаров без рабочих действий.')}
+              {t("ui.prosmotr_smeny_mest_zakazov_i_tovarov_bez_rabochih_d_7fb3dd7")}
             </p>
           </div>
           <Sofa aria-hidden="true" className="size-6 shrink-0 text-emerald-700" />
@@ -138,17 +139,17 @@ export function AdminLiveMonitorPage() {
 
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-            <p className="text-[11px] font-medium uppercase text-slate-500">{t('Смена')}</p>
-            <p className="mt-1 font-semibold text-slate-950">{shift ? t('Открыта') : t('Закрыта')}</p>
-            <p className="mt-1 text-xs text-slate-600">{shift ? formatDateTime(shift.opened_at) : t('Смена не открыта')}</p>
+            <p className="text-[11px] font-medium uppercase text-slate-500">{t("ui.smena_d5ff8af")}</p>
+            <p className="mt-1 font-semibold text-slate-950">{shift ? t("ui.otkryta_87c42ed") : t("ui.zakryta_6d2717e")}</p>
+            <p className="mt-1 text-xs text-slate-600">{shift ? formatDateTime(shift.opened_at) : t("ui.smena_ne_otkryta_a04a370")}</p>
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-            <p className="text-[11px] font-medium uppercase text-slate-500">{t('Выручка смены')}</p>
+            <p className="text-[11px] font-medium uppercase text-slate-500">{t("ui.vyruchka_smeny_7c55385")}</p>
             <p className="mt-1 font-semibold text-slate-950">
               {formatAzn((shiftSummary?.cash_sales_total ?? 0) + (shiftSummary?.card_transfer_sales_total ?? 0))}
             </p>
             <p className="mt-1 text-xs text-slate-600">
-              {t('Заказы')}: {orders.length} · {t('Занято')}: {activePlaces}
+              {t("ui.zakazy_22ac845")}: {orders.length} · {t("ui.zanyato_ba8daf5")}: {activePlaces}
             </p>
           </div>
         </div>
@@ -162,13 +163,13 @@ export function AdminLiveMonitorPage() {
 
       {isLoading ? (
         <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm font-medium text-slate-600 shadow-sm">
-          {t('Загрузка данных...')}
+          {t("ui.zagruzka_dannyh_6811312")}
         </div>
       ) : null}
 
       <section className="grid gap-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-slate-950">{t('Места')}</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("ui.mesta_a661590")}</h2>
           <span className="text-sm font-medium text-slate-500">
             {activePlaces}/{places.length}
           </span>
@@ -198,25 +199,25 @@ export function AdminLiveMonitorPage() {
 
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div className="rounded-md bg-slate-50 p-2">
-                    <p className="text-[11px] font-medium uppercase text-slate-500">{t('Сессия')}</p>
+                    <p className="text-[11px] font-medium uppercase text-slate-500">{t("ui.sessiya_1c1e92b")}</p>
                     <p className="mt-1 font-semibold text-slate-950">
-                      {place.active_session_id ? formatElapsed(place.active_session_started_at, nowMs) : t('Нет')}
+                      {place.active_session_id ? formatElapsed(place.active_session_started_at, nowMs, t) : t("ui.net_f82a821")}
                     </p>
                   </div>
                   <div className="rounded-md bg-slate-50 p-2">
-                    <p className="text-[11px] font-medium uppercase text-slate-500">{t('Сумма')}</p>
+                    <p className="text-[11px] font-medium uppercase text-slate-500">{t("ui.summa_99d7408")}</p>
                     <p className="mt-1 font-semibold text-slate-950">{formatAzn(total)}</p>
                   </div>
                 </div>
 
                 <div className="grid gap-1 text-xs text-slate-600">
                   <span>
-                    {t('Заказ')}: {place.active_order_number ? `#${place.active_order_number}` : t('Нет')}
+                    {t("ui.zakaz_c7b64dd")}: {place.active_order_number ? `#${place.active_order_number}` : t("ui.net_f82a821")}
                   </span>
                   {occupancyStartedAt ? (
                     <span className="inline-flex items-center gap-1">
                       <Timer aria-hidden="true" className="size-3.5" />
-                      {t('С момента')}: {formatDateTime(occupancyStartedAt)}
+                      {t("ui.s_momenta_b9cd458")}: {formatDateTime(occupancyStartedAt)}
                     </span>
                   ) : null}
                 </div>
@@ -230,11 +231,11 @@ export function AdminLiveMonitorPage() {
         <div className="flex items-center justify-between gap-3">
           <h2 className="inline-flex items-center gap-2 text-lg font-semibold text-slate-950">
             <ReceiptText aria-hidden="true" className="size-5 text-emerald-700" />
-            {t('Открытые заказы')}
+            {t("ui.otkrytye_zakazy_19fa1a2")}
           </h2>
           {waitingPayment ? (
             <span className="rounded-md bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">
-              {t('Ожидает оплату')}: {waitingPayment}
+              {t("ui.ozhidaet_oplatu_2b281ad")}: {waitingPayment}
             </span>
           ) : null}
         </div>
@@ -247,22 +248,22 @@ export function AdminLiveMonitorPage() {
                   <div className="min-w-0">
                     <h3 className="font-semibold text-slate-950">#{order.order_number}</h3>
                     <p className="mt-1 text-sm text-slate-600">
-                      {order.customer_label || t('Без имени')}
+                      {order.customer_label || t("ui.bez_imeni_cdf641f")}
                     </p>
                   </div>
                   <p className="shrink-0 font-semibold text-slate-950">{formatAzn(order.total_amount)}</p>
                 </div>
                 <div className="mt-2 grid gap-1 text-xs text-slate-600">
-                  <span>{order.current_place_name_snapshot ?? t('Без места')}</span>
-                  <span>{t('Открыт')}: {formatDateTime(order.opened_at)}</span>
-                  {order.comment ? <span>{t('Комментарий')}: {order.comment}</span> : null}
+                  <span>{order.current_place_name_snapshot ?? t("ui.bez_mesta_da3a88d")}</span>
+                  <span>{t("ui.otkryt_3568fc6")}: {formatDateTime(order.opened_at)}</span>
+                  {order.comment ? <span>{t("ui.kommentariy_829038c")}: {order.comment}</span> : null}
                 </div>
               </article>
             ))}
           </div>
         ) : (
           <div className="rounded-md border border-dashed border-slate-200 p-4 text-sm text-slate-500">
-            {t('Открытых заказов нет')}
+            {t("ui.otkrytyh_zakazov_net_ab8e2c7")}
           </div>
         )}
       </section>
@@ -270,7 +271,7 @@ export function AdminLiveMonitorPage() {
       <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
         <h2 className="inline-flex items-center gap-2 text-lg font-semibold text-slate-950">
           <Package aria-hidden="true" className="size-5 text-emerald-700" />
-          {t('Товары')}
+          {t("ui.tovary_5179979")}
         </h2>
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -291,12 +292,12 @@ export function AdminLiveMonitorPage() {
                   <h3 className="truncate text-sm font-semibold text-slate-950">{product.name}</h3>
                   <p className="mt-1 text-sm font-semibold text-slate-950">{formatAzn(product.sale_price)}</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    {categoryById.get(product.category_id ?? '') ?? t('Без категории')}
+                    {categoryById.get(product.category_id ?? '') ?? t("ui.bez_kategorii_5aaa8a1")}
                   </p>
                   <p className={low ? 'mt-1 text-xs font-semibold text-amber-700' : 'mt-1 text-xs text-slate-600'}>
                     {productWithStock.track_stock
-                      ? `${t('Осталось')}: ${stock ?? '-'} ${product.unit_name}`
-                      : t('Без учёта склада')}
+                      ? `${t("ui.ostalos_76a8eb1")}: ${stock ?? '-'} ${product.unit_name}`
+                      : t("ui.bez_ucheta_sklada_8157cd8")}
                   </p>
                 </div>
               </article>

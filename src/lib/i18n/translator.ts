@@ -1,82 +1,23 @@
+import i18n from './i18n'
+import sourceMap from './locales/source-map.json'
+import manualSourceMap from './locales/manual-source-map.json'
 import {
-  azTranslations,
-  supportedLanguages,
-  SYSTEM_LANGUAGE_STORAGE_KEY,
-  translationEntries,
+  localeByLanguage,
+  getStoredSystemLanguage,
   type SystemLanguage,
 } from './translations'
 
-const reverseAzTranslations = Object.fromEntries(
-  Object.entries(azTranslations).map(([source, translated]) => [translated, source]),
-)
+type TranslationOptions = Record<string, unknown>
 
-const reverseTranslationEntries = Object.entries(reverseAzTranslations).sort(
-  ([left], [right]) => right.length - left.length,
-)
-const safeTranslationEntries = translationEntries.filter(([source]) => source.trim().length > 1)
-const safeReverseTranslationEntries = reverseTranslationEntries.filter(([source]) => source.trim().length > 1)
-
-const cyrillicPattern = /[А-Яа-яЁё]/
+const sources: Record<string, string> = { ...sourceMap, ...manualSourceMap }
+const ignoredTags = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'CODE', 'PRE'])
+const translatableAttributes = ['aria-label', 'placeholder', 'title', 'alt'] as const
+const originalText = new WeakMap<Text, string>()
+const renderedText = new WeakMap<Text, string>()
+const originalAttributes = new WeakMap<Element, Map<string, string>>()
+const renderedAttributes = new WeakMap<Element, Map<string, string>>()
 
 const hasDom = () => typeof window !== 'undefined' && typeof document !== 'undefined'
-
-function translateDynamicTextToAz(value: string) {
-  return value
-    .replace(/(\d+)\s*ч(?=\s|$)/g, '$1 saat')
-    .replace(/(\d+)\s*мин\.?(?=\s|$)/g, '$1 dəq')
-    .replace(/(\d+)\s*поз\.(?=\s|$)/g, '$1 mövqe')
-    .replace(/Сейчас:/g, 'İndi:')
-}
-
-function translateDynamicTextToRu(value: string) {
-  return value
-    .replace(/(\d+)\s*saat(?=\s|$)/gi, '$1 ч')
-    .replace(/(\d+)\s*dəq\.?(?=\s|$)/gi, '$1 мин')
-    .replace(/(\d+)\s*mövqe(?=\s|$)/gi, '$1 поз.')
-    .replace(/İndi:/g, 'Сейчас:')
-}
-
-export function isSystemLanguage(value: unknown): value is SystemLanguage {
-  return typeof value === 'string' && supportedLanguages.includes(value as SystemLanguage)
-}
-
-export function getStoredSystemLanguage(): SystemLanguage {
-  if (!hasDom()) return 'ru'
-  const stored = window.localStorage.getItem(SYSTEM_LANGUAGE_STORAGE_KEY)
-  return isSystemLanguage(stored) ? stored : 'ru'
-}
-
-export function saveStoredSystemLanguage(language: SystemLanguage) {
-  if (!hasDom()) return
-  window.localStorage.setItem(SYSTEM_LANGUAGE_STORAGE_KEY, language)
-  window.dispatchEvent(new CustomEvent('freedom-platform:system-language-change', { detail: language }))
-}
-
-function translateTrimmedToAz(value: string) {
-  const exact = azTranslations[value]
-  if (exact) return exact
-
-  if (!cyrillicPattern.test(value)) return value
-
-  const translated = safeTranslationEntries.reduce((current, [source, translated]) => {
-    if (!current.includes(source)) return current
-    return current.replaceAll(source, translated)
-  }, value)
-
-  return translateDynamicTextToAz(translated)
-}
-
-function translateTrimmedToRu(value: string) {
-  const exact = reverseAzTranslations[value]
-  if (exact) return exact
-
-  const translated = safeReverseTranslationEntries.reduce((current, [source, translated]) => {
-    if (!current.includes(source)) return current
-    return current.replaceAll(source, translated)
-  }, value)
-
-  return translateDynamicTextToRu(translated)
-}
 
 function preserveOuterWhitespace(source: string, translatedTrimmed: string) {
   const prefix = source.match(/^\s*/)?.[0] ?? ''
@@ -84,48 +25,62 @@ function preserveOuterWhitespace(source: string, translatedTrimmed: string) {
   return `${prefix}${translatedTrimmed}${suffix}`
 }
 
-export function translateText(value: string, language: SystemLanguage = getStoredSystemLanguage()) {
+export function resolveTranslationKey(value: string) {
+  return sources[value] ?? value
+}
+
+export function translateText(
+  value: string,
+  language: SystemLanguage = getStoredSystemLanguage(),
+  options?: TranslationOptions,
+) {
   const trimmed = value.trim()
   if (!trimmed) return value
 
-  const translated = language === 'az' ? translateTrimmedToAz(trimmed) : translateTrimmedToRu(trimmed)
-  return translated === trimmed ? value : preserveOuterWhitespace(value, translated)
+  const key = resolveTranslationKey(trimmed)
+  if (key === trimmed && !i18n.exists(key, { lng: language })) return value
+  const translated = i18n.t(key, { ...options, lng: language, defaultValue: trimmed })
+  return translated === trimmed ? value : preserveOuterWhitespace(value, String(translated))
 }
 
-export function translateByCurrentLanguage(value: string) {
-  return translateText(value, getStoredSystemLanguage())
+export function translateByCurrentLanguage(value: string, options?: TranslationOptions) {
+  return translateText(value, getStoredSystemLanguage(), options)
 }
 
-const ignoredTags = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'CODE', 'PRE'])
-const translatableAttributes = ['aria-label', 'placeholder', 'title', 'alt']
+export function getCurrentLocale(language: SystemLanguage = getStoredSystemLanguage()) {
+  return localeByLanguage[language]
+}
 
 function translateTextNode(node: Text, language: SystemLanguage) {
   if (node.parentElement && ignoredTags.has(node.parentElement.tagName)) return
-
-  const currentValue = node.nodeValue
-  if (!currentValue) return
-
-  const translated = translateText(currentValue, language)
-  if (translated !== currentValue) {
-    node.nodeValue = translated
-  }
+  const current = node.nodeValue ?? ''
+  if (renderedText.get(node) !== current) originalText.set(node, current)
+  const source = originalText.get(node) ?? current
+  const translated = translateText(source, language)
+  renderedText.set(node, translated)
+  if (translated !== current) node.nodeValue = translated
 }
 
 function translateElementAttributes(element: Element, language: SystemLanguage) {
-  for (const attributeName of translatableAttributes) {
-    const currentValue = element.getAttribute(attributeName)
-    if (!currentValue) continue
+  const originals = originalAttributes.get(element) ?? new Map<string, string>()
+  const rendered = renderedAttributes.get(element) ?? new Map<string, string>()
 
-    const translated = translateText(currentValue, language)
-    if (translated !== currentValue) {
-      element.setAttribute(attributeName, translated)
-    }
+  for (const attributeName of translatableAttributes) {
+    const current = element.getAttribute(attributeName)
+    if (!current) continue
+    if (rendered.get(attributeName) !== current) originals.set(attributeName, current)
+    const source = originals.get(attributeName) ?? current
+    const translated = translateText(source, language)
+    rendered.set(attributeName, translated)
+    if (translated !== current) element.setAttribute(attributeName, translated)
   }
+
+  originalAttributes.set(element, originals)
+  renderedAttributes.set(element, rendered)
 }
 
 export function translateDom(root: ParentNode = document.body, language = getStoredSystemLanguage()) {
   if (!hasDom()) return
-
   if (root instanceof Element) {
     if (ignoredTags.has(root.tagName)) return
     translateElementAttributes(root, language)
@@ -133,21 +88,16 @@ export function translateDom(root: ParentNode = document.body, language = getSto
 
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, {
     acceptNode(node) {
-      if (node instanceof Element && ignoredTags.has(node.tagName)) {
-        return NodeFilter.FILTER_REJECT
-      }
-
-      return NodeFilter.FILTER_ACCEPT
+      return node instanceof Element && ignoredTags.has(node.tagName)
+        ? NodeFilter.FILTER_REJECT
+        : NodeFilter.FILTER_ACCEPT
     },
   })
 
   let current: Node | null = walker.currentNode
   while (current) {
-    if (current instanceof Text) {
-      translateTextNode(current, language)
-    } else if (current instanceof Element) {
-      translateElementAttributes(current, language)
-    }
+    if (current instanceof Text) translateTextNode(current, language)
+    else if (current instanceof Element) translateElementAttributes(current, language)
     current = walker.nextNode()
   }
 }

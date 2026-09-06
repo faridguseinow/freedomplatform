@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../../../hooks/useAuth'
@@ -43,7 +44,7 @@ const shortId = (value: string) => value.slice(0, 8)
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return '-'
-  return new Intl.DateTimeFormat('ru', {
+  return new Intl.DateTimeFormat(getCurrentLocale(), {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
@@ -52,10 +53,10 @@ const formatDateTime = (value: string | null | undefined) => {
 }
 
 const formatMoney = (value: number | null | undefined) =>
-  new Intl.NumberFormat('ru', { maximumFractionDigits: 2 }).format(value ?? 0)
+  new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
 
 const formatQuantity = (value: number | null | undefined) =>
-  value == null ? '-' : new Intl.NumberFormat('ru', { maximumFractionDigits: 3 }).format(value)
+  value == null ? '-' : new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 3 }).format(value)
 
 const systemCommentLabel = (value: string | null | undefined) => {
   if (!value) return null
@@ -74,7 +75,7 @@ export function AdminAdjustmentRequestsPage() {
   const userLabel = (request: AdminAdjustmentRequestRow, kind: 'requested' | 'reviewed') => {
     const profile = kind === 'requested' ? request.requested_by_profile : request.reviewed_by_profile
     const userId = kind === 'requested' ? request.requested_by : request.reviewed_by
-    return profile?.full_name ?? profile?.email ?? (userId ? shortId(userId) : t('Системно'))
+    return profile?.full_name ?? profile?.email ?? (userId ? shortId(userId) : t("ui.sistemno_878895f"))
   }
   const orderLabel = (request: AdminAdjustmentRequestRow) =>
     request.order ? `#${request.order.order_number}` : shortId(request.order_id)
@@ -84,9 +85,9 @@ export function AdminAdjustmentRequestsPage() {
   return (
     <section className="grid gap-5">
       <header className="grid gap-2">
-        <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">{t('Журнал изменений заказа')}</h2>
+        <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">{t("ui.zhurnal_izmeneniy_zakaza_c2f2cd5")}</h2>
         <p className="max-w-3xl text-sm leading-6 text-slate-600">
-          {t('Сотрудник меняет заказ сразу, а здесь администратор видит, что именно было изменено.')}
+          {t("ui.sotrudnik_menyaet_zakaz_srazu_a_zdes_administrator_v_ccffb6b")}
         </p>
       </header>
 
@@ -103,14 +104,14 @@ export function AdminAdjustmentRequestsPage() {
             onClick={() => setStatus(item)}
             type="button"
           >
-            {item === 'all' ? t('Все') : t(statusLabel[item])}
+            {item === 'all' ? t("ui.vse_fd08da7") : t(statusLabel[item])}
           </button>
         ))}
       </div>
 
       {requestsQuery.isLoading ? (
         <div className="inline-flex min-h-28 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600">
-          <Loader2 className="size-4 animate-spin text-emerald-700" /> {t('Загрузка запросов')}
+          <Loader2 className="size-4 animate-spin text-emerald-700" /> {t("ui.zagruzka_zaprosov_6e1dae8")}
         </div>
       ) : null}
 
@@ -119,14 +120,14 @@ export function AdminAdjustmentRequestsPage() {
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t('Время')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t('Тип')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t('Заказ')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t('Позиция')}</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">{t('Кол-во')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t('Сотрудник')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t('Причина')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t('Проверка')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.vremya_c80d7e8")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.tip_d25691c")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.zakaz_c7b64dd")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.pozitsiya_c139a7f")}</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">{t("ui.kol_vo_5ae5e23")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.sotrudnik_fb26b42")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.prichina_4a9ea52")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.proverka_457969b")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -143,8 +144,8 @@ export function AdminAdjustmentRequestsPage() {
                     {request.order ? <div className="mt-1 text-xs text-slate-500">{formatMoney(request.order.total_amount)} AZN</div> : null}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="max-w-48 font-medium text-slate-900">{request.order_item?.name_snapshot ?? t('Позиция не указана')}</div>
-                    {request.order_item ? <div className="mt-1 text-xs text-slate-500">{t('Текущее')}: {formatQuantity(request.order_item.quantity)}</div> : null}
+                    <div className="max-w-48 font-medium text-slate-900">{request.order_item?.name_snapshot ?? t("ui.pozitsiya_ne_ukazana_2f7cfdc")}</div>
+                    {request.order_item ? <div className="mt-1 text-xs text-slate-500">{t("ui.tekuschee_4abba23")}: {formatQuantity(request.order_item.quantity)}</div> : null}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-slate-950">
                     {formatQuantity(request.requested_quantity)}
@@ -164,7 +165,7 @@ export function AdminAdjustmentRequestsPage() {
                         {request.review_comment ? <div className="mt-1 max-w-44 text-xs text-slate-500">{t(systemCommentLabel(request.review_comment) ?? '')}</div> : null}
                       </>
                     ) : (
-                      <span className="text-slate-500">{t('Не проверено')}</span>
+                      <span className="text-slate-500">{t("ui.ne_provereno_5f49633")}</span>
                     )}
                   </td>
                 </tr>
@@ -186,28 +187,28 @@ export function AdminAdjustmentRequestsPage() {
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
               <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                <div className="text-[11px] font-semibold uppercase text-slate-500">{t('Заказ')}</div>
+                <div className="text-[11px] font-semibold uppercase text-slate-500">{t("ui.zakaz_c7b64dd")}</div>
                 <div className="mt-0.5 font-semibold text-slate-950">{orderLabel(request)}</div>
                 {orderContext(request) ? <div className="mt-0.5 text-xs text-slate-500">{orderContext(request)}</div> : null}
               </div>
               <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                <div className="text-[11px] font-semibold uppercase text-slate-500">{t('Кол-во')}</div>
+                <div className="text-[11px] font-semibold uppercase text-slate-500">{t("ui.kol_vo_5ae5e23")}</div>
                 <div className="mt-0.5 font-semibold text-slate-950">{formatQuantity(request.requested_quantity)}</div>
               </div>
               <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                <div className="text-[11px] font-semibold uppercase text-slate-500">{t('Позиция')}</div>
-                <div className="mt-0.5 font-semibold text-slate-950">{request.order_item?.name_snapshot ?? t('Позиция не указана')}</div>
+                <div className="text-[11px] font-semibold uppercase text-slate-500">{t("ui.pozitsiya_c139a7f")}</div>
+                <div className="mt-0.5 font-semibold text-slate-950">{request.order_item?.name_snapshot ?? t("ui.pozitsiya_ne_ukazana_2f7cfdc")}</div>
               </div>
               <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                <div className="text-[11px] font-semibold uppercase text-slate-500">{t('Сотрудник')}</div>
+                <div className="text-[11px] font-semibold uppercase text-slate-500">{t("ui.sotrudnik_fb26b42")}</div>
                 <div className="mt-0.5 font-semibold text-slate-950">{userLabel(request, 'requested')}</div>
               </div>
             </div>
             <p className="mt-3 text-sm text-slate-700">{request.reason}</p>
             <p className="mt-2 text-xs text-slate-500">
               {request.reviewed_at
-                ? `${t('Проверил')}: ${userLabel(request, 'reviewed')} · ${formatDateTime(request.reviewed_at)}${systemCommentLabel(request.review_comment) ? ` · ${t(systemCommentLabel(request.review_comment) ?? '')}` : ''}`
-                : t('Не проверено')}
+                ? `${t("ui.proveril_6379d89")}: ${userLabel(request, 'reviewed')} · ${formatDateTime(request.reviewed_at)}${systemCommentLabel(request.review_comment) ? ` · ${t(systemCommentLabel(request.review_comment) ?? '')}` : ''}`
+                : t("ui.ne_provereno_5f49633")}
             </p>
           </article>
         ))}
@@ -215,7 +216,7 @@ export function AdminAdjustmentRequestsPage() {
 
       {!requestsQuery.isLoading && !requests.length ? (
         <div className="grid min-h-32 place-items-center rounded-lg border border-dashed border-slate-300 bg-white text-sm text-slate-600">
-          {t('Изменений по фильтру нет')}
+          {t("ui.izmeneniy_po_filtru_net_8807799")}
         </div>
       ) : null}
     </section>

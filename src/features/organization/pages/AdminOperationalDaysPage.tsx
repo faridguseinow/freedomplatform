@@ -1,9 +1,10 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '../../../hooks/useAuth'
 import { useOperationalDays } from '../../shifts/operationalDaysApi'
 
 const formatMoney = (value: number | null | undefined) =>
-  new Intl.NumberFormat('ru', { maximumFractionDigits: 2 }).format(value ?? 0)
+  new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
 
 export function AdminOperationalDaysPage() {
   const { organizationId } = useAuth()

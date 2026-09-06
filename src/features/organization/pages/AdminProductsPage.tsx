@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Archive, Edit3, History, Loader2, Plus, RotateCcw, Save, Search, Trash2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -58,9 +59,9 @@ const statusClass: Record<CatalogItemStatus, string> = {
 }
 
 const formatMoney = (value: number | null) =>
-  value === null ? '-' : new Intl.NumberFormat('ru', { maximumFractionDigits: 2 }).format(value)
+  value === null ? '-' : new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value)
 
-const formatStockValue = (value: number) => new Intl.NumberFormat('ru', { maximumFractionDigits: 3 }).format(value)
+const formatStockValue = (value: number) => new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 3 }).format(value)
 
 const formatStockInputValue = (value: number) => String(Number(value.toFixed(3)))
 
@@ -68,7 +69,7 @@ const parseStockInputValue = (value: string) => Number(value.trim().replace(',',
 
 const roundStockQuantity = (value: number) => Number(value.toFixed(3))
 
-const productNameCollator = new Intl.Collator('az-Latn', {
+const productNameCollator = new Intl.Collator(getCurrentLocale(), {
   numeric: true,
   sensitivity: 'base',
 })
@@ -209,26 +210,26 @@ export function AdminProductsPage() {
 
   const updateProductStock = async () => {
     if (!organizationId || !user || !editingProduct) {
-      setStockAdjustmentError(t('Сначала сохраните товар, затем измените остаток.'))
+      setStockAdjustmentError(t("ui.snachala_sohranite_tovar_zatem_izmenite_ostatok_bf4d89a"))
       return
     }
 
     const nextQuantity = roundStockQuantity(parseStockInputValue(stockTargetQuantity))
     if (!Number.isFinite(nextQuantity) || nextQuantity < 0) {
-      setStockAdjustmentError(t('Введите корректное количество.'))
+      setStockAdjustmentError(t("ui.vvedite_korrektnoe_kolichestvo_e3a059c"))
       return
     }
 
     const currentQuantity = roundStockQuantity(editingProduct.stock_quantity)
     const delta = roundStockQuantity(nextQuantity - currentQuantity)
     if (delta === 0) {
-      setStockAdjustmentError(t('Введите новое количество, отличающееся от текущего остатка.'))
+      setStockAdjustmentError(t("ui.vvedite_novoe_kolichestvo_otlichayuscheesya_ot_tekus_dd62c17"))
       return
     }
 
     const comment = stockAdjustmentComment.trim()
     if (!comment) {
-      setStockAdjustmentError(t('Укажите причину изменения остатка.'))
+      setStockAdjustmentError(t("ui.ukazhite_prichinu_izmeneniya_ostatka_38ba0f4"))
       return
     }
 
@@ -265,33 +266,33 @@ export function AdminProductsPage() {
       setEditingProduct({ ...editingProduct, stock_quantity: nextQuantity })
       setStockTargetQuantity(formatStockInputValue(nextQuantity))
       setStockAdjustmentComment('')
-      setStockAdjustmentSuccess(t('Остаток обновлен через складскую корректировку.'))
+      setStockAdjustmentSuccess(t("ui.ostatok_obnovlen_cherez_skladskuyu_korrektirovku_007c95e"))
     } catch (error) {
-      setStockAdjustmentError(error instanceof Error ? error.message : t('Не удалось обновить остаток.'))
+      setStockAdjustmentError(error instanceof Error ? error.message : t("ui.ne_udalos_obnovit_ostatok_c90d2cc"))
     }
   }
 
   const getProductDeleteError = (error: unknown) => {
     const message = error instanceof Error ? error.message : ''
     if (message.includes('Product has already been used')) {
-      return t('Товар уже использовался в заказах, складе или комбо. Удаление невозможно, архивируйте товар.')
+      return t("ui.tovar_uzhe_ispolzovalsya_v_zakazah_sklade_ili_kombo__f22fa56")
     }
     if (message.includes('Product stock must be zero')) {
-      return t('Перед удалением остаток товара должен быть 0.')
+      return t("ui.pered_udaleniem_ostatok_tovara_dolzhen_byt_0_b908662")
     }
-    return message || t('Не удалось удалить товар.')
+    return message || t("ui.ne_udalos_udalit_tovar_f3762ba")
   }
 
   const deleteProduct = async (product: ProductRow) => {
     const confirmed = window.confirm(
-      `${t('Удалить товар навсегда?')}\n\n${t(
-        'Удалить можно только товар без заказов, складских документов, движений, резервов и комбо. Если история уже есть, используйте архив.',
+      `${t("ui.udalit_tovar_navsegda_9797c20")}\n\n${t(
+        "ui.udalit_mozhno_tolko_tovar_bez_zakazov_skladskih_doku_bcfe87a",
       )}`,
     )
 
     if (!confirmed) return
 
-    const reason = window.prompt(t('Причина удаления товара'))
+    const reason = window.prompt(t("ui.prichina_udaleniya_tovara_6c2e861"))
     if (reason === null) return
 
     try {
@@ -410,14 +411,14 @@ export function AdminProductsPage() {
           </span>
         </label>
         <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-          <span>{t('Категория')}</span>
+          <span>{t("ui.kategoriya_19c8583")}</span>
           <select
             className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
             onChange={(event) => setCategoryFilter(event.target.value)}
             value={categoryFilter}
           >
-            <option value="all">{t('Все категории')}</option>
-            <option value="uncategorized">{t('Без категории')}</option>
+            <option value="all">{t("ui.vse_kategorii_b3bf7ed")}</option>
+            <option value="uncategorized">{t("ui.bez_kategorii_5aaa8a1")}</option>
             {productCategories.map((category) => (
               <option key={category.id} value={category.id}>{category.name}</option>
             ))}
@@ -478,24 +479,24 @@ export function AdminProductsPage() {
                   </span>
                 </div>
                 <dl className="mt-3 grid grid-cols-3 gap-2 text-xs sm:text-sm">
-                  <div><dt className="text-xs uppercase text-slate-500">{t('Продажа')}</dt><dd className="font-semibold text-slate-950">{formatMoney(product.sale_price)}</dd></div>
-                  <div><dt className="text-xs uppercase text-slate-500">{t('Закупка')}</dt><dd className="font-semibold text-slate-950">{formatMoney(product.purchase_price)}</dd></div>
-                  <div><dt className="text-xs uppercase text-slate-500">{t('Остаток')}</dt><dd className="font-semibold text-slate-950">{product.track_stock ? `${product.stock_quantity} ${product.unit_name}` : '—'}</dd></div>
+                  <div><dt className="text-xs uppercase text-slate-500">{t("ui.prodazha_9be19a0")}</dt><dd className="font-semibold text-slate-950">{formatMoney(product.sale_price)}</dd></div>
+                  <div><dt className="text-xs uppercase text-slate-500">{t("ui.zakupka_c651ee4")}</dt><dd className="font-semibold text-slate-950">{formatMoney(product.purchase_price)}</dd></div>
+                  <div><dt className="text-xs uppercase text-slate-500">{t("ui.ostatok_c13a87f")}</dt><dd className="font-semibold text-slate-950">{product.track_stock ? `${product.stock_quantity} ${product.unit_name}` : '—'}</dd></div>
                 </dl>
               </div>
               <div className="mt-auto grid grid-cols-4 gap-2">
-                <Button aria-label={t('Редактировать')} className="min-h-10 px-2" onClick={() => openEdit(product)} type="button" variant="secondary">
+                <Button aria-label={t("ui.redaktirovat_901beb5")} className="min-h-10 px-2" onClick={() => openEdit(product)} type="button" variant="secondary">
                   <Edit3 className="size-4" />
                 </Button>
                 <Link
-                  aria-label={t('История')}
+                  aria-label={t("ui.istoriya_d5fec74")}
                   className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-2 text-sm font-medium text-slate-800 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
                   to={`/admin/inventory/products/${product.id}`}
                 >
                   <History className="size-4" />
                 </Link>
                 <Button
-                  aria-label={product.status === 'archived' ? t('Восстановить') : t('Архивировать')}
+                  aria-label={product.status === 'archived' ? t("ui.vosstanovit_29f3b29") : t("ui.arhivirovat_1147635")}
                   className="min-h-10 px-2"
                   onClick={() =>
                     productMutations.setStatus.mutate({
@@ -509,7 +510,7 @@ export function AdminProductsPage() {
                   {product.status === 'archived' ? <RotateCcw className="size-4" /> : <Archive className="size-4" />}
                 </Button>
                 <Button
-                  aria-label={t('Удалить')}
+                  aria-label={t("ui.udalit_86ea33a")}
                   className="min-h-10 px-2"
                   disabled={productMutations.deleteUnused.isPending}
                   onClick={() => deleteProduct(product)}
@@ -559,17 +560,17 @@ export function AdminProductsPage() {
                   {editingProduct ? (
                     <div className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-700 sm:col-span-2">
                       <div className="flex items-center justify-between gap-3">
-                        <span>{t('Текущий остаток')}</span>
+                        <span>{t("ui.tekuschiy_ostatok_7cbd952")}</span>
                         <strong className="text-base text-slate-950">
                           {formatStockValue(editingProduct.stock_quantity)} {editingProduct.unit_name}
                         </strong>
                       </div>
                       <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
                         <label className="grid gap-1.5">
-                          <span>{t('Новое количество')}</span>
+                          <span>{t("ui.novoe_kolichestvo_65de0e5")}</span>
                           <span className="grid grid-cols-[44px_1fr_44px] rounded-md border border-slate-200 bg-white">
                             <button
-                              aria-label={t('Уменьшить на 1')}
+                              aria-label={t("ui.umenshit_na_1_0a56074")}
                               className="inline-flex min-h-11 items-center justify-center border-r border-slate-200 text-lg font-semibold text-slate-600 hover:bg-slate-50"
                               disabled={isStockAdjustmentPending}
                               onClick={() => shiftStockTarget(-1)}
@@ -588,7 +589,7 @@ export function AdminProductsPage() {
                               value={stockTargetQuantity}
                             />
                             <button
-                              aria-label={t('Увеличить на 1')}
+                              aria-label={t("ui.uvelichit_na_1_bdb3af2")}
                               className="inline-flex min-h-11 items-center justify-center border-l border-slate-200 text-lg font-semibold text-slate-600 hover:bg-slate-50"
                               disabled={isStockAdjustmentPending}
                               onClick={() => shiftStockTarget(1)}
@@ -604,11 +605,11 @@ export function AdminProductsPage() {
                           type="button"
                         >
                           {isStockAdjustmentPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                          {t('Обновить остаток')}
+                          {t("ui.obnovit_ostatok_322d13d")}
                         </Button>
                       </div>
                       <label className="grid gap-1.5">
-                        <span>{t('Причина корректировки')}</span>
+                        <span>{t("ui.prichina_korrektirovki_1600d71")}</span>
                         <input
                           className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
                           onChange={(event) => {
@@ -616,7 +617,7 @@ export function AdminProductsPage() {
                             setStockAdjustmentError(null)
                             setStockAdjustmentSuccess(null)
                           }}
-                          placeholder={t('Например: пересчёт, ошибка ввода, поступление без документа.')}
+                          placeholder={t("ui.naprimer_pereschet_oshibka_vvoda_postuplenie_bez_dok_c93e01d")}
                           value={stockAdjustmentComment}
                         />
                       </label>

@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { Ban, FileText, Loader2 } from 'lucide-react'
 import { Button } from '../../../components/ui/Button'
 import { useAuth } from '../../../hooks/useAuth'
@@ -8,9 +9,9 @@ import {
   useStockDocuments,
 } from '../catalog/inventoryApi'
 
-const formatDate = (value: string) => new Date(value).toLocaleDateString('ru')
+const formatDate = (value: string) => new Date(value).toLocaleDateString(getCurrentLocale())
 const formatNumber = (value: number | null) =>
-  new Intl.NumberFormat('ru', { maximumFractionDigits: 2 }).format(value ?? 0)
+  new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
 
 export function AdminInventoryDocumentsPage() {
   const { organizationId } = useAuth()

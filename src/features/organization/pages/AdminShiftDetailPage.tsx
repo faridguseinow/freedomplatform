@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { ArrowLeft, Banknote, Calculator, ChevronDown, Clock3, CreditCard, GripHorizontal, Loader2, ReceiptText, Timer, Trash2, X } from 'lucide-react'
 import type { ComponentType, CSSProperties, PointerEvent } from 'react'
 import { useRef, useState } from 'react'
@@ -11,7 +12,7 @@ import { orderStatusLabel } from '../../orders/employeeOrdersApi'
 import { shiftStatusLabel, useAdminShiftDetail, useAdminShiftMutations } from '../../shifts/shiftsApi'
 
 const formatMoney = (value: number | null | undefined) =>
-  new Intl.NumberFormat('ru', { maximumFractionDigits: 2 }).format(value ?? 0)
+  new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
 
 const formatFormulaNumber = (value: number | null | undefined) => {
   const normalizedValue = Number(value ?? 0)
@@ -80,7 +81,7 @@ const evaluateExpression = (expression: string) => {
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return '-'
-  return new Intl.DateTimeFormat('ru', {
+  return new Intl.DateTimeFormat(getCurrentLocale(), {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
@@ -88,13 +89,15 @@ const formatDateTime = (value: string | null | undefined) => {
   }).format(new Date(value))
 }
 
-const formatDuration = (startedAt: string | null | undefined, endedAt: string | null | undefined) => {
+const formatDuration = (startedAt: string | null | undefined, endedAt: string | null | undefined, t: (key: string, options?: Record<string, unknown>) => string) => {
   if (!startedAt) return '-'
   const end = endedAt ? new Date(endedAt).getTime() : Date.now()
   const totalMinutes = Math.max(0, Math.round((end - new Date(startedAt).getTime()) / 60_000))
   const hours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
-  return hours ? `${hours} ч ${minutes} мин` : `${minutes} мин`
+  return hours
+    ? t('common.durationHoursMinutes', { hours, minutes })
+    : t('common.durationMinutes', { minutes })
 }
 
 const paymentMethodLabel: Record<PaymentMethod, string> = {
@@ -216,10 +219,10 @@ function ShiftCalculator({ onClose, presets, values }: ShiftCalculatorProps) {
         <div className="flex min-w-0 items-center gap-2">
           <GripHorizontal className="size-4 shrink-0 text-slate-400" />
           <Calculator className="size-4 shrink-0 text-emerald-700" />
-          <p className="truncate text-sm font-semibold text-slate-950">{t('Калькулятор смены')}</p>
+          <p className="truncate text-sm font-semibold text-slate-950">{t("ui.kalkulyator_smeny_04fe4ae")}</p>
         </div>
         <button
-          aria-label={t('Закрыть')}
+          aria-label={t("ui.zakryt_4ae50d3")}
           className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100"
           onClick={onClose}
           onPointerDown={(event) => event.stopPropagation()}
@@ -232,7 +235,7 @@ function ShiftCalculator({ onClose, presets, values }: ShiftCalculatorProps) {
       <div className="grid content-start gap-3 overflow-y-auto p-3">
         <div className="grid gap-1.5">
           <label className="text-xs font-medium uppercase text-slate-500" htmlFor="shift_calculator_expression">
-            {t('Выражение')}
+            {t("ui.vyrazhenie_956b6fe")}
           </label>
           <input
             className="min-h-11 rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
@@ -244,7 +247,7 @@ function ShiftCalculator({ onClose, presets, values }: ShiftCalculatorProps) {
         </div>
 
         <div className="rounded-md border border-emerald-100 bg-emerald-50 p-3">
-          <p className="text-xs font-medium uppercase text-emerald-800">{t('Результат')}</p>
+          <p className="text-xs font-medium uppercase text-emerald-800">{t("ui.rezultat_9fa227c")}</p>
           <p className="mt-1 text-2xl font-semibold text-slate-950">{result == null ? '-' : formatMoney(result)}</p>
         </div>
 
@@ -271,7 +274,7 @@ function ShiftCalculator({ onClose, presets, values }: ShiftCalculatorProps) {
             onClick={() => setExpression('')}
             type="button"
           >
-            {t('Очистить')}
+            {t("ui.ochistit_98b2073")}
           </button>
         </div>
 
@@ -281,7 +284,7 @@ function ShiftCalculator({ onClose, presets, values }: ShiftCalculatorProps) {
             onClick={() => setIsValuesOpen((current) => !current)}
             type="button"
           >
-            <span>{t('Быстрые суммы смены')}</span>
+            <span>{t("ui.bystrye_summy_smeny_9067002")}</span>
             <ChevronDown className={cn('size-4 transition-transform', isValuesOpen && 'rotate-180')} />
           </button>
           {isValuesOpen ? (
@@ -307,7 +310,7 @@ function ShiftCalculator({ onClose, presets, values }: ShiftCalculatorProps) {
             onClick={() => setIsPresetsOpen((current) => !current)}
             type="button"
           >
-            <span>{t('Готовые формулы')}</span>
+            <span>{t("ui.gotovye_formuly_670ef73")}</span>
             <ChevronDown className={cn('size-4 transition-transform', isPresetsOpen && 'rotate-180')} />
           </button>
           {isPresetsOpen ? (
@@ -393,17 +396,17 @@ export function AdminShiftDetailPage() {
   if (detailQuery.isLoading) {
     return (
       <div className="text-sm text-slate-600">
-        <Loader2 className="mr-2 inline size-4 animate-spin" /> {t('Загрузка смены')}
+        <Loader2 className="mr-2 inline size-4 animate-spin" /> {t("ui.zagruzka_smeny_f8b9449")}
       </div>
     )
   }
 
   if (!detailQuery.data) {
-    return <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{t('Смена не найдена.')}</div>
+    return <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{t("ui.smena_ne_naydena_40da5b6")}</div>
   }
 
   const { handovers, orders, payments, sessions, shift } = detailQuery.data
-  const employeeName = shift.employee_full_name ?? shift.employee_email ?? t('Без имени')
+  const employeeName = shift.employee_full_name ?? shift.employee_email ?? t("ui.bez_imeni_cdf641f")
   const paidOrders = orders.filter((order) => order.status === 'paid')
   const cancelledOrders = orders.filter((order) => order.status === 'cancelled')
   const openOrders = orders.filter((order) => order.status === 'open' || order.status === 'waiting_payment')
@@ -450,9 +453,9 @@ export function AdminShiftDetailPage() {
   ]
 
   const forceClose = () => {
-    const reason = window.prompt(t('Причина force close'))
+    const reason = window.prompt(t("ui.prichina_force_close_9767237"))
     if (!reason) return
-    const actualCashText = window.prompt(t('Фактическая наличность'), String(shift.expected_cash_amount ?? 0))
+    const actualCashText = window.prompt(t("ui.fakticheskaya_nalichnost_96d0708"), String(shift.expected_cash_amount ?? 0))
     mutations.forceClose.mutate({
       shiftId: shift.id,
       actualCashAmount: actualCashText ? Number(actualCashText) : null,
@@ -462,11 +465,11 @@ export function AdminShiftDetailPage() {
 
   const deleteShift = () => {
     const confirmation = window.confirm(
-      t('Удалить смену навсегда? Все заказы, оплаты, доходы и складовые списания этой смены будут удалены из итогов.'),
+      t("ui.udalit_smenu_navsegda_vse_zakazy_oplaty_dohody_i_skl_3b17f71"),
     )
     if (!confirmation) return
 
-    const comment = window.prompt(t('Комментарий удаления смены'), t('Удалено владельцем платформы'))
+    const comment = window.prompt(t("ui.kommentariy_udaleniya_smeny_0215ab5"), t("ui.udaleno_vladeltsem_platformy_46b956e"))
     mutations.deleteShift.mutate(
       { shiftId: shift.id, comment },
       { onSuccess: () => navigate(buildAdminPath('/admin/shifts')) },
@@ -478,7 +481,7 @@ export function AdminShiftDetailPage() {
       <div>
         <Button type="button" variant="secondary">
           <Link className="inline-flex items-center gap-2" to={buildAdminPath('/admin/shifts')}>
-            <ArrowLeft className="size-4" /> {t('Назад')}
+            <ArrowLeft className="size-4" /> {t("ui.nazad_f6dab07")}
           </Link>
         </Button>
       </div>
@@ -486,20 +489,20 @@ export function AdminShiftDetailPage() {
       <header className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-medium uppercase text-slate-500">{t('Детали смены')}</p>
+            <p className="text-xs font-medium uppercase text-slate-500">{t("ui.detali_smeny_82faaf9")}</p>
             <h2 className="mt-1 text-2xl font-semibold text-slate-950 sm:text-3xl">{employeeName}</h2>
             <p className="mt-1 text-sm text-slate-600">
-              {currentOrganization?.name ?? t('Организация')} · {shift.business_date} · {shift.shift_template_name ?? t('Без шаблона')}
+              {currentOrganization?.name ?? t("ui.organizatsiya_48b493a")} · {shift.business_date} · {shift.shift_template_name ?? t("ui.bez_shablona_2e1a5ce")}
             </p>
           </div>
           <span className={statusTone(shift.status)}>{t(shiftStatusLabel[shift.status])}</span>
         </div>
 
         <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-4">
-          <div><span className="font-medium text-slate-950">{t('Открыта')}:</span> {formatDateTime(shift.opened_at)}</div>
-          <div><span className="font-medium text-slate-950">{t('Закрыта')}:</span> {formatDateTime(shift.closed_at)}</div>
-          <div><span className="font-medium text-slate-950">{t('Длительность')}:</span> {formatDuration(shift.opened_at, shift.closed_at)}</div>
-          <div><span className="font-medium text-slate-950">{t('Операционный день')}:</span> {shift.business_date}</div>
+          <div><span className="font-medium text-slate-950">{t("ui.otkryta_87c42ed")}:</span> {formatDateTime(shift.opened_at)}</div>
+          <div><span className="font-medium text-slate-950">{t("ui.zakryta_6d2717e")}:</span> {formatDateTime(shift.closed_at)}</div>
+          <div><span className="font-medium text-slate-950">{t("ui.dlitelnost_d4168ac")}:</span> {formatDuration(shift.opened_at, shift.closed_at, t)}</div>
+          <div><span className="font-medium text-slate-950">{t("ui.operatsionnyy_den_70810bd")}:</span> {shift.business_date}</div>
         </div>
       </header>
 
@@ -521,10 +524,10 @@ export function AdminShiftDetailPage() {
 
       {shift.status === 'open' ? (
         <div className="flex flex-wrap gap-2">
-          <Button onClick={forceClose} type="button" variant="danger">{t('Закрыть админом')}</Button>
+          <Button onClick={forceClose} type="button" variant="danger">{t("ui.zakryt_adminom_7af46ab")}</Button>
           {isPlatformOwner ? (
             <Button disabled={mutations.deleteShift.isPending} onClick={deleteShift} type="button" variant="danger">
-              <Trash2 className="size-4" /> {t('Удалить смену')}
+              <Trash2 className="size-4" /> {t("ui.udalit_smenu_845b7fc")}
             </Button>
           ) : null}
         </div>
@@ -533,36 +536,36 @@ export function AdminShiftDetailPage() {
       {isPlatformOwner && shift.status !== 'open' ? (
         <div>
           <Button disabled={mutations.deleteShift.isPending} onClick={deleteShift} type="button" variant="danger">
-            <Trash2 className="size-4" /> {t('Удалить смену')}
+            <Trash2 className="size-4" /> {t("ui.udalit_smenu_845b7fc")}
           </Button>
         </div>
       ) : null}
 
       <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-lg font-semibold text-slate-950">{t('Расчёт кассы')}</h3>
+          <h3 className="text-lg font-semibold text-slate-950">{t("ui.raschet_kassy_cb6a614")}</h3>
           <Button
             className="min-h-9 px-3"
             onClick={() => setIsCalculatorOpen((current) => !current)}
             type="button"
             variant="secondary"
           >
-            <Calculator className="size-4" /> {t('Калькулятор')}
+            <Calculator className="size-4" /> {t("ui.kalkulyator_a808a0a")}
           </Button>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           <div className="rounded-md border border-slate-100 bg-slate-50 p-3">
-            <p className="text-xs font-medium uppercase text-slate-500">{t('Ожидаемая касса')}</p>
+            <p className="text-xs font-medium uppercase text-slate-500">{t("ui.ozhidaemaya_kassa_0adb6d8")}</p>
             <p className="mt-2 text-sm font-medium text-slate-700">
               {formatMoney(shift.opening_cash_amount)} + {formatMoney(shift.cash_sales_total)} ={' '}
               <span className="font-semibold text-slate-950">{formatMoney(shift.expected_cash_amount)}</span>
             </p>
             <p className="mt-1 text-xs leading-5 text-slate-500">
-              {t('Начальная касса плюс завершённые наличные оплаты этой смены. Переводы на карту сюда не входят.')}
+              {t("ui.nachalnaya_kassa_plyus_zavershennye_nalichnye_oplaty_b932ba5")}
             </p>
           </div>
           <div className="rounded-md border border-slate-100 bg-slate-50 p-3">
-            <p className="text-xs font-medium uppercase text-slate-500">{t('Расхождение')}</p>
+            <p className="text-xs font-medium uppercase text-slate-500">{t("ui.rashozhdenie_114114d")}</p>
             <p className="mt-2 text-sm font-medium text-slate-700">
               {formatMoney(shift.actual_cash_amount)} - {formatMoney(shift.expected_cash_amount)} ={' '}
               <span className={cn('font-semibold', Math.abs(variance) > 0.009 ? 'text-red-700' : 'text-emerald-700')}>
@@ -570,7 +573,7 @@ export function AdminShiftDetailPage() {
               </span>
             </p>
             <p className="mt-1 text-xs leading-5 text-slate-500">
-              {t('Фактическая касса — это реальные наличные в кассе при закрытии смены.')}
+              {t("ui.fakticheskaya_kassa_eto_realnye_nalichnye_v_kasse_pr_f7a526a")}
             </p>
           </div>
         </div>
@@ -586,17 +589,17 @@ export function AdminShiftDetailPage() {
 
       {hasClosingNotes ? (
         <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <h3 className="text-lg font-semibold text-slate-950">{t('Комментарии закрытия')}</h3>
+          <h3 className="text-lg font-semibold text-slate-950">{t("ui.kommentarii_zakrytiya_d940899")}</h3>
           <div className="grid gap-2">
             {closingComment ? (
               <div className="rounded-md border border-slate-100 bg-slate-50 p-3 text-sm">
-                <p className="text-xs font-medium uppercase text-slate-500">{t('Комментарий закрытия')}</p>
+                <p className="text-xs font-medium uppercase text-slate-500">{t("ui.kommentariy_zakrytiya_aa1a703")}</p>
                 <p className="mt-1 text-slate-700">{closingComment}</p>
               </div>
             ) : null}
             {shift.force_close_reason ? (
               <div className="rounded-md border border-red-100 bg-red-50/60 p-3 text-sm">
-                <p className="text-xs font-medium uppercase text-red-700">{t('Причина закрытия админом')}</p>
+                <p className="text-xs font-medium uppercase text-red-700">{t("ui.prichina_zakrytiya_adminom_d102a69")}</p>
                 <p className="mt-1 text-slate-700">{shift.force_close_reason}</p>
               </div>
             ) : null}
@@ -609,14 +612,14 @@ export function AdminShiftDetailPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="inline-flex items-center gap-2 text-lg font-semibold text-slate-950">
               <ReceiptText aria-hidden="true" className="size-5 text-emerald-700" />
-              {t('Заказы')}
+              {t("ui.zakazy_22ac845")}
             </h3>
             <span className="text-sm font-medium text-slate-500">
-              {orders.length} · {t('Открытые')}: {openOrders.length} · {t('Отменено')}: {cancelledOrders.length}
+              {orders.length} · {t("ui.otkrytye_75bcc80")}: {openOrders.length} · {t("ui.otmeneno_5ebee19")}: {cancelledOrders.length}
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium uppercase text-slate-500">{t('Сортировка')}</span>
+            <span className="text-xs font-medium uppercase text-slate-500">{t("ui.sortirovka_ed03011")}</span>
             {orderSortOptions.map((option) => (
               <button
                 className={cn(
@@ -639,19 +642,19 @@ export function AdminShiftDetailPage() {
             <table className="min-w-full divide-y divide-slate-100 text-sm">
               <thead className="text-left text-xs font-medium uppercase text-slate-500">
                 <tr>
-                  <th className="py-2 pr-3">{t('Номер заказа')}</th>
-                  <th className="py-2 pr-3">{t('Место')}</th>
-                  <th className="py-2 pr-3">{t('Статус')}</th>
-                  <th className="py-2 pr-3">{t('Открыт')}</th>
-                  <th className="py-2 pr-3">{t('Закрыт / оплачен')}</th>
-                  <th className="py-2 text-right">{t('Сумма')}</th>
+                  <th className="py-2 pr-3">{t("ui.nomer_zakaza_a054d51")}</th>
+                  <th className="py-2 pr-3">{t("ui.mesto_8e2fe02")}</th>
+                  <th className="py-2 pr-3">{t("ui.status_f7f293b")}</th>
+                  <th className="py-2 pr-3">{t("ui.otkryt_3568fc6")}</th>
+                  <th className="py-2 pr-3">{t("ui.zakryt_oplachen_38607fc")}</th>
+                  <th className="py-2 text-right">{t("ui.summa_99d7408")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {sortedOrders.map((order) => (
                   <tr key={order.id}>
                     <td className="py-2 pr-3 font-semibold text-slate-950">#{order.order_number}</td>
-                    <td className="py-2 pr-3 text-slate-600">{order.current_place_name_snapshot ?? t('Без места')}</td>
+                    <td className="py-2 pr-3 text-slate-600">{order.current_place_name_snapshot ?? t("ui.bez_mesta_da3a88d")}</td>
                     <td className="py-2 pr-3"><span className={statusTone(order.status)}>{t(orderStatusLabel[order.status] ?? order.status)}</span></td>
                     <td className="py-2 pr-3 text-slate-600">{formatDateTime(order.opened_at)}</td>
                     <td className="py-2 pr-3 text-slate-600">{formatDateTime(order.closed_at)}</td>
@@ -662,7 +665,7 @@ export function AdminShiftDetailPage() {
             </table>
           </div>
         ) : (
-          <div className="rounded-md border border-dashed border-slate-200 p-4 text-sm text-slate-500">{t('Заказов нет')}</div>
+          <div className="rounded-md border border-dashed border-slate-200 p-4 text-sm text-slate-500">{t("ui.zakazov_net_5ddb25e")}</div>
         )}
       </section>
 
@@ -671,7 +674,7 @@ export function AdminShiftDetailPage() {
           <div className="flex items-center justify-between gap-3">
             <h3 className="inline-flex items-center gap-2 text-lg font-semibold text-slate-950">
               <CreditCard aria-hidden="true" className="size-5 text-emerald-700" />
-              {t('Платежи')}
+              {t("ui.platezhi_c0964ef")}
             </h3>
             <span className="text-sm font-medium text-slate-500">{completedPayments.length} · {formatMoney(completedPaymentsTotal)}</span>
           </div>
@@ -690,7 +693,7 @@ export function AdminShiftDetailPage() {
                 </div>
               </article>
             ))}
-            {!payments.length ? <div className="rounded-md border border-dashed border-slate-200 p-4 text-sm text-slate-500">{t('Платежей нет')}</div> : null}
+            {!payments.length ? <div className="rounded-md border border-dashed border-slate-200 p-4 text-sm text-slate-500">{t("ui.platezhey_net_4215b31")}</div> : null}
           </div>
         </section>
 
@@ -698,7 +701,7 @@ export function AdminShiftDetailPage() {
           <div className="flex items-center justify-between gap-3">
             <h3 className="inline-flex items-center gap-2 text-lg font-semibold text-slate-950">
               <Timer aria-hidden="true" className="size-5 text-emerald-700" />
-              {t('Сессии')}
+              {t("ui.sessii_477192f")}
             </h3>
             <span className="text-sm font-medium text-slate-500">{sessions.length}</span>
           </div>
@@ -715,13 +718,13 @@ export function AdminShiftDetailPage() {
                   <span className={statusTone(session.status)}>{t(sessionStatusLabel[session.status])}</span>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                  <div><span className="text-slate-500">{t('Факт')}</span><p className="font-semibold text-slate-950">{session.actual_minutes ?? '-'} {t('мин')}</p></div>
-                  <div><span className="text-slate-500">{t('К оплате')}</span><p className="font-semibold text-slate-950">{session.billable_minutes ?? '-'} {t('мин')}</p></div>
-                  <div><span className="text-slate-500">{t('Сумма')}</span><p className="font-semibold text-slate-950">{formatMoney(session.calculated_amount)}</p></div>
+                  <div><span className="text-slate-500">{t("ui.fakt_2b974e8")}</span><p className="font-semibold text-slate-950">{session.actual_minutes ?? '-'} {t("ui.min_d6035dc")}</p></div>
+                  <div><span className="text-slate-500">{t("ui.k_oplate_1f9971f")}</span><p className="font-semibold text-slate-950">{session.billable_minutes ?? '-'} {t("ui.min_d6035dc")}</p></div>
+                  <div><span className="text-slate-500">{t("ui.summa_99d7408")}</span><p className="font-semibold text-slate-950">{formatMoney(session.calculated_amount)}</p></div>
                 </div>
               </article>
             ))}
-            {!sessions.length ? <div className="rounded-md border border-dashed border-slate-200 p-4 text-sm text-slate-500">{t('Сессий нет')}</div> : null}
+            {!sessions.length ? <div className="rounded-md border border-dashed border-slate-200 p-4 text-sm text-slate-500">{t("ui.sessiy_net_381f79b")}</div> : null}
           </div>
         </section>
       </div>
@@ -730,7 +733,7 @@ export function AdminShiftDetailPage() {
         <div className="flex items-center justify-between gap-3">
           <h3 className="inline-flex items-center gap-2 text-lg font-semibold text-slate-950">
             <Clock3 aria-hidden="true" className="size-5 text-emerald-700" />
-            {t('Передачи')}
+            {t("ui.peredachi_98aeaac")}
           </h3>
           <span className="text-sm font-medium text-slate-500">{handovers.length}</span>
         </div>
@@ -739,21 +742,21 @@ export function AdminShiftDetailPage() {
             {handovers.map((handover) => (
               <article className="rounded-md border border-slate-200 p-3 text-sm" key={handover.id}>
                 <div className="flex items-center justify-between gap-3">
-                  <p className="font-semibold text-slate-950">{t('Передача смены')}</p>
+                  <p className="font-semibold text-slate-950">{t("ui.peredacha_smeny_597f062")}</p>
                   <span className={statusTone(handover.status)}>{handover.status}</span>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
-                  <div>{t('Заказы')}: <span className="font-semibold text-slate-950">{handover.opening_orders_count}</span></div>
-                  <div>{t('Сессии')}: <span className="font-semibold text-slate-950">{handover.active_sessions_count}</span></div>
-                  <div>{t('Ожидаемая касса')}: <span className="font-semibold text-slate-950">{formatMoney(handover.expected_cash_handover)}</span></div>
-                  <div>{t('Фактическая касса')}: <span className="font-semibold text-slate-950">{formatMoney(handover.actual_cash_handover)}</span></div>
+                  <div>{t("ui.zakazy_22ac845")}: <span className="font-semibold text-slate-950">{handover.opening_orders_count}</span></div>
+                  <div>{t("ui.sessii_477192f")}: <span className="font-semibold text-slate-950">{handover.active_sessions_count}</span></div>
+                  <div>{t("ui.ozhidaemaya_kassa_0adb6d8")}: <span className="font-semibold text-slate-950">{formatMoney(handover.expected_cash_handover)}</span></div>
+                  <div>{t("ui.fakticheskaya_kassa_0eb693e")}: <span className="font-semibold text-slate-950">{formatMoney(handover.actual_cash_handover)}</span></div>
                 </div>
                 {handover.comment ? <p className="mt-2 text-xs text-slate-500">{handover.comment}</p> : null}
               </article>
             ))}
           </div>
         ) : (
-          <div className="rounded-md border border-dashed border-slate-200 p-4 text-sm text-slate-500">{t('Передач нет')}</div>
+          <div className="rounded-md border border-dashed border-slate-200 p-4 text-sm text-slate-500">{t("ui.peredach_net_90026bd")}</div>
         )}
       </section>
     </section>

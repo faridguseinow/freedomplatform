@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Archive, Edit3, Gift, Loader2, Plus, RotateCcw, Save, X } from 'lucide-react'
 import { CatalogImage } from '../../../components/common/CatalogImage'
@@ -10,6 +11,7 @@ import { ImageFileInput } from '../../../components/ui/ImageFileInput'
 import { Input } from '../../../components/ui/Input'
 import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
+import { useI18n } from '../../../lib/i18n/I18nContext'
 import type { ComboRow, ComboStatus } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
 import { useCatalogCategories, useProducts, useServices } from '../catalog/catalogApi'
@@ -51,10 +53,11 @@ type ComboFormValues = z.infer<typeof comboSchema>
 type StatusFilter = ComboStatus | 'all'
 
 const formatNumber = (value: number | null | undefined) =>
-  new Intl.NumberFormat('ru', { maximumFractionDigits: 2 }).format(value ?? 0)
+  new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
 
 export function AdminCombosPage() {
   const { organizationId, user } = useAuth()
+  const { t } = useI18n()
   const combosQuery = useCombos(organizationId)
   const componentsQuery = useComboComponents(organizationId)
   const availabilityQuery = useComboAvailability(organizationId)
@@ -111,7 +114,7 @@ export function AdminCombosPage() {
       .map((component) => {
         const product = products.find((item) => item.id === component.product_id)
         const service = services.find((item) => item.id === component.service_id)
-        return `${product?.name ?? service?.name ?? 'Компонент'} × ${component.quantity}`
+        return `${product?.name ?? service?.name ?? t('ui.komponent_8879f45')} × ${component.quantity}`
       })
       .join(', ')
 
@@ -257,7 +260,7 @@ export function AdminCombosPage() {
                       <h3 className="truncate text-base font-semibold text-slate-950">{combo.name}</h3>
                       <span className={cn('rounded-md px-2 py-1 text-xs font-medium', combo.status === 'active' ? 'bg-emerald-50 text-emerald-800' : combo.status === 'inactive' ? 'bg-amber-50 text-amber-800' : 'bg-slate-100 text-slate-600')}>{comboStatusLabel[combo.status]}</span>
                       <span className={availability?.is_available ? 'rounded-md bg-cyan-50 px-2 py-1 text-xs font-medium text-cyan-800' : 'rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700'}>
-                        {availability?.is_available ? `Доступно ${availability.available_quantity ?? '∞'}` : 'Нет в наличии'}
+                        {availability?.is_available ? t('combo.available', { count: availability.available_quantity ?? '∞' }) : t('ui.net_v_nalichii_44fb78a')}
                       </span>
                     </div>
                     <p className="mt-1 text-sm text-slate-600">{componentSummary(combo.id) || 'Состав не заполнен.'}</p>

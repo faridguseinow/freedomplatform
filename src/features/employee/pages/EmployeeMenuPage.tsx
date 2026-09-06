@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 // Removed duplicate import of React
 import React from 'react'
 import { useI18n } from '../../../lib/i18n/I18nContext'
@@ -13,7 +14,7 @@ import { CatalogImage } from '../../../components/common/CatalogImage'
 
 const formatQuantity = (value: number | null | undefined) => {
   if (value === null || value === undefined) return null
-  return new Intl.NumberFormat('ru', { maximumFractionDigits: 3 }).format(value)
+  return new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 3 }).format(value)
 }
 
 export function EmployeeMenuPage() {
@@ -36,8 +37,8 @@ export function EmployeeMenuPage() {
   const categoriesQuery = useEmployeeCategories({ organizationId })
   const categories = categoriesQuery.data ?? []
 
-  if (loading) return <div className="p-4">{t('Загрузка меню…')}</div>
-  if (error) return <div className="p-4 text-red-600">{t('Ошибка загрузки меню')}</div>
+  if (loading) return <div className="p-4">{t("ui.zagruzka_menyu_e34ea2f")}</div>
+  if (error) return <div className="p-4 text-red-600">{t("ui.oshibka_zagruzki_menyu_a06d4a0")}</div>
 
   // Build items with category association and image_path
   const items = [
@@ -135,7 +136,7 @@ export function EmployeeMenuPage() {
 
   return (
     <div className="p-4">
-      <h1 className="text-lg font-semibold mb-4">{t('Меню')}</h1>
+      <h1 className="text-lg font-semibold mb-4">{t("ui.menyu_dd904be")}</h1>
 
       <div className="space-y-6">
         {orderedCategoryKeys.map((catKey) => {
@@ -152,7 +153,7 @@ export function EmployeeMenuPage() {
                   <div className="size-10 rounded-md bg-slate-50 border border-slate-200" />
                 )}
                 <h2 className="text-sm font-semibold">
-                  {cat ? cat.name : catKey === 'combos' ? t('Комбо') : t('Без категории')}
+                  {cat ? cat.name : catKey === 'combos' ? t("ui.kombo_8cb8ded") : t("ui.bez_kategorii_5aaa8a1")}
                 </h2>
               </div>
 
@@ -166,9 +167,9 @@ export function EmployeeMenuPage() {
                   const isOutOfStock = hasStockQuantity && Number(stockQuantity) <= 0
                   const stockLabel =
                     it.type === 'service'
-                      ? t('Услуга')
+                      ? t("ui.usluga_44ee1ac")
                       : hasStockQuantity
-                        ? `${t('Осталось')}: ${quantity}${it.unitName ? ` ${it.unitName}` : ''}`
+                        ? `${t("ui.ostalos_76a8eb1")}: ${quantity}${it.unitName ? ` ${it.unitName}` : ''}`
                         : null
 
                   return (
@@ -186,7 +187,7 @@ export function EmployeeMenuPage() {
                           <div className="text-sm font-semibold text-slate-950">{formatAzn(it.price)}</div>
                           {stockLabel ? (
                             <div className={isOutOfStock ? 'text-xs font-medium text-red-600' : 'text-xs text-slate-500'}>
-                              {isOutOfStock ? t('Нет в наличии') : stockLabel}
+                              {isOutOfStock ? t("ui.net_v_nalichii_44fb78a") : stockLabel}
                             </div>
                           ) : null}
                         </div>
@@ -199,7 +200,7 @@ export function EmployeeMenuPage() {
                             className="text-xs text-emerald-700 hover:underline"
                             onClick={() => toggleExpanded(it.id)}
                           >
-                            {isExpanded ? t('Скрыть состав') : t('Показать состав')}
+                            {isExpanded ? t("ui.skryt_sostav_b6ce3e4") : t("ui.pokazat_sostav_c7d645e")}
                           </button>
 
                           {isExpanded ? (

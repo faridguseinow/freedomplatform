@@ -1,3 +1,4 @@
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../../../lib/supabase/client'
 import type { AuditLogRow, FinanceAuditLogRow, ProfileRow } from '../../../lib/supabase/database.types'
@@ -14,9 +15,14 @@ export type ActivityEvent = {
   actionLabel: string
   entityType: string
   entityId: string | null
-  title: string
-  details: string[]
+  details: ActivityDetail[]
   createdAt: string
+}
+
+export type ActivityDetail = {
+  key: string
+  value: string | number
+  translateValue?: boolean
 }
 
 const auditSelect = 'id,organization_id,actor_user_id,action,entity_type,entity_id,metadata,shift_id,created_at'
@@ -113,11 +119,11 @@ function asRecord(value: unknown): RawMetadata {
 
 function formatMoney(value: unknown) {
   if (typeof value !== 'number') return null
-  return new Intl.NumberFormat('ru', { maximumFractionDigits: 2 }).format(value)
+  return new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value)
 }
 
 function getProfileName(profile: Pick<ProfileRow, 'email' | 'full_name'> | undefined, actorUserId: string | null) {
-  return profile?.full_name || profile?.email || (actorUserId ? `Пользователь ${actorUserId.slice(0, 8)}` : 'Система')
+  return profile?.full_name || profile?.email || (actorUserId ? `User ${actorUserId.slice(0, 8)}` : 'Система')
 }
 
 function getSectionLabel(path: unknown) {
@@ -126,7 +132,7 @@ function getSectionLabel(path: unknown) {
 }
 
 function buildDetails(metadata: RawMetadata) {
-  const details: string[] = []
+  const details: ActivityDetail[] = []
   const section = getSectionLabel(metadata.path)
   const amount = formatMoney(metadata.amount)
   const tipAmount = formatMoney(metadata.tip_amount)
@@ -136,29 +142,29 @@ function buildDetails(metadata: RawMetadata) {
     card_transfer: 'Перевод на карту',
   }
 
-  if (section) details.push(`Раздел: ${section}`)
-  if (typeof metadata.order_number === 'number') details.push(`Заказ #${metadata.order_number}`)
-  if (typeof metadata.type === 'string') details.push(`Тип: ${metadata.type}`)
-  if (typeof metadata.method === 'string') details.push(`Метод оплаты: ${paymentMethodLabels[metadata.method] ?? metadata.method}`)
-  if (amount) details.push(`Сумма: ${amount}`)
-  if (tipAmount) details.push(`Чаевые: ${tipAmount}`)
-  if (totalAmount) details.push(`Сумма заказа: ${totalAmount}`)
-  if (typeof metadata.quantity === 'number') details.push(`Количество: ${metadata.quantity}`)
-  if (typeof metadata.billable_minutes === 'number') details.push(`Минуты: ${metadata.billable_minutes}`)
-  if (typeof metadata.reason === 'string') details.push(`Причина: ${metadata.reason}`)
-  if (typeof metadata.comment === 'string') details.push(`Комментарий: ${metadata.comment}`)
-  if (typeof metadata.name === 'string') details.push(`Название: ${metadata.name}`)
-  if (typeof metadata.sku === 'string') details.push(`SKU: ${metadata.sku}`)
-  if (typeof metadata.orders_deleted === 'number') details.push(`Удалено заказов: ${metadata.orders_deleted}`)
-  if (typeof metadata.payments_deleted === 'number') details.push(`Удалено платежей: ${metadata.payments_deleted}`)
-  if (typeof metadata.shifts_deleted === 'number') details.push(`Удалено смен: ${metadata.shifts_deleted}`)
-  if (typeof metadata.affected_products === 'number') details.push(`Пересчитано товаров: ${metadata.affected_products}`)
+  if (section) details.push({ key: 'activity.detail.section', value: section, translateValue: true })
+  if (typeof metadata.order_number === 'number') details.push({ key: 'activity.detail.order', value: metadata.order_number })
+  if (typeof metadata.type === 'string') details.push({ key: 'activity.detail.type', value: metadata.type })
+  if (typeof metadata.method === 'string') details.push({ key: 'activity.detail.paymentMethod', value: paymentMethodLabels[metadata.method] ?? metadata.method, translateValue: true })
+  if (amount) details.push({ key: 'activity.detail.amount', value: amount })
+  if (tipAmount) details.push({ key: 'activity.detail.tip', value: tipAmount })
+  if (totalAmount) details.push({ key: 'activity.detail.orderAmount', value: totalAmount })
+  if (typeof metadata.quantity === 'number') details.push({ key: 'activity.detail.quantity', value: metadata.quantity })
+  if (typeof metadata.billable_minutes === 'number') details.push({ key: 'activity.detail.minutes', value: metadata.billable_minutes })
+  if (typeof metadata.reason === 'string') details.push({ key: 'activity.detail.reason', value: metadata.reason })
+  if (typeof metadata.comment === 'string') details.push({ key: 'activity.detail.comment', value: metadata.comment })
+  if (typeof metadata.name === 'string') details.push({ key: 'activity.detail.name', value: metadata.name })
+  if (typeof metadata.sku === 'string') details.push({ key: 'activity.detail.sku', value: metadata.sku })
+  if (typeof metadata.orders_deleted === 'number') details.push({ key: 'activity.detail.deletedOrders', value: metadata.orders_deleted })
+  if (typeof metadata.payments_deleted === 'number') details.push({ key: 'activity.detail.deletedPayments', value: metadata.payments_deleted })
+  if (typeof metadata.shifts_deleted === 'number') details.push({ key: 'activity.detail.deletedShifts', value: metadata.shifts_deleted })
+  if (typeof metadata.affected_products === 'number') details.push({ key: 'activity.detail.recalculatedProducts', value: metadata.affected_products })
 
   return details
 }
 
 function buildFinanceDetails(log: FinanceAuditLogRow) {
-  const details: string[] = []
+  const details: ActivityDetail[] = []
   const afterData = asRecord(log.after_data)
   const amount = formatMoney(afterData.amount ?? afterData.accrued_amount ?? afterData.paid_amount)
   const statusLabels: Record<string, string> = {
@@ -178,13 +184,13 @@ function buildFinanceDetails(log: FinanceAuditLogRow) {
     platform_share_payment: 'Оплата платформы',
   }
 
-  if (amount) details.push(`Сумма: ${amount}`)
-  if (typeof afterData.title === 'string') details.push(`Название: ${afterData.title}`)
-  if (typeof afterData.status === 'string') details.push(`Статус: ${statusLabels[afterData.status] ?? afterData.status}`)
+  if (amount) details.push({ key: 'activity.detail.amount', value: amount })
+  if (typeof afterData.title === 'string') details.push({ key: 'activity.detail.name', value: afterData.title })
+  if (typeof afterData.status === 'string') details.push({ key: 'activity.detail.status', value: statusLabels[afterData.status] ?? afterData.status, translateValue: true })
   if (typeof afterData.transaction_type === 'string') {
-    details.push(`Тип операции: ${transactionTypeLabels[afterData.transaction_type] ?? afterData.transaction_type}`)
+    details.push({ key: 'activity.detail.transactionType', value: transactionTypeLabels[afterData.transaction_type] ?? afterData.transaction_type, translateValue: true })
   }
-  if (log.reason) details.push(`Комментарий: ${log.reason}`)
+  if (log.reason) details.push({ key: 'activity.detail.comment', value: log.reason })
 
   return details
 }
@@ -195,13 +201,7 @@ function toActivityEvent(
 ): ActivityEvent {
   const metadata = asRecord(log.metadata)
   const actionLabel = actionLabels[log.action] ?? log.action
-  const section = getSectionLabel(metadata.path)
   const entityLabel = entityLabels[log.entity_type] ?? log.entity_type
-  const title =
-    log.action === 'admin.section_viewed' && section
-      ? `${getProfileName(log.actor_user_id ? profiles.get(log.actor_user_id) : undefined, log.actor_user_id)} открыл раздел “${section}”`
-      : `${getProfileName(log.actor_user_id ? profiles.get(log.actor_user_id) : undefined, log.actor_user_id)} ${actionLabel}`
-
   return {
     id: `audit-${log.id}`,
     source: 'operations',
@@ -212,7 +212,6 @@ function toActivityEvent(
     actionLabel,
     entityType: entityLabel,
     entityId: log.entity_id,
-    title,
     details: buildDetails(metadata),
     createdAt: log.created_at,
   }
@@ -235,7 +234,6 @@ function toFinanceActivityEvent(
     actionLabel,
     entityType: entityLabels[log.entity_type] ?? log.entity_type,
     entityId: log.entity_id,
-    title: `${actorName} ${actionLabel}`,
     details: buildFinanceDetails(log),
     createdAt: log.created_at,
   }
