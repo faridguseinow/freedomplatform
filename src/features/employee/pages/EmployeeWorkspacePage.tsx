@@ -1347,7 +1347,7 @@ export function EmployeeWorkspacePage() {
                                 onClick={() => setPickerTab(tab)}
                                 type="button"
                               >
-                                {tab === 'products' ? 'Məhsullar' : tab === 'services' ? 'Xidmətlər' : 'Kombi'}
+                                {tab === 'products' ? 'Məhsullar' : tab === 'services' ? 'Xidmətlər' : 'Setlər'}
                               </button>
                             ))}
                           </div>
