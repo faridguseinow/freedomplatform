@@ -143,7 +143,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                   ) : isPlatformArea ? (
                     <img
                       alt="Freedom Platform"
-                      className="size-10 rounded-lg bg-emerald-700 object-cover"
+                      className="size-10 rounded-lg object-cover"
                       src="/pwa/freedom-platform.svg"
                     />
                   ) : null}

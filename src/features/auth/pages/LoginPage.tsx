@@ -53,7 +53,7 @@ function LoginBrand({ organization, showDemoFallback = false }: LoginBrandProps)
       ) : (
         <img
           alt="Freedom Platform"
-          className="size-12 rounded-xl bg-emerald-700 object-cover"
+          className="size-12 rounded-xl object-cover"
           src="/pwa/freedom-platform.svg"
         />
       )}
