@@ -12,6 +12,25 @@ Object.assign(ru, JSON.parse(fs.readFileSync(path.join(localesRoot, 'manual.ru.j
 Object.assign(az, JSON.parse(fs.readFileSync(path.join(localesRoot, 'manual.az.json'), 'utf8')))
 Object.assign(sourceMap, JSON.parse(fs.readFileSync(path.join(localesRoot, 'manual-source-map.json'), 'utf8')))
 const errors = []
+const allowedAzerbaijaniLiterals = new Set([
+  'Azərbaycan dili',
+  'ə',
+  'ı',
+  'ö',
+  'ü',
+  'ğ',
+  'ş',
+  'ç',
+  'birinci',
+  'ikinci',
+])
+const azerbaijaniCatalogValues = new Set(
+  Object.keys(az)
+    .filter((key) => az[key] !== ru[key])
+    .map((key) => String(az[key]).trim()),
+)
+const azerbaijaniWordPattern =
+  /(?:^|[^A-Za-z])(?:aktiv|Pauzada|Dolu|Masa|Kartla|Saxla|Geri|Bitir|Setlər|Hazırda|deq|deyil|yoxdur)(?:$|[^A-Za-z])/i
 
 function walk(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -41,15 +60,44 @@ for (const filePath of walk(sourceRoot).filter((file) => /\.tsx?$/.test(file) &&
     errors.push(`${path.relative(root, filePath)}:${position.line + 1} ${message}`)
   }
 
-  function visit(node) {
-    if (ts.isStringLiteralLike(node) && /[А-Яа-яЁё]/.test(node.text) && !(node.text in sourceMap)) {
-      report(node, `Russian text is absent from the catalog: ${JSON.stringify(node.text)}`)
+  function checkStaticText(node, value) {
+    const text = value.trim()
+    if (!text) return
+    const isDataAlias =
+      text.toLowerCase() === 'masa' &&
+      ts.isCallExpression(node.parent) &&
+      ts.isPropertyAccessExpression(node.parent.expression) &&
+      node.parent.expression.name.text === 'includes'
+
+    if (/[А-Яа-яЁё]/.test(text) && !(text in sourceMap)) {
+      report(node, `Russian text is absent from the catalog: ${JSON.stringify(text)}`)
     }
+
+    if (
+      !allowedAzerbaijaniLiterals.has(text) &&
+      !isDataAlias &&
+      (/[ƏəĞğİıÖöÜüŞşÇç]/.test(text) ||
+        azerbaijaniCatalogValues.has(text) ||
+        azerbaijaniWordPattern.test(text))
+    ) {
+      report(node, `Azerbaijani text is hardcoded outside the catalog: ${JSON.stringify(text)}`)
+    }
+  }
+
+  function visit(node) {
+    if (ts.isStringLiteralLike(node)) checkStaticText(node, node.text)
+    if (ts.isJsxText(node)) checkStaticText(node, node.text)
     if (
       ts.isTemplateExpression(node) &&
       /[А-Яа-яЁё]/.test([node.head.text, ...node.templateSpans.map((span) => span.literal.text)].join(''))
     ) {
       report(node, 'Dynamic Russian template must use an i18n key with interpolation')
+    }
+    if (
+      ts.isTemplateExpression(node) &&
+      /[ƏəĞğİıÖöÜüŞşÇç]/.test([node.head.text, ...node.templateSpans.map((span) => span.literal.text)].join(''))
+    ) {
+      report(node, 'Dynamic Azerbaijani template must use an i18n key with interpolation')
     }
     if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 't') {
       const argument = node.arguments[0]

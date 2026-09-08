@@ -160,7 +160,7 @@ function ToggleSetting({
 }
 
 export function PlatformSettingsPage() {
-  const { language, setLanguage } = useI18n()
+  const { language, setLanguage, t } = useI18n()
   const [settings, setSettings] = useState<PlatformSettings>(loadStoredSettings)
   const [savedAt, setSavedAt] = useState<string | null>(null)
 
@@ -205,7 +205,7 @@ export function PlatformSettingsPage() {
 
       <div className="grid gap-4 xl:grid-cols-2">
         <SettingSection
-          description="Təşkilat domeni və keçid formatı."
+          description={t('platform.organizationDomainDescription')}
           icon={Globe2}
           title="Домен и ссылки"
         >
@@ -230,7 +230,9 @@ export function PlatformSettingsPage() {
           </div>
           <ToggleSetting
             checked={settings.requireOrganizationSlug}
-            description={`Təşkilatın theliga.${PLATFORM_BASE_DOMAIN} formatında subdomeni olmalıdır.`}
+            description={t('platform.organizationSubdomainRequired', {
+              domain: `theliga.${PLATFORM_BASE_DOMAIN}`,
+            })}
             label="Slug обязателен"
             onChange={(value) => updateSetting('requireOrganizationSlug', value)}
           />

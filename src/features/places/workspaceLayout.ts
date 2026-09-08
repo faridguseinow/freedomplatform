@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { translateByCurrentLanguage } from '../../lib/i18n/translator'
 import type { PlaceType } from '../../lib/supabase/database.types'
 
 export type WorkspacePlaceLike = {
@@ -45,7 +46,11 @@ export const getPlaceDisplayLabel = (
   const name = normalizePlaceName(place.name)
   const number = getPlaceNumber(place)
 
-  if (isTablePlace(place)) return number ? `masa ${number}` : 'masa'
+  if (isTablePlace(place)) {
+    return number
+      ? translateByCurrentLanguage('place.tableNumber', { number })
+      : translateByCurrentLanguage('place.table')
+  }
   if (place.type === 'billiard' || name.includes('bilyard') || name.includes('billiard')) return 'BILYARD'
   if (name.includes('vip') && name.includes('ps5')) return 'VIP PS 5'
   if (name.includes('vip') && name.includes('ps4')) return 'VIP PS 4'

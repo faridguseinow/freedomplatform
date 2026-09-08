@@ -102,7 +102,7 @@ const organizationSchema = z.object({
       z
         .string()
         .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'Slug: lowercase, цифры и дефисы.')
-        .refine(isValidOrganizationSlug, 'Bu slug platforma tərəfindən rezerv edilib.'),
+        .refine(isValidOrganizationSlug, 'Этот slug зарезервирован платформой.'),
     ),
   description: z.string().trim().optional(),
   logo_path: z.string().trim().optional(),
