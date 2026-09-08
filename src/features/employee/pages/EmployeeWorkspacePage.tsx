@@ -124,6 +124,7 @@ const getSessionLimitInfo = (place: EmployeeWorkspacePlaceRow | null, nowMs: num
 
 type ComboComponentPreview = {
   included_minutes?: number | string | null
+  name?: string | null
   quantity?: number | string | null
   type?: string | null
 }
@@ -141,6 +142,30 @@ const getComboIncludedMinutes = (componentPreview: unknown) => {
   }, 0)
 
   return minutes > 0 ? Math.min(1440, Math.round(minutes)) : null
+}
+
+const getComboComponentLabels = (
+  componentPreview: unknown,
+  t: (key: string, options?: Record<string, unknown>) => string,
+) => {
+  if (!Array.isArray(componentPreview)) return []
+
+  return componentPreview.flatMap((component) => {
+    if (!component || typeof component !== 'object') return []
+    const preview = component as ComboComponentPreview
+    const name = preview.name?.trim()
+    if (!name) return []
+
+    const quantity = Number(preview.quantity ?? 1)
+    const quantityLabel = Number.isFinite(quantity) && quantity > 0 ? formatQuantity(quantity) : '1'
+    const includedMinutes = Number(preview.included_minutes)
+    const durationLabel =
+      Number.isFinite(includedMinutes) && includedMinutes > 0
+        ? ` · ${t('common.durationMinutes', { minutes: includedMinutes })}`
+        : ''
+
+    return [`${quantityLabel ?? 1} × ${name}${durationLabel}`]
+  })
 }
 
 const calculateCurrentSessionAmount = (
@@ -218,6 +243,7 @@ const getSlotClassName = (place: EmployeeWorkspacePlaceRow, shape: string, hasSe
   )
 
 type CatalogAddButtonProps = {
+  details?: string[]
   imagePath: string | null
   isPressed: boolean
   name: string
@@ -227,6 +253,7 @@ type CatalogAddButtonProps = {
 }
 
 function CatalogAddButton({
+  details = [],
   imagePath,
   isPressed,
   name,
@@ -237,7 +264,7 @@ function CatalogAddButton({
   return (
     <button
       className={cn(
-        'grid grid-cols-[36px_1fr_auto] items-center gap-2 rounded-md border border-slate-200 p-1.5 text-left transition active:scale-[0.98]',
+        'grid grid-cols-[36px_1fr_auto] items-start gap-2 rounded-md border border-slate-200 p-1.5 text-left transition active:scale-[0.98]',
         'hover:border-emerald-200 hover:bg-emerald-50/40',
         isPressed && 'border-emerald-300 bg-emerald-50 ring-2 ring-emerald-600/20',
       )}
@@ -246,14 +273,21 @@ function CatalogAddButton({
     >
       <CatalogImage alt={name} className="size-9" imagePath={imagePath} />
       <span className="grid min-w-0 gap-0.5">
-        <span className="truncate text-sm font-medium text-slate-950">{name}</span>
+        <span className="break-words text-sm font-medium text-slate-950">{name}</span>
         <span className="text-xs text-slate-600">{formatAzn(price)}</span>
         {stockLabel ? <span className="text-xs text-slate-500">{stockLabel}</span> : null}
+        {details.length ? (
+          <span className="mt-1 grid gap-0.5 border-t border-slate-100 pt-1 text-xs leading-4 text-slate-500">
+            {details.map((detail, index) => (
+              <span className="break-words" key={`${detail}:${index}`}>{detail}</span>
+            ))}
+          </span>
+        ) : null}
       </span>
       <span
         aria-hidden="true"
         className={cn(
-          'inline-flex size-8 items-center justify-center rounded-md bg-emerald-700 text-white transition',
+          'mt-0.5 inline-flex size-8 items-center justify-center rounded-md bg-emerald-700 text-white transition',
           isPressed && 'scale-110 bg-emerald-800',
         )}
       >
@@ -1449,6 +1483,7 @@ export function EmployeeWorkspacePage() {
                             {pickerTab === 'combos'
                                 ? filteredCombos.map((combo) => (
                                   <CatalogAddButton
+                                    details={getComboComponentLabels(combo.component_preview, t)}
                                     imagePath={combo.image_path}
                                     isPressed={pressedCatalogItemKey === `combos:${combo.id}`}
                                     key={combo.id}
