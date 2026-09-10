@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CatalogImage } from '../../../components/common/CatalogImage'
 import { useAuth } from '../../../hooks/useAuth'
 import { useI18n } from '../../../lib/i18n/I18nContext'
+import { formatUnitName } from '../../../lib/i18n/formatUnitName'
 import type { EmployeeWorkspacePlaceRow, PlaceType } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
 import {
@@ -89,7 +90,7 @@ const getStatusClassName = (status: string) =>
 
 export function AdminLiveMonitorPage() {
   const { organizationId } = useAuth()
-  const { t } = useI18n()
+  const { language, t } = useI18n()
   const workspaceQuery = useEmployeeWorkspaceData(organizationId)
   const productsQuery = useEmployeeProducts({ organizationId })
   const categoriesQuery = useEmployeeCategories({ organizationId })
@@ -296,7 +297,7 @@ export function AdminLiveMonitorPage() {
                   </p>
                   <p className={low ? 'mt-1 text-xs font-semibold text-amber-700' : 'mt-1 text-xs text-slate-600'}>
                     {productWithStock.track_stock
-                      ? `${t("ui.ostalos_76a8eb1")}: ${stock ?? '-'} ${product.unit_name}`
+                      ? `${t("ui.ostalos_76a8eb1")}: ${stock ?? '-'} ${formatUnitName(product.unit_name, language)}`
                       : t("ui.bez_ucheta_sklada_8157cd8")}
                   </p>
                 </div>

@@ -886,8 +886,6 @@ begin
         select 1
         from public.stock_movements sm
         where sm.product_id = p.id
-          and sm.movement_type = 'opening_balance'
-          and sm.reference_type = 'migration_202607230005'
       )
   loop
     insert into public.stock_documents (

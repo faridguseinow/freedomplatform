@@ -13,6 +13,7 @@ import { Input } from '../../../components/ui/Input'
 import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
 import { useI18n } from '../../../lib/i18n/I18nContext'
+import { formatUnitName } from '../../../lib/i18n/formatUnitName'
 import type { CatalogItemStatus, ProductRow } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
 import {
@@ -76,7 +77,8 @@ const productNameCollator = new Intl.Collator(getCurrentLocale(), {
 
 export function AdminProductsPage() {
   const { organizationId, user } = useAuth()
-  const { t } = useI18n()
+  const { language, t } = useI18n()
+  const defaultUnitName = t('inventory.unitItem')
   const productsQuery = useProducts({ organizationId })
   const categoriesQuery = useCatalogCategories({ organizationId })
   const productMutations = useProductMutations(organizationId)
@@ -110,7 +112,7 @@ export function AdminProductsPage() {
       purchase_price: undefined,
       stock_quantity: 0,
       minimum_stock_quantity: 0,
-      unit_name: 'шт.',
+      unit_name: defaultUnitName,
       track_stock: true,
       sort_order: 0,
       status: 'active',
@@ -167,7 +169,7 @@ export function AdminProductsPage() {
       purchase_price: undefined,
       stock_quantity: 0,
       minimum_stock_quantity: 0,
-      unit_name: 'шт.',
+      unit_name: defaultUnitName,
       track_stock: true,
       sort_order: 0,
       status: 'active',
@@ -192,7 +194,7 @@ export function AdminProductsPage() {
       purchase_price: product.purchase_price ?? undefined,
       stock_quantity: product.stock_quantity,
       minimum_stock_quantity: product.minimum_stock_quantity,
-      unit_name: product.unit_name,
+      unit_name: formatUnitName(product.unit_name, language),
       track_stock: product.track_stock,
       sort_order: product.sort_order,
       status: product.status,
@@ -240,7 +242,8 @@ export function AdminProductsPage() {
       const quantity = Math.abs(delta)
       const unitCost = editingProduct.purchase_price ?? editingProduct.average_purchase_cost ?? null
       const lineTotal = quantity * (unitCost ?? 0)
-      const documentComment = `${translateByCurrentLanguage('Ручная корректировка остатка')}: ${formatStockValue(currentQuantity)} ${editingProduct.unit_name} -> ${formatStockValue(nextQuantity)} ${editingProduct.unit_name}. ${comment}`
+      const displayedUnitName = formatUnitName(editingProduct.unit_name, language)
+      const documentComment = `${translateByCurrentLanguage('Ручная корректировка остатка')}: ${formatStockValue(currentQuantity)} ${displayedUnitName} -> ${formatStockValue(nextQuantity)} ${displayedUnitName}. ${comment}`
       const document = await inventoryMutations.createDocument.mutateAsync({
         organization_id: organizationId,
         type: delta > 0 ? 'adjustment_in' : 'adjustment_out',
@@ -481,7 +484,7 @@ export function AdminProductsPage() {
                 <dl className="mt-3 grid grid-cols-3 gap-2 text-xs sm:text-sm">
                   <div><dt className="text-xs uppercase text-slate-500">{t("ui.prodazha_9be19a0")}</dt><dd className="font-semibold text-slate-950">{formatMoney(product.sale_price)}</dd></div>
                   <div><dt className="text-xs uppercase text-slate-500">{t("ui.zakupka_c651ee4")}</dt><dd className="font-semibold text-slate-950">{formatMoney(product.purchase_price)}</dd></div>
-                  <div><dt className="text-xs uppercase text-slate-500">{t("ui.ostatok_c13a87f")}</dt><dd className="font-semibold text-slate-950">{product.track_stock ? `${product.stock_quantity} ${product.unit_name}` : '—'}</dd></div>
+                  <div><dt className="text-xs uppercase text-slate-500">{t("ui.ostatok_c13a87f")}</dt><dd className="font-semibold text-slate-950">{product.track_stock ? `${product.stock_quantity} ${formatUnitName(product.unit_name, language)}` : '—'}</dd></div>
                 </dl>
               </div>
               <div className="mt-auto grid grid-cols-4 gap-2">
@@ -562,7 +565,7 @@ export function AdminProductsPage() {
                       <div className="flex items-center justify-between gap-3">
                         <span>{t("ui.tekuschiy_ostatok_7cbd952")}</span>
                         <strong className="text-base text-slate-950">
-                          {formatStockValue(editingProduct.stock_quantity)} {editingProduct.unit_name}
+                          {formatStockValue(editingProduct.stock_quantity)} {formatUnitName(editingProduct.unit_name, language)}
                         </strong>
                       </div>
                       <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">

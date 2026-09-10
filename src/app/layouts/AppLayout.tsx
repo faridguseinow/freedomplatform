@@ -126,7 +126,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
       <div className="flex min-h-svh">
         <aside
           className={[
-            'sticky top-0 hidden h-svh shrink-0 border-r border-slate-200 bg-white transition-[width] duration-200 md:flex md:flex-col',
+            'sticky top-0 z-40 hidden h-svh shrink-0 border-r border-slate-200 bg-white transition-[width] duration-200 md:flex md:flex-col',
             sidebarCollapsed ? 'w-16' : 'w-64',
           ].join(' ')}
         >
@@ -225,7 +225,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                     className={[
                       'absolute rounded-lg border border-slate-200 bg-white p-2 shadow-lg',
                       sidebarCollapsed
-                        ? 'bottom-0 left-full ml-2 w-64'
+                        ? 'bottom-full left-2 mb-2 w-64'
                         : 'bottom-full left-0 mb-2 w-full',
                     ].join(' ')}
                   >

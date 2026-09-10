@@ -11,6 +11,7 @@ import { Input } from '../../../components/ui/Input'
 import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
 import { useI18n } from '../../../lib/i18n/I18nContext'
+import { formatUnitName } from '../../../lib/i18n/formatUnitName'
 import type { StockMovementType } from '../../../lib/supabase/database.types'
 import { useProductMutations, useProducts } from '../catalog/catalogApi'
 import {
@@ -45,7 +46,7 @@ const formatNumber = (value: number | null | undefined) =>
 
 export function AdminInventoryPage() {
   const { organizationId, user } = useAuth()
-  const { t } = useI18n()
+  const { language, t } = useI18n()
   const balancesQuery = useInventoryBalances(organizationId)
   const documentsQuery = useStockDocuments(organizationId)
   const productsQuery = useProducts({ organizationId })
@@ -242,7 +243,7 @@ export function AdminInventoryPage() {
                     </span>
                   </div>
                   <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-5">
-                    <div><dt className="text-xs uppercase text-slate-500">Остаток</dt><dd>{formatNumber(product.stock_quantity)} {product.unit_name}</dd></div>
+                    <div><dt className="text-xs uppercase text-slate-500">Остаток</dt><dd>{formatNumber(product.stock_quantity)} {formatUnitName(product.unit_name, language)}</dd></div>
                     <div><dt className="text-xs uppercase text-slate-500">Минимум</dt><dd>{formatNumber(product.minimum_stock_quantity)}</dd></div>
                     <div><dt className="text-xs uppercase text-slate-500">Средняя</dt><dd>{formatNumber(product.average_purchase_cost)}</dd></div>
                     <div><dt className="text-xs uppercase text-slate-500">Закупка</dt><dd>{formatNumber(product.purchase_price)}</dd></div>

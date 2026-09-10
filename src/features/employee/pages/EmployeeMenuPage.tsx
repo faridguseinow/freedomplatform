@@ -2,6 +2,7 @@ import { getCurrentLocale } from '../../../lib/i18n/translator'
 // Removed duplicate import of React
 import React from 'react'
 import { useI18n } from '../../../lib/i18n/I18nContext'
+import { formatUnitName } from '../../../lib/i18n/formatUnitName'
 import { useAuth } from '../../../hooks/useAuth'
 import {
   useEmployeeCombos,
@@ -18,7 +19,7 @@ const formatQuantity = (value: number | null | undefined) => {
 }
 
 export function EmployeeMenuPage() {
-  const { t } = useI18n()
+  const { language, t } = useI18n()
   const { currentOrganization } = useAuth()
   const organizationId = currentOrganization?.id ?? null
 
@@ -169,7 +170,7 @@ export function EmployeeMenuPage() {
                     it.type === 'service'
                       ? t("ui.usluga_44ee1ac")
                       : hasStockQuantity
-                        ? `${t("ui.ostalos_76a8eb1")}: ${quantity}${it.unitName ? ` ${it.unitName}` : ''}`
+                        ? `${t("ui.ostalos_76a8eb1")}: ${quantity}${it.unitName ? ` ${formatUnitName(it.unitName, language)}` : ''}`
                         : null
 
                   return (

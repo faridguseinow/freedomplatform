@@ -97,15 +97,23 @@ export function useProductMovements(productId: string | null) {
     enabled: Boolean(productId),
     queryKey: ['admin', 'inventory', 'movements', productId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('stock_movements')
-        .select(stockMovementSelect)
-        .eq('product_id', productId!)
-        .order('created_at', { ascending: false })
-        .limit(100)
+      const [movementsResult, productResult] = await Promise.all([
+        supabase
+          .from('stock_movements')
+          .select(stockMovementSelect)
+          .eq('product_id', productId!)
+          .order('created_at', { ascending: false })
+          .limit(100),
+        supabase
+          .from('products')
+          .select('id,name,stock_quantity,unit_name')
+          .eq('id', productId!)
+          .single(),
+      ])
 
-      if (error) throw new Error(error.message)
-      return data
+      if (movementsResult.error) throw new Error(movementsResult.error.message)
+      if (productResult.error) throw new Error(productResult.error.message)
+      return { movements: movementsResult.data, product: productResult.data }
     },
   })
 }

@@ -23,6 +23,7 @@ import { Button } from '../../../components/ui/Button'
 import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
 import { useI18n } from '../../../lib/i18n/I18nContext'
+import { formatUnitName } from '../../../lib/i18n/formatUnitName'
 import type {
   EmployeeOrderItemRow,
   EmployeeWorkspacePlaceRow,
@@ -299,7 +300,7 @@ function CatalogAddButton({
 
 export function EmployeeWorkspacePage() {
   const { organizationId, role } = useAuth()
-  const { t } = useI18n()
+  const { language, t } = useI18n()
   const workspaceQuery = useEmployeeWorkspaceData(organizationId)
   const productsQuery = useEmployeeProducts({ organizationId })
   const servicesQuery = useEmployeeServices({ organizationId })
@@ -1447,7 +1448,7 @@ export function EmployeeWorkspacePage() {
                                   const quantity = formatQuantity(product.stock_quantity)
                                   const stockLabel =
                                     quantity != null
-                                      ? `${t("ui.ostalos_76a8eb1")}: ${quantity}${product.unit_name ? ` ${product.unit_name}` : ''}`
+                                      ? `${t("ui.ostalos_76a8eb1")}: ${quantity}${product.unit_name ? ` ${formatUnitName(product.unit_name, language)}` : ''}`
                                       : null
 
                                   return (
