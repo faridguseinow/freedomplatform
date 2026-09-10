@@ -120,7 +120,7 @@ export function EmployeeShiftPage() {
   const mutations = useEmployeeShiftMutations(organizationId)
   const [nowMs, setNowMs] = useState(() => Date.now())
   const [templateId, setTemplateId] = useState('')
-  const [openingCash, setOpeningCash] = useState(0)
+  const [openingCash, setOpeningCash] = useState('')
   const [actualCash, setActualCash] = useState(0)
   const [comment, setComment] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -188,7 +188,7 @@ export function EmployeeShiftPage() {
             void runAction(() =>
               mutations.open.mutateAsync({
                 shiftTemplateId: selectedTemplateId,
-                openingCashAmount: openingCash,
+                openingCashAmount: Number(openingCash),
               }),
             )
           }}
@@ -229,9 +229,9 @@ export function EmployeeShiftPage() {
           </div>
           <Input
             id="opening_cash"
-            label="Начальная наличность"
+            label={t('employeeShift.enterAmount')}
             min={0}
-            onChange={(event) => setOpeningCash(Number(event.target.value))}
+            onChange={(event) => setOpeningCash(event.target.value)}
             step="0.01"
             type="number"
             value={openingCash}

@@ -110,18 +110,31 @@ export function AdminInventoryProductPage() {
                 </div>
               </div>
 
-              <dl className="grid grid-cols-3 gap-2 text-center lg:min-w-[21rem]">
+              <dl className="grid gap-2 text-center sm:grid-cols-3 lg:min-w-[23rem]">
+                <div className={isIncoming
+                  ? 'rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2'
+                  : 'rounded-lg border border-amber-200 bg-amber-50 px-3 py-2'}
+                >
+                  <dt className={isIncoming
+                    ? 'text-[11px] font-semibold uppercase tracking-wide text-emerald-700'
+                    : 'text-[11px] font-semibold uppercase tracking-wide text-amber-700'}
+                  >
+                    {t('inventoryHistory.change')}
+                  </dt>
+                  <dd className={isIncoming
+                    ? 'mt-1 text-lg font-bold text-emerald-800'
+                    : 'mt-1 text-lg font-bold text-amber-800'}
+                  >
+                    {isIncoming ? '+' : ''}{formatNumber(movement.quantity_delta)} {unitName}
+                  </dd>
+                </div>
                 <div className="rounded-lg bg-slate-50 px-3 py-2">
                   <dt className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{t('inventoryHistory.before')}</dt>
                   <dd className="mt-1 font-semibold text-slate-950">{formatNumber(movementBalance?.before ?? 0)} {unitName}</dd>
                 </div>
                 <div className="rounded-lg bg-slate-50 px-3 py-2">
-                  <dt className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{t('inventoryHistory.after')}</dt>
+                  <dt className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{t('inventoryHistory.remaining')}</dt>
                   <dd className="mt-1 font-semibold text-slate-950">{formatNumber(movementBalance?.after ?? 0)} {unitName}</dd>
-                </div>
-                <div className="rounded-lg bg-slate-50 px-3 py-2">
-                  <dt className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{t('inventoryHistory.unitCost')}</dt>
-                  <dd className="mt-1 font-semibold text-slate-950">{formatNumber(movement.unit_cost)} AZN</dd>
                 </div>
               </dl>
             </article>

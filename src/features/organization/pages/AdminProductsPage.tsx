@@ -132,7 +132,9 @@ export function AdminProductsPage() {
   const visibleProducts = useMemo(() => {
     const needle = search.trim().toLowerCase()
     return products.filter((product) => {
-      const matchesStatus = statusFilter === 'all' || product.status === statusFilter
+      const matchesStatus = statusFilter === 'all'
+        ? product.status !== 'archived'
+        : product.status === statusFilter
       if (!matchesStatus) return false
       const matchesCategory =
         categoryFilter === 'all' ||

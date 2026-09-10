@@ -79,7 +79,10 @@ export function AdminInventoryPage() {
   const { append, fields, remove } = useFieldArray({ control, name: 'items' })
   const watchedItems = useWatch({ control, name: 'items' })
 
-  const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data])
+  const products = useMemo(
+    () => (productsQuery.data ?? []).filter((product) => product.status !== 'archived'),
+    [productsQuery.data],
+  )
   const stockProducts = useMemo(() => balancesQuery.data ?? [], [balancesQuery.data])
   const visibleProducts = useMemo(() => {
     const needle = search.trim().toLowerCase()

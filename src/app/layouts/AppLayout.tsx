@@ -372,12 +372,12 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
             <div
               className={
                 fullWidthContent
-                  ? 'grid h-full w-full gap-3'
-                  : 'mx-auto grid w-full max-w-6xl gap-5'
+                  ? 'grid h-full w-full content-start gap-3'
+                  : 'mx-auto grid w-full max-w-6xl content-start gap-5'
               }
             >
               {isPlatformOwnerOrganizationView ? (
-                <div className="flex flex-col gap-2 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm text-cyan-900 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex self-start flex-col gap-2 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm text-cyan-900 sm:flex-row sm:items-center sm:justify-between">
                   <span className="min-w-0">
                     Просмотр организации от имени владельца платформы: {currentOrganization?.name}
                   </span>

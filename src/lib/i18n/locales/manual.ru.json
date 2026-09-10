@@ -38,12 +38,17 @@
   "inventoryHistory.removed": "Списано {{quantity}} {{unit}}",
   "inventoryHistory.before": "Было",
   "inventoryHistory.after": "Стало",
+  "inventoryHistory.change": "Изменение",
+  "inventoryHistory.remaining": "Осталось",
   "inventoryHistory.unitCost": "Цена за единицу",
   "inventoryHistory.orderSale": "Продажа по заказу",
   "inventoryHistory.migratedOpeningBalance": "Системный перенос прежнего остатка",
   "inventoryHistory.emptyTitle": "История пуста",
   "inventoryHistory.emptyDescription": "По товару пока нет складских движений.",
   "inventory.unitItem": "шт.",
+  "shifts.shiftsForDay": "смен за день: {{count}}",
+  "shifts.dayTotal": "Итого за день",
+  "shifts.totalRevenue": "Общая выручка",
   "internal.openingDay": "день открытия",
   "internal.first": "первая",
   "internal.second": "вторая",
@@ -98,6 +103,8 @@
   "session.stop": "Стоп",
   "session.pausedShort": "На паузе",
   "order.activeCount": "активных: {{count}}",
+  "order.itemRemoved": "Удалено",
   "place.table": "Стол",
-  "place.tableNumber": "Стол {{number}}"
+  "place.tableNumber": "Стол {{number}}",
+  "employeeShift.enterAmount": "Введите сумму"
 }

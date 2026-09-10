@@ -1,5 +1,5 @@
 import { getCurrentLocale } from '../../../lib/i18n/translator'
-import { ArrowLeft, Banknote, Calculator, ChevronDown, Clock3, CreditCard, GripHorizontal, Loader2, ReceiptText, Timer, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Banknote, Calculator, ChevronDown, CreditCard, GripHorizontal, Loader2, ReceiptText, Timer, Trash2, X } from 'lucide-react'
 import type { ComponentType, CSSProperties, PointerEvent } from 'react'
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -389,6 +389,7 @@ export function AdminShiftDetailPage() {
   const detailQuery = useAdminShiftDetail(shiftId ?? null)
   const mutations = useAdminShiftMutations(organizationId)
   const [orderSort, setOrderSort] = useState<OrderSortKey>('closed_at')
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<PaymentMethod | 'all'>('all')
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false)
   const isPlatformOwner = role === 'platform_owner'
   const buildAdminPath = (path: string) =>
@@ -406,7 +407,7 @@ export function AdminShiftDetailPage() {
     return <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{t("ui.smena_ne_naydena_40da5b6")}</div>
   }
 
-  const { handovers, orders, payments, sessions, shift } = detailQuery.data
+  const { orders, payments, sessions, shift } = detailQuery.data
   const employeeName = shift.employee_full_name ?? shift.employee_email ?? t("ui.bez_imeni_cdf641f")
   const paidOrders = orders.filter((order) => order.status === 'paid')
   const cancelledOrders = orders.filter((order) => order.status === 'cancelled')
@@ -420,6 +421,11 @@ export function AdminShiftDetailPage() {
   const completedCardPaymentsTotal = completedPayments
     .filter((payment) => payment.method === 'card_transfer')
     .reduce((sum, payment) => sum + (payment.amount ?? 0), 0)
+  const visiblePayments = paymentMethodFilter === 'all'
+    ? payments
+    : payments.filter((payment) => payment.method === paymentMethodFilter)
+  const visibleCompletedPayments = visiblePayments.filter((payment) => payment.status === 'completed')
+  const visibleCompletedPaymentsTotal = visibleCompletedPayments.reduce((sum, payment) => sum + (payment.amount ?? 0), 0)
   const paidOrdersTotal = paidOrders.reduce((sum, order) => sum + (order.total_amount ?? 0), 0)
   const variance = shift.cash_variance ?? 0
   const closingComment = shift.closing_comment ?? shift.cash_variance_comment
@@ -542,7 +548,8 @@ export function AdminShiftDetailPage() {
         </div>
       ) : null}
 
-      <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div className={cn('grid items-start gap-3', hasClosingNotes && 'lg:grid-cols-2')}>
+      <section className="grid self-start gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-lg font-semibold text-slate-950">{t("ui.raschet_kassy_cb6a614")}</h3>
           <Button
@@ -580,22 +587,13 @@ export function AdminShiftDetailPage() {
         </div>
       </section>
 
-      {isCalculatorOpen ? (
-        <ShiftCalculator
-          onClose={() => setIsCalculatorOpen(false)}
-          presets={calculatorPresets}
-          values={calculatorValues}
-        />
-      ) : null}
-
       {hasClosingNotes ? (
-        <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="grid self-start gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <h3 className="text-lg font-semibold text-slate-950">{t("ui.kommentarii_zakrytiya_d940899")}</h3>
           <div className="grid gap-2">
             {closingComment ? (
-              <div className="rounded-md border border-slate-100 bg-slate-50 p-3 text-sm">
-                <p className="text-xs font-medium uppercase text-slate-500">{t("ui.kommentariy_zakrytiya_aa1a703")}</p>
-                <p className="mt-1 text-slate-700">{closingComment}</p>
+              <div className="rounded-md border border-red-200 bg-red-50/60 p-3">
+                <p className="text-base font-semibold leading-6 text-red-700">{closingComment}</p>
               </div>
             ) : null}
             {shift.force_close_reason ? (
@@ -606,6 +604,15 @@ export function AdminShiftDetailPage() {
             ) : null}
           </div>
         </section>
+      ) : null}
+      </div>
+
+      {isCalculatorOpen ? (
+        <ShiftCalculator
+          onClose={() => setIsCalculatorOpen(false)}
+          presets={calculatorPresets}
+          values={calculatorValues}
+        />
       ) : null}
 
       <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -670,17 +677,41 @@ export function AdminShiftDetailPage() {
         )}
       </section>
 
-      <div className="grid gap-3 xl:grid-cols-2">
-        <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
+      <div className="grid items-start gap-3 xl:grid-cols-2">
+        <section className="grid self-start gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="inline-flex items-center gap-2 text-lg font-semibold text-slate-950">
               <CreditCard aria-hidden="true" className="size-5 text-emerald-700" />
               {t("ui.platezhi_c0964ef")}
             </h3>
-            <span className="text-sm font-medium text-slate-500">{completedPayments.length} · {formatMoney(completedPaymentsTotal)}</span>
+            <span className="text-sm font-medium text-slate-500">{visibleCompletedPayments.length} · {formatMoney(visibleCompletedPaymentsTotal)}</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(['cash', 'card_transfer'] as const).map((method) => {
+              const isActive = paymentMethodFilter === method
+              const Icon = method === 'cash' ? Banknote : CreditCard
+
+              return (
+                <button
+                  aria-pressed={isActive}
+                  className={cn(
+                    'inline-flex min-h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors',
+                    isActive
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                  )}
+                  key={method}
+                  onClick={() => setPaymentMethodFilter((current) => current === method ? 'all' : method)}
+                  type="button"
+                >
+                  <Icon aria-hidden="true" className="size-3.5" />
+                  {t(paymentMethodLabel[method])}
+                </button>
+              )
+            })}
           </div>
           <div className="grid gap-2">
-            {payments.map((payment) => (
+            {visiblePayments.map((payment) => (
               <article className="flex items-center justify-between gap-3 rounded-md border border-slate-200 p-3 text-sm" key={payment.id}>
                 <div className="min-w-0">
                   <p className="font-semibold text-slate-950">{t(paymentMethodLabel[payment.method])}</p>
@@ -694,11 +725,11 @@ export function AdminShiftDetailPage() {
                 </div>
               </article>
             ))}
-            {!payments.length ? <div className="rounded-md border border-dashed border-slate-200 p-4 text-sm text-slate-500">{t("ui.platezhey_net_4215b31")}</div> : null}
+            {!visiblePayments.length ? <div className="rounded-md border border-dashed border-slate-200 p-4 text-sm text-slate-500">{t("ui.platezhey_net_4215b31")}</div> : null}
           </div>
         </section>
 
-        <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="grid self-start gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <h3 className="inline-flex items-center gap-2 text-lg font-semibold text-slate-950">
               <Timer aria-hidden="true" className="size-5 text-emerald-700" />
@@ -730,36 +761,6 @@ export function AdminShiftDetailPage() {
         </section>
       </div>
 
-      <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="inline-flex items-center gap-2 text-lg font-semibold text-slate-950">
-            <Clock3 aria-hidden="true" className="size-5 text-emerald-700" />
-            {t("ui.peredachi_98aeaac")}
-          </h3>
-          <span className="text-sm font-medium text-slate-500">{handovers.length}</span>
-        </div>
-        {handovers.length ? (
-          <div className="grid gap-2 md:grid-cols-2">
-            {handovers.map((handover) => (
-              <article className="rounded-md border border-slate-200 p-3 text-sm" key={handover.id}>
-                <div className="flex items-center justify-between gap-3">
-                  <p className="font-semibold text-slate-950">{t("ui.peredacha_smeny_597f062")}</p>
-                  <span className={statusTone(handover.status)}>{handover.status}</span>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
-                  <div>{t("ui.zakazy_22ac845")}: <span className="font-semibold text-slate-950">{handover.opening_orders_count}</span></div>
-                  <div>{t("ui.sessii_477192f")}: <span className="font-semibold text-slate-950">{handover.active_sessions_count}</span></div>
-                  <div>{t("ui.ozhidaemaya_kassa_0adb6d8")}: <span className="font-semibold text-slate-950">{formatMoney(handover.expected_cash_handover)}</span></div>
-                  <div>{t("ui.fakticheskaya_kassa_0eb693e")}: <span className="font-semibold text-slate-950">{formatMoney(handover.actual_cash_handover)}</span></div>
-                </div>
-                {handover.comment ? <p className="mt-2 text-xs text-slate-500">{handover.comment}</p> : null}
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-md border border-dashed border-slate-200 p-4 text-sm text-slate-500">{t("ui.peredach_net_90026bd")}</div>
-        )}
-      </section>
     </section>
   )
 }

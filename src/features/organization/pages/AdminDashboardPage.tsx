@@ -18,7 +18,7 @@ import type {
   AdjustmentRequestType,
 } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
-import { todayDate, useFinanceDashboardSummary } from '../../finance/financeApi'
+import { todayDate } from '../../finance/financeApi'
 import { useAdminAdjustmentRequests } from '../../orders/adjustmentRequestsApi'
 import {
   usePaymentMethodSummaryByShiftIds,
@@ -127,7 +127,6 @@ export function AdminDashboardPage() {
   const servicesQuery = useServices({ organizationId })
   const combosQuery = useCombos(organizationId)
   const inventoryQuery = useInventoryBalances(organizationId)
-  const financeQuery = useFinanceDashboardSummary(organizationId)
 
   const orders = ordersQuery.data ?? []
   const adjustments = adjustmentsQuery.data ?? []
@@ -138,7 +137,6 @@ export function AdminDashboardPage() {
   const services = servicesQuery.data ?? []
   const combos = combosQuery.data ?? []
   const inventory = inventoryQuery.data ?? []
-  const finance = financeQuery.data
 
   const activeShift = shifts
     .filter((shift) => shift.status === 'open' || shift.status === 'closing')
@@ -157,7 +155,6 @@ export function AdminDashboardPage() {
   const usageHoursQuery = useUsageHoursBreakdownByShiftIds(organizationId, currentShiftIds)
   const usageHours = usageHoursQuery.data
   const openOrders = orders.filter((order) => order.status === 'open').length
-  const refusedOrders = orders.filter((order) => order.status === 'payment_refused').length
   const openShifts = shifts.filter((shift) => shift.status === 'open' || shift.status === 'closing').length
   const timedPlaces = places.filter((place) => place.has_timer).length
   const lowStock = inventory.filter((item) => item.stock_quantity <= item.minimum_stock_quantity).length
@@ -173,7 +170,6 @@ export function AdminDashboardPage() {
     servicesQuery.isLoading ||
     combosQuery.isLoading ||
     inventoryQuery.isLoading ||
-    financeQuery.isLoading ||
     paymentSummaryQuery.isLoading ||
     revenueBreakdownQuery.isLoading ||
     usageHoursQuery.isLoading
@@ -188,7 +184,6 @@ export function AdminDashboardPage() {
     servicesQuery.error ??
     combosQuery.error ??
     inventoryQuery.error ??
-    financeQuery.error ??
     paymentSummaryQuery.error ??
     revenueBreakdownQuery.error ??
     usageHoursQuery.error
@@ -310,7 +305,7 @@ export function AdminDashboardPage() {
       </section>
 
       <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-        <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="grid content-start gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-lg font-semibold text-slate-950">{t("ui.rabochee_sostoyanie_135cf32")}</h3>
             <LayoutDashboard className="size-5 text-emerald-700" />
@@ -333,10 +328,8 @@ export function AdminDashboardPage() {
             <h3 className="text-lg font-semibold text-slate-950">{t("ui.kontrol_3468f38")}</h3>
             <AlertTriangle className="size-5 text-amber-600" />
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-1 sm:gap-3">
+          <div className="grid gap-2 sm:gap-3">
             <StatCard label="Низкий остаток" tone={lowStock ? 'danger' : 'default'} value={lowStock} />
-            <StatCard label="Отказы от оплаты" tone={refusedOrders ? 'danger' : 'default'} value={refusedOrders} />
-            <StatCard label="Периоды на проверке" tone={finance?.periods_waiting_review ? 'warning' : 'default'} value={finance?.periods_waiting_review ?? 0} />
           </div>
         </section>
       </div>

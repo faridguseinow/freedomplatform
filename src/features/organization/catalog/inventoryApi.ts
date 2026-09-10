@@ -40,6 +40,7 @@ export function useInventoryBalances(organizationId: string | null) {
         )
         .eq('organization_id', organizationId!)
         .eq('track_stock', true)
+        .neq('status', 'archived')
         .order('name', { ascending: true })
 
       if (error) throw new Error(error.message)

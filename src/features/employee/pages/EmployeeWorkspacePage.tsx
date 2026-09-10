@@ -373,6 +373,7 @@ export function EmployeeWorkspacePage() {
     splitPaymentTotal > 0 &&
     Math.abs(splitPaymentTotal - splitPaymentTargetTotal) < 0.01
   const orderItems = orderItemsQuery.data ?? []
+  const activeOrderItemsCount = orderItems.filter((item) => item.status === 'active').length
   const placesById = useMemo(() => new Map(places.map((place) => [place.id, place])), [places])
   const comboGiftMinutesByOrderId = useMemo(() => {
     const combosById = new Map((combosQuery.data ?? []).map((combo) => [combo.id, combo]))
@@ -1154,7 +1155,7 @@ export function EmployeeWorkspacePage() {
                             <textarea
                               className="min-h-20 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
                               onChange={(event) => setOrderComment(event.target.value)}
-                              placeholder="Например: клиент оставил больше, оплата от друга, особые условия."
+                              placeholder={t('ui.naprimer_klient_ostavil_bolshe_oplata_ot_druga_osoby_a24810f')}
                               value={orderComment}
                             />
                             <span className="text-xs font-normal text-slate-500">
@@ -1289,7 +1290,7 @@ export function EmployeeWorkspacePage() {
                       <h4 className="text-base font-semibold text-slate-950">Состав заказа</h4>
                     </div>
                     <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800">
-                      {t('order.itemCountShort', { count: orderItems.length })}
+                      {t('order.itemCountShort', { count: activeOrderItemsCount })}
                     </span>
                   </div>
 
@@ -1298,11 +1299,29 @@ export function EmployeeWorkspacePage() {
                       <div className="p-4 text-sm text-slate-600">Загрузка позиций...</div>
                     ) : null}
                     {orderItems.map((item) => {
+                      const isRemoved = item.status === 'removed' || item.status === 'cancelled'
                       const canEditQuantity =
                         item.status === 'active' &&
                         selectedOrder.status === 'open' &&
                         item.item_type !== 'timed_session' &&
                         item.item_type !== 'manual_item'
+
+                      if (isRemoved) {
+                        return (
+                          <div
+                            className="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs last:border-b-0"
+                            key={item.id}
+                          >
+                            <div className="min-w-0">
+                              <span className="truncate font-medium text-slate-500 line-through">{item.name_snapshot}</span>
+                              <span className="ml-2 text-slate-400">{item.quantity} × {formatAzn(item.unit_price)}</span>
+                            </div>
+                            <span className="shrink-0 rounded-full bg-red-50 px-2 py-1 font-semibold text-red-700">
+                              {t('order.itemRemoved')}
+                            </span>
+                          </div>
+                        )
+                      }
 
                       return (
                         <div

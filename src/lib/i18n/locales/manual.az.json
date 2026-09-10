@@ -38,12 +38,17 @@
   "inventoryHistory.removed": "{{quantity}} {{unit}} silindi",
   "inventoryHistory.before": "Əvvəl",
   "inventoryHistory.after": "Sonra",
+  "inventoryHistory.change": "Dəyişiklik",
+  "inventoryHistory.remaining": "Qalıq",
   "inventoryHistory.unitCost": "Vahid qiyməti",
   "inventoryHistory.orderSale": "Sifariş üzrə satış",
   "inventoryHistory.migratedOpeningBalance": "Əvvəlki qalığın sistem köçürülməsi",
   "inventoryHistory.emptyTitle": "Tarixçə boşdur",
   "inventoryHistory.emptyDescription": "Bu məhsul üzrə hələ anbar hərəkəti yoxdur.",
   "inventory.unitItem": "ədəd",
+  "shifts.shiftsForDay": "gün üzrə növbə: {{count}}",
+  "shifts.dayTotal": "Gün üzrə cəmi",
+  "shifts.totalRevenue": "Ümumi gəlir",
   "internal.openingDay": "açılış günü",
   "internal.first": "birinci",
   "internal.second": "ikinci",
@@ -98,6 +103,8 @@
   "session.stop": "Dayandır",
   "session.pausedShort": "Pauzada",
   "order.activeCount": "aktiv: {{count}}",
+  "order.itemRemoved": "Silinib",
   "place.table": "Masa",
-  "place.tableNumber": "Masa {{number}}"
+  "place.tableNumber": "Masa {{number}}",
+  "employeeShift.enterAmount": "Məbləği daxil edin"
 }
