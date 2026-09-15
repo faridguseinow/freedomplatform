@@ -325,7 +325,7 @@ async function buildRevenueBreakdown(paymentRows: PaymentRow[]) {
     new Set(paymentRows.map((p) => p.order_id).filter((id): id is string => Boolean(id))),
   )
 
-  let orders: { id: string; place_id: string | null }[] = []
+  const orders: { id: string; place_id: string | null }[] = []
   if (orderIds.length) {
     for (const chunk of chunkValues(orderIds)) {
       const { data: ordersData, error: ordersErr } = await supabase
@@ -340,7 +340,7 @@ async function buildRevenueBreakdown(paymentRows: PaymentRow[]) {
 
   const placeIds = Array.from(new Set(orders.map((o) => o.place_id).filter((id): id is string => Boolean(id))))
 
-  let places: { id: string; type: string | null }[] = []
+  const places: { id: string; type: string | null }[] = []
   if (placeIds.length) {
     for (const chunk of chunkValues(placeIds)) {
       const { data: placesData, error: placesErr } = await supabase
@@ -353,10 +353,11 @@ async function buildRevenueBreakdown(paymentRows: PaymentRow[]) {
     }
   }
 
-  let orderItems: {
+  const orderItems: {
     order_id: string
     item_type: string
     status: string
+    timed_session_id: string | null
     total_price: number | null
     total_cost_snapshot: number | null
   }[] = []
@@ -364,13 +365,44 @@ async function buildRevenueBreakdown(paymentRows: PaymentRow[]) {
     for (const chunk of chunkValues(orderIds)) {
       const { data: itemsData, error: itemsErr } = await supabase
         .from('order_items')
-        .select('order_id,item_type,status,total_price,total_cost_snapshot')
+        .select('order_id,item_type,status,timed_session_id,total_price,total_cost_snapshot')
         .in('order_id', chunk)
 
       if (itemsErr) throw new Error(itemsErr.message)
       orderItems.push(...(itemsData ?? []))
     }
   }
+
+  const timedSessionIds = Array.from(new Set(
+    orderItems
+      .map((item) => item.timed_session_id)
+      .filter((id): id is string => Boolean(id)),
+  ))
+  const timedSessionPlaceById = new Map<string, string>()
+  for (const chunk of chunkValues(timedSessionIds)) {
+    const { data: sessionsData, error: sessionsErr } = await supabase
+      .from('timed_sessions')
+      .select('id,place_id')
+      .in('id', chunk)
+
+    if (sessionsErr) throw new Error(sessionsErr.message)
+    for (const session of sessionsData ?? []) timedSessionPlaceById.set(session.id, session.place_id)
+  }
+
+  const allPlaceIds = new Set(placeIds)
+  timedSessionPlaceById.forEach((placeId) => allPlaceIds.add(placeId))
+  const missingPlaceIds = [...allPlaceIds].filter((id) => !placeIds.includes(id))
+  for (const chunk of chunkValues(missingPlaceIds)) {
+    const { data: placesData, error: placesErr } = await supabase
+      .from('places')
+      .select('id,type')
+      .in('id', chunk)
+
+    if (placesErr) throw new Error(placesErr.message)
+    places.push(...(placesData ?? []))
+  }
+
+  const placeTypeById = new Map(places.map((place) => [place.id, place.type]))
 
   const orderToPlaceType = new Map<string, string | null>()
   orders.forEach((o) => {
@@ -413,13 +445,16 @@ async function buildRevenueBreakdown(paymentRows: PaymentRow[]) {
     for (const item of orderRows) {
       const amount = item.total_price ?? 0
       const cost = item.total_cost_snapshot ?? 0
+      const itemPlaceType = item.timed_session_id
+        ? placeTypeById.get(timedSessionPlaceById.get(item.timed_session_id) ?? '') ?? placeType
+        : placeType
       allocatedAmount += amount
 
       if (item.item_type === 'product') result.goods += amount - cost
-      if (placeType === 'table' || placeType === 'vip_room') result.tables += amount
+      if (itemPlaceType === 'table' || itemPlaceType === 'vip_room') result.tables += amount
       else if (item.item_type === 'product') continue
-      else if (placeType === 'playstation') result.playstation += amount
-      else if (placeType === 'billiard') result.billiard += amount
+      else if (itemPlaceType === 'playstation') result.playstation += amount
+      else if (itemPlaceType === 'billiard') result.billiard += amount
       else result.other += amount
     }
 

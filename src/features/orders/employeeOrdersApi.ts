@@ -391,6 +391,17 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
       },
       onSuccess: (session) => invalidate(session.order_id),
     }),
+    transferOrder: useMutation({
+      mutationFn: async ({ orderId, placeId }: { orderId: string; placeId: string }) => {
+        const { data, error } = await supabase.rpc('transfer_open_order_to_place', {
+          target_order_id: orderId,
+          target_place_id: placeId,
+        })
+        if (error) throw new Error(error.message)
+        return data
+      },
+      onSuccess: (order) => invalidate(order.id),
+    }),
     pauseSession: useMutation({
       mutationFn: async (sessionId: string) => {
         const { data, error } = await supabase.rpc('pause_timed_session', {

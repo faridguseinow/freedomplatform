@@ -104,6 +104,12 @@
   "session.pausedShort": "На паузе",
   "order.activeCount": "активных: {{count}}",
   "order.itemRemoved": "Удалено",
+  "order.changePlace": "Сменить место",
+  "order.changePlaceDescription": "Текущая сессия завершится и сохранится отдельной строкой. Заказ и его состав перейдут на новое место, где автоматически начнётся новая сессия.",
+  "order.sessionStartsAutomatically": "Новая сессия начнётся автоматически",
+  "order.withoutTimer": "Без таймера",
+  "order.noFreePlaces": "Свободных мест для переноса нет.",
+  "order.move": "Перенести",
   "place.table": "Стол",
   "place.tableNumber": "Стол {{number}}",
   "employeeShift.enterAmount": "Введите сумму"

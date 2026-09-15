@@ -104,6 +104,12 @@
   "session.pausedShort": "Pauzada",
   "order.activeCount": "aktiv: {{count}}",
   "order.itemRemoved": "Silinib",
+  "order.changePlace": "Yeri dəyişdir",
+  "order.changePlaceDescription": "Cari sessiya tamamlanıb ayrıca sətirdə saxlanılacaq. Sifariş və onun tərkibi yeni yerə keçiriləcək, orada yeni sessiya avtomatik başlayacaq.",
+  "order.sessionStartsAutomatically": "Yeni sessiya avtomatik başlayacaq",
+  "order.withoutTimer": "Taymersiz",
+  "order.noFreePlaces": "Keçirmək üçün boş yer yoxdur.",
+  "order.move": "Keçir",
   "place.table": "Masa",
   "place.tableNumber": "Masa {{number}}",
   "employeeShift.enterAmount": "Məbləği daxil edin"

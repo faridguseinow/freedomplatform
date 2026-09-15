@@ -1,6 +1,7 @@
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import {
   Banknote,
+  ArrowRightLeft,
   ChevronDown,
   CheckCircle2,
   Clock3,
@@ -312,6 +313,8 @@ export function EmployeeWorkspacePage() {
   const [pickerTab, setPickerTab] = useState<PickerTab>('products')
   const [paymentChoiceOrderId, setPaymentChoiceOrderId] = useState<string | null>(null)
   const [orderCloseAction, setOrderCloseAction] = useState<OrderCloseAction | null>(null)
+  const [isTransferOpen, setIsTransferOpen] = useState(false)
+  const [transferTargetPlaceId, setTransferTargetPlaceId] = useState('')
   const [cancelReason, setCancelReason] = useState('')
   const [removeRequestItem, setRemoveRequestItem] = useState<EmployeeOrderItemRow | null>(null)
   const [removeRequestReason, setRemoveRequestReason] = useState('')
@@ -389,6 +392,12 @@ export function EmployeeWorkspacePage() {
     return result
   }, [comboItems, combosQuery.data])
   const selectedOrderPlace = selectedOrder?.place_id ? placesById.get(selectedOrder.place_id) ?? null : null
+  const transferTargets = places.filter((place) =>
+    place.status === 'active' &&
+    place.id !== selectedOrder?.place_id &&
+    !place.active_order_id &&
+    !place.active_session_id,
+  )
   const ordersWithoutPlace = orders.filter((order) => !order.place_id && order.status !== 'paid')
 
   useEffect(() => {
@@ -442,6 +451,8 @@ export function EmployeeWorkspacePage() {
   const closeOrder = () => {
     setPaymentChoiceOrderId(null)
     setOrderCloseAction(null)
+    setIsTransferOpen(false)
+    setTransferTargetPlaceId('')
     setCancelReason('')
     setTipAmount('')
     setCashSplitAmount('')
@@ -534,6 +545,18 @@ export function EmployeeWorkspacePage() {
     }
 
     void createOrderForPlace(place)
+  }
+
+  const transferOrder = () => {
+    if (!selectedOrder || !transferTargetPlaceId) return
+    void runAction(async () => {
+      await orderMutations.transferOrder.mutateAsync({
+        orderId: selectedOrder.id,
+        placeId: transferTargetPlaceId,
+      })
+      setIsTransferOpen(false)
+      setTransferTargetPlaceId('')
+    })
   }
 
   const addItem = (kind: PickerTab, id: string) =>
@@ -1278,6 +1301,17 @@ export function EmployeeWorkspacePage() {
                             <X className="size-4" />
                             Отменить заказ
                           </Button>
+                          {selectedOrder.status === 'open' ? (
+                            <Button
+                              disabled={orderMutations.transferOrder.isPending || isClosingOrder}
+                              onClick={() => setIsTransferOpen(true)}
+                              type="button"
+                              variant="secondary"
+                            >
+                              <ArrowRightLeft className="size-4" />
+                              {t('order.changePlace')}
+                            </Button>
+                          ) : null}
                         </div>
                       )}
                     </div>
@@ -1730,6 +1764,73 @@ export function EmployeeWorkspacePage() {
               Таймер считается локально; финальная сумма сессии пересчитывается сервером при завершении.
             </footer>
           </aside>
+
+          {isTransferOpen ? (
+            <Modal
+              className="z-[60] bg-slate-950/45"
+              onClose={() => {
+                setIsTransferOpen(false)
+                setTransferTargetPlaceId('')
+              }}
+            >
+              <section className="grid w-full max-w-lg gap-4 rounded-xl bg-white p-5 shadow-xl">
+                <div className="grid gap-1">
+                  <h4 className="text-lg font-semibold text-slate-950">{t('order.changePlace')}</h4>
+                  <p className="text-sm leading-6 text-slate-600">
+                    {t('order.changePlaceDescription')}
+                  </p>
+                </div>
+
+                <div className="grid max-h-80 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+                  {transferTargets.map((place) => (
+                    <button
+                      className={cn(
+                        'grid min-h-16 gap-1 rounded-lg border p-3 text-left transition-colors',
+                        transferTargetPlaceId === place.id
+                          ? 'border-emerald-600 bg-emerald-50 text-emerald-950'
+                          : 'border-slate-200 bg-white text-slate-800 hover:border-emerald-200 hover:bg-emerald-50/40',
+                      )}
+                      key={place.id}
+                      onClick={() => setTransferTargetPlaceId(place.id)}
+                      type="button"
+                    >
+                      <span className="font-semibold">{place.name}</span>
+                      <span className="text-xs text-slate-500">
+                        {place.has_timer ? t('order.sessionStartsAutomatically') : t('order.withoutTimer')}
+                      </span>
+                    </button>
+                  ))}
+                  {!transferTargets.length ? (
+                    <div className="rounded-lg border border-dashed border-slate-200 p-4 text-sm text-slate-500 sm:col-span-2">
+                      {t('order.noFreePlaces')}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    disabled={orderMutations.transferOrder.isPending}
+                    onClick={() => {
+                      setIsTransferOpen(false)
+                      setTransferTargetPlaceId('')
+                    }}
+                    type="button"
+                    variant="secondary"
+                  >
+                    {t('ui.nazad_f6dab07')}
+                  </Button>
+                  <Button
+                    disabled={!transferTargetPlaceId || orderMutations.transferOrder.isPending}
+                    onClick={transferOrder}
+                    type="button"
+                  >
+                    {orderMutations.transferOrder.isPending ? <Loader2 className="size-4 animate-spin" /> : <ArrowRightLeft className="size-4" />}
+                    {t('order.move')}
+                  </Button>
+                </div>
+              </section>
+            </Modal>
+          ) : null}
 
           {removeRequestItem ? (
             <Modal className="z-[60] bg-slate-950/45" onClose={closeRemoveRequest}>

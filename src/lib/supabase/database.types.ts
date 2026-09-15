@@ -1745,6 +1745,14 @@ export type Database = {
         }
         Returns: OrderRow
       }
+      transfer_open_order_to_place: {
+        Args: {
+          target_order_id: string
+          target_place_id: string
+          target_comment?: string | null
+        }
+        Returns: OrderRow
+      }
       request_order_adjustment: {
         Args: {
           target_order_id: string
