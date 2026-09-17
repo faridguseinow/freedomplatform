@@ -63,5 +63,8 @@
   "Один новый товар нельзя добавлять в закупку несколько раз.": "inventory.purchaseDuplicateNewProduct",
   "Способ": "inventory.productInputMode",
   "Убрать позицию": "inventory.removePurchaseItem",
-  "Итого по позиции": "inventory.purchaseLineTotal"
+  "Итого по позиции": "inventory.purchaseLineTotal",
+  "Режим просмотра": "employee.workspaceObserverMode",
+  "Вы просматриваете рабочие места без смены. Действия с заказами, сессиями и оплатами отключены.": "employee.workspaceObserverDescription",
+  "В режиме просмотра изменения отключены.": "employee.workspaceObserverReadOnlyError"
 }

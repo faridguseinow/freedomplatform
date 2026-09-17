@@ -31,6 +31,7 @@ import type {
   PaymentMethod,
 } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
+import { USER_ROLES } from '../../../types/roles'
 import {
   useEmployeeCombos,
   useEmployeeProducts,
@@ -246,6 +247,7 @@ const getSlotClassName = (place: EmployeeWorkspacePlaceRow, shape: string, hasSe
 
 type CatalogAddButtonProps = {
   details?: string[]
+  disabled?: boolean
   imagePath: string | null
   isPressed: boolean
   name: string
@@ -256,6 +258,7 @@ type CatalogAddButtonProps = {
 
 function CatalogAddButton({
   details = [],
+  disabled = false,
   imagePath,
   isPressed,
   name,
@@ -269,7 +272,9 @@ function CatalogAddButton({
         'grid grid-cols-[36px_1fr_auto] items-start gap-2 rounded-md border border-slate-200 p-1.5 text-left transition active:scale-[0.98]',
         'hover:border-emerald-200 hover:bg-emerald-50/40',
         isPressed && 'border-emerald-300 bg-emerald-50 ring-2 ring-emerald-600/20',
+        disabled && 'cursor-not-allowed opacity-60 hover:border-slate-200 hover:bg-transparent active:scale-100',
       )}
+      disabled={disabled}
       onClick={onClick}
       type="button"
     >
@@ -308,6 +313,10 @@ export function EmployeeWorkspacePage() {
   const combosQuery = useEmployeeCombos({ organizationId })
   const orderMutations = useEmployeeOrderMutations(organizationId)
   const currentShiftQuery = useCurrentEmployeeShift(organizationId)
+  const canObserveWithoutShift =
+    role === USER_ROLES.organizationAdmin || role === USER_ROLES.platformOwner
+  const isWorkspaceReadOnly =
+    !currentShiftQuery.isLoading && !currentShiftQuery.data?.shift && canObserveWithoutShift
   const [nowMs, setNowMs] = useState(() => Date.now())
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [pickerTab, setPickerTab] = useState<PickerTab>('products')
@@ -334,12 +343,16 @@ export function EmployeeWorkspacePage() {
 
   const runAction = useCallback(async (action: () => Promise<unknown>) => {
     setError(null)
+    if (isWorkspaceReadOnly) {
+      setError(t('В режиме просмотра изменения отключены.'))
+      return
+    }
     try {
       await action()
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Операция не выполнена.')
     }
-  }, [])
+  }, [isWorkspaceReadOnly, t])
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setNowMs(Date.now()), 1000)
@@ -401,6 +414,7 @@ export function EmployeeWorkspacePage() {
   const ordersWithoutPlace = orders.filter((order) => !order.place_id && order.status !== 'paid')
 
   useEffect(() => {
+    if (isWorkspaceReadOnly) return
     const expiredSessions = places.filter((place) => {
       const limitInfo = getSessionLimitInfo(place, nowMs)
       return place.active_session_id && !place.active_session_paused_at && limitInfo?.isExpired
@@ -412,7 +426,7 @@ export function EmployeeWorkspacePage() {
       autoCompletingSessionsRef.current.add(sessionId)
       void runAction(() => orderMutations.completeSession.mutateAsync(sessionId))
     }
-  }, [nowMs, orderMutations.completeSession, places, runAction])
+  }, [isWorkspaceReadOnly, nowMs, orderMutations.completeSession, places, runAction])
 
   const filteredProducts = (productsQuery.data ?? []).filter((item) =>
     [item.name, item.sku, item.characteristics].filter(Boolean).join(' ').toLowerCase().includes(search.toLowerCase()),
@@ -467,9 +481,9 @@ export function EmployeeWorkspacePage() {
     setSelectedOrderId(null)
   }
 
-  // Allow organization admins to view the workspace even when no shift is open.
-  // Non-admin users still see the prompt to open a shift.
-  if (!currentShiftQuery.isLoading && !currentShiftQuery.data?.shift && role !== 'organization_admin') {
+  // Organization admins and platform owners may observe the workspace without a shift.
+  // Employees still need an open shift for operational work.
+  if (!currentShiftQuery.isLoading && !currentShiftQuery.data?.shift && !canObserveWithoutShift) {
     return (
       <section className="grid content-start gap-3">
         <div className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm lg:flex-row lg:items-center lg:justify-between">
@@ -821,6 +835,14 @@ export function EmployeeWorkspacePage() {
   return (
     <section className="flex min-h-[calc(100svh-1rem)] flex-col gap-3">
       {error ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
+      {isWorkspaceReadOnly ? (
+        <div className="rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-950">
+          <p className="font-semibold">{t('Режим просмотра')}</p>
+          <p className="mt-1 text-xs leading-5 text-cyan-800">
+            {t('Вы просматриваете рабочие места без смены. Действия с заказами, сессиями и оплатами отключены.')}
+          </p>
+        </div>
+      ) : null}
 
       {workspaceQuery.isLoading ? (
         <div className="inline-flex min-h-28 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600">
@@ -854,6 +876,7 @@ export function EmployeeWorkspacePage() {
             const sessionGraceNotice = getSessionGraceNotice(place, nowMs)
             const sessionLimitInfo = getSessionLimitInfo(place, nowMs)
             const vipEquipmentSummary = isVipEquipmentPlace(place) ? formatVipEquipmentSummary(place) : null
+            const canOpenPlace = !isWorkspaceReadOnly || hasActiveOrder
 
             return (
               <article
@@ -863,16 +886,18 @@ export function EmployeeWorkspacePage() {
                   Boolean(sessionLimitInfo?.isWarning || sessionLimitInfo?.isExpired),
                 )}
                 key={slot.key}
-                onClick={() => openPlaceOrder(place)}
+                onClick={() => {
+                  if (canOpenPlace) openPlaceOrder(place)
+                }}
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
+                  if (canOpenPlace && (event.key === 'Enter' || event.key === ' ')) {
                     event.preventDefault()
                     openPlaceOrder(place)
                   }
                 }}
-                role="button"
+                role={canOpenPlace ? 'button' : undefined}
                 style={slot.style}
-                tabIndex={0}
+                tabIndex={canOpenPlace ? 0 : undefined}
               >
                 <div className="grid gap-2">
                   <div className="flex items-start justify-between gap-2">
@@ -932,7 +957,24 @@ export function EmployeeWorkspacePage() {
                 </div>
 
                 <div className="mt-3 grid gap-1.5">
-                  {!isTable ? (
+                  {isWorkspaceReadOnly ? (
+                    hasActiveOrder ? (
+                      <button
+                        className="inline-flex min-h-8 items-center justify-center gap-1 rounded-md bg-white px-2 text-xs font-semibold text-slate-800 ring-1 ring-slate-200 hover:bg-slate-50"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          selectOrder(place.active_order_id!)
+                        }}
+                        type="button"
+                      >
+                        <ReceiptText className="size-3.5" /> Открыть заказ
+                      </button>
+                    ) : (
+                      <span className="inline-flex min-h-8 items-center justify-center rounded-md bg-slate-100 px-2 text-xs font-medium text-slate-500">
+                        {t('Режим просмотра')}
+                      </span>
+                    )
+                  ) : !isTable ? (
                     <>
                       {hasActiveSession ? (
                         <button
@@ -1000,7 +1042,7 @@ export function EmployeeWorkspacePage() {
               {t('order.activeCount', { count: ordersWithoutPlace.length })}
             </p>
           </div>
-          <Button className="min-h-9 px-3" onClick={createOrderWithoutPlace} type="button">
+          <Button className="min-h-9 px-3" disabled={isWorkspaceReadOnly} onClick={createOrderWithoutPlace} type="button">
             <Plus className="size-4" /> Заказ без места
           </Button>
         </div>
@@ -1054,6 +1096,7 @@ export function EmployeeWorkspacePage() {
                       onKeyDown={(event) => {
                         if (event.key === 'Enter') event.currentTarget.blur()
                       }}
+                      readOnly={isWorkspaceReadOnly}
                       value={vipEquipmentText}
                     />
                   ) : null}
@@ -1115,12 +1158,13 @@ export function EmployeeWorkspacePage() {
                                 }
                               }}
                               placeholder="Например: Эльвин"
+                              readOnly={isWorkspaceReadOnly}
                               value={orderCustomerLabel}
                             />
                           </label>
                           <Button
                             className="min-h-10"
-                            disabled={orderMutations.updateCustomerLabel.isPending}
+                            disabled={isWorkspaceReadOnly || orderMutations.updateCustomerLabel.isPending}
                             onClick={saveOrderCustomerLabel}
                             onMouseDown={(event) => event.preventDefault()}
                             type="button"
@@ -1143,6 +1187,7 @@ export function EmployeeWorkspacePage() {
                             min={0}
                             onChange={(event) => setTipAmount(event.target.value)}
                             placeholder="Например: 5"
+                            readOnly={isWorkspaceReadOnly}
                             type="number"
                             value={tipAmount}
                           />
@@ -1179,6 +1224,7 @@ export function EmployeeWorkspacePage() {
                               className="min-h-20 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
                               onChange={(event) => setOrderComment(event.target.value)}
                               placeholder={t('ui.naprimer_klient_ostavil_bolshe_oplata_ot_druga_osoby_a24810f')}
+                              readOnly={isWorkspaceReadOnly}
                               value={orderComment}
                             />
                             <span className="text-xs font-normal text-slate-500">
@@ -1195,13 +1241,13 @@ export function EmployeeWorkspacePage() {
                       ) : (
                         <div className="grid gap-2 md:grid-cols-3">
                           {hasNormalPaymentAmount ? (
-                            <Button disabled={!canPreparePayment || isClosingOrder} onClick={openPaymentChoice} type="button">
+                            <Button disabled={isWorkspaceReadOnly || !canPreparePayment || isClosingOrder} onClick={openPaymentChoice} type="button">
                               <Hourglass className="size-4" />
                               {selectedOrder.status === 'waiting_payment' ? 'Принять оплату' : 'К оплате'}
                             </Button>
                           ) : (
                             <Button
-                              disabled={!canFinishEmptyOrder || isClosingOrder}
+                              disabled={isWorkspaceReadOnly || !canFinishEmptyOrder || isClosingOrder}
                               onClick={finishEmptyOrder}
                               type="button"
                             >
@@ -1213,14 +1259,14 @@ export function EmployeeWorkspacePage() {
                           {paymentChoiceOpen ? (
                             <>
                               <Button
-                                disabled={isClosingOrder || !hasValidTipAmount}
+                                disabled={isWorkspaceReadOnly || isClosingOrder || !hasValidTipAmount}
                                 onClick={() => completePayment('cash')}
                                 type="button"
                               >
                                 <Banknote className="size-4" /> Наличными
                               </Button>
                               <Button
-                                disabled={isClosingOrder || !hasValidTipAmount}
+                                disabled={isWorkspaceReadOnly || isClosingOrder || !hasValidTipAmount}
                                 onClick={() => completePayment('card_transfer')}
                                 type="button"
                                 variant="secondary"
@@ -1271,7 +1317,7 @@ export function EmployeeWorkspacePage() {
                                   </span>
                                 </div>
                                 <Button
-                                  disabled={isClosingOrder || !isSplitPaymentValid || !hasValidTipAmount}
+                                  disabled={isWorkspaceReadOnly || isClosingOrder || !isSplitPaymentValid || !hasValidTipAmount}
                                   onClick={completeSplitPayment}
                                   type="button"
                                 >
@@ -1283,7 +1329,7 @@ export function EmployeeWorkspacePage() {
 
                           {hasNormalPaymentAmount ? (
                             <Button
-                              disabled={hasActiveSession || isClosingOrder}
+                              disabled={isWorkspaceReadOnly || hasActiveSession || isClosingOrder}
                               onClick={refusePayment}
                               type="button"
                               variant="danger"
@@ -1293,7 +1339,7 @@ export function EmployeeWorkspacePage() {
                           ) : null}
 
                           <Button
-                            disabled={!canCancelOrder || isClosingOrder}
+                            disabled={isWorkspaceReadOnly || !canCancelOrder || isClosingOrder}
                             onClick={cancelOrder}
                             type="button"
                             variant="danger"
@@ -1303,7 +1349,7 @@ export function EmployeeWorkspacePage() {
                           </Button>
                           {selectedOrder.status === 'open' ? (
                             <Button
-                              disabled={orderMutations.transferOrder.isPending || isClosingOrder}
+                              disabled={isWorkspaceReadOnly || orderMutations.transferOrder.isPending || isClosingOrder}
                               onClick={() => setIsTransferOpen(true)}
                               type="button"
                               variant="secondary"
@@ -1382,7 +1428,7 @@ export function EmployeeWorkspacePage() {
                                     <button
                                       aria-label="Уменьшить на 1"
                                       className="inline-flex min-h-8 items-center justify-center text-slate-700 transition hover:bg-slate-50 disabled:text-slate-300"
-                                      disabled={item.quantity <= 1 || orderMutations.requestAdjustment.isPending}
+                                      disabled={isWorkspaceReadOnly || item.quantity <= 1 || orderMutations.requestAdjustment.isPending}
                                       onClick={() => changeItemQuantity(item, item.quantity - 1)}
                                       type="button"
                                     >
@@ -1394,7 +1440,7 @@ export function EmployeeWorkspacePage() {
                                     <button
                                       aria-label="Увеличить на 1"
                                       className="inline-flex min-h-8 items-center justify-center text-emerald-800 transition hover:bg-emerald-50 disabled:text-slate-300"
-                                      disabled={orderMutations.requestAdjustment.isPending}
+                                      disabled={isWorkspaceReadOnly || orderMutations.requestAdjustment.isPending}
                                       onClick={() => changeItemQuantity(item, item.quantity + 1)}
                                       type="button"
                                     >
@@ -1403,11 +1449,11 @@ export function EmployeeWorkspacePage() {
                                   </div>
                                 ) : null}
                                 {canEditQuantity ? (
-                                  <Button className="min-h-8 px-3 py-1 text-xs" onClick={() => requestQuantity(item)} type="button" variant="secondary">
+                                  <Button className="min-h-8 px-3 py-1 text-xs" disabled={isWorkspaceReadOnly} onClick={() => requestQuantity(item)} type="button" variant="secondary">
                                     Кол-во
                                   </Button>
                                 ) : null}
-                                <Button className="min-h-8 px-3 py-1 text-xs" onClick={() => requestRemove(item)} type="button" variant="danger">
+                                <Button className="min-h-8 px-3 py-1 text-xs" disabled={isWorkspaceReadOnly} onClick={() => requestRemove(item)} type="button" variant="danger">
                                   Удалить
                                 </Button>
                               </div>
@@ -1506,6 +1552,7 @@ export function EmployeeWorkspacePage() {
 
                                   return (
                                     <CatalogAddButton
+                                      disabled={isWorkspaceReadOnly}
                                       imagePath={product.image_path}
                                       isPressed={pressedCatalogItemKey === `products:${product.id}`}
                                       key={product.id}
@@ -1525,6 +1572,7 @@ export function EmployeeWorkspacePage() {
                             {pickerTab === 'services'
                                 ? filteredServices.map((service) => (
                                   <CatalogAddButton
+                                    disabled={isWorkspaceReadOnly}
                                     imagePath={service.image_path}
                                     isPressed={pressedCatalogItemKey === `services:${service.id}`}
                                     key={service.id}
@@ -1537,6 +1585,7 @@ export function EmployeeWorkspacePage() {
                             {pickerTab === 'combos'
                                 ? filteredCombos.map((combo) => (
                                   <CatalogAddButton
+                                    disabled={isWorkspaceReadOnly}
                                     details={getComboComponentLabels(combo.component_preview, t)}
                                     imagePath={combo.image_path}
                                     isPressed={pressedCatalogItemKey === `combos:${combo.id}`}
@@ -1710,7 +1759,7 @@ export function EmployeeWorkspacePage() {
                             <div className="grid grid-cols-3 gap-2">
                             <Button
                               className="min-h-9 bg-emerald-700 text-white hover:bg-emerald-800 focus-visible:ring-emerald-700"
-                              disabled={(!canStartSession && !isSessionPaused) || isSessionActionPending}
+                              disabled={isWorkspaceReadOnly || (!canStartSession && !isSessionPaused) || isSessionActionPending}
                               onClick={() => {
                                 if (!selectedPlace) return
                                 if (isSessionPaused && selectedPlace.active_session_id) {
@@ -1728,7 +1777,7 @@ export function EmployeeWorkspacePage() {
                             </Button>
                             <Button
                               className="min-h-9 border border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200 focus-visible:ring-amber-500"
-                              disabled={!hasActiveSession || isSessionPaused || isSessionActionPending}
+                              disabled={isWorkspaceReadOnly || !hasActiveSession || isSessionPaused || isSessionActionPending}
                               onClick={() =>
                                 selectedPlace?.active_session_id &&
                                 runAction(() => orderMutations.pauseSession.mutateAsync(selectedPlace.active_session_id!))
@@ -1740,7 +1789,7 @@ export function EmployeeWorkspacePage() {
                             </Button>
                             <Button
                               className="min-h-9 bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-600"
-                              disabled={!hasActiveSession || isSessionActionPending}
+                              disabled={isWorkspaceReadOnly || !hasActiveSession || isSessionActionPending}
                               onClick={() =>
                                 selectedPlace?.active_session_id &&
                                 runAction(() => orderMutations.completeSession.mutateAsync(selectedPlace.active_session_id!))

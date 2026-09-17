@@ -167,5 +167,8 @@
   "inventory.purchaseDuplicateNewProduct": "Eyni yeni məhsulu alışa bir neçə dəfə əlavə etmək olmaz.",
   "inventory.productInputMode": "Üsul",
   "inventory.removePurchaseItem": "Mövqeni sil",
-  "inventory.purchaseLineTotal": "Cəmi"
+  "inventory.purchaseLineTotal": "Cəmi",
+  "employee.workspaceObserverMode": "Baxış rejimi",
+  "employee.workspaceObserverDescription": "Növbə açmadan iş yerlərinə baxırsınız. Sifarişlər, sessiyalar və ödənişlərlə bağlı əməliyyatlar deaktivdir.",
+  "employee.workspaceObserverReadOnlyError": "Baxış rejimində dəyişikliklər deaktivdir."
 }
