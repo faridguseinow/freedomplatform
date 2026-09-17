@@ -463,11 +463,11 @@ export function AdminInventoryPage() {
             </div>
             <div className="grid gap-3">
               {fields.map((field, index) => (
-                <div className="grid items-end gap-2 rounded-md border border-slate-200 p-2.5 sm:grid-cols-[minmax(280px,1fr)_80px_110px_95px_40px]" key={field.id}>
-                  <div className="grid gap-2 sm:grid-cols-[120px_minmax(0,1fr)]">
-                    <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                <div className="grid grid-cols-1 items-end gap-2 rounded-md border border-slate-200 p-2.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_95px_40px] lg:grid-cols-[minmax(310px,1fr)_80px_110px_95px_40px]" key={field.id}>
+                  <div className="grid min-w-0 gap-2 sm:col-span-4 sm:grid-cols-[140px_minmax(0,1fr)] lg:col-span-1">
+                    <label className="grid min-w-0 gap-1.5 text-sm font-medium text-slate-700">
                       <span>{t('Способ')}</span>
-                      <select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register(`items.${index}.product_mode`, { onChange: () => {
+                      <select className="min-h-11 w-full min-w-0 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register(`items.${index}.product_mode`, { onChange: () => {
                         clearErrors(`items.${index}`)
                         setValue(`items.${index}.product_id`, '')
                         setValue(`items.${index}.new_product_name`, '')
@@ -480,9 +480,9 @@ export function AdminInventoryPage() {
                     {watchedItems[index]?.product_mode === 'new' ? (
                       <Input id={`new_product_${field.id}`} label={t('Название нового товара')} title={t('Новый товар сохранится в каталоге выключенным. Продажную цену можно указать позже.')} {...register(`items.${index}.new_product_name`)} />
                     ) : (
-                      <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                      <label className="grid min-w-0 gap-1.5 text-sm font-medium text-slate-700">
                         <span>{t('Выберите товар')}</span>
-                        <select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register(`items.${index}.product_id`, { onChange: (event) => {
+                        <select className="min-h-11 w-full min-w-0 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register(`items.${index}.product_id`, { onChange: (event) => {
                           const product = products.find((item) => item.id === event.target.value)
                           setValue(`items.${index}.unit_cost`, product?.purchase_price ?? product?.average_purchase_cost ?? 0, { shouldValidate: true })
                         } })}><option value="">Выберите</option>{products.filter((item) => item.track_stock).map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select>
@@ -500,7 +500,7 @@ export function AdminInventoryPage() {
                       {formatNumber((watchedItems[index]?.quantity ?? 0) * (watchedItems[index]?.unit_cost ?? 0))}
                     </div>
                   </div>
-                  <div className="flex items-end"><button aria-label={t('Убрать позицию')} className="inline-flex size-11 items-center justify-center rounded-md text-red-600 hover:bg-red-50" onClick={() => remove(index)} type="button"><Trash2 className="size-4" /></button></div>
+                  <div className="flex items-end justify-end sm:justify-start"><button aria-label={t('Убрать позицию')} className="inline-flex size-11 items-center justify-center rounded-md text-red-600 hover:bg-red-50" onClick={() => remove(index)} type="button"><Trash2 className="size-4" /></button></div>
                 </div>
               ))}
               <Button onClick={() => append({ product_mode: 'existing', product_id: '', new_product_name: '', quantity: 1, unit_cost: 0, comment: '' })} type="button" variant="secondary"><Plus className="size-4" />Добавить позицию</Button>
