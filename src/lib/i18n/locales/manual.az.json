@@ -166,5 +166,6 @@
   "inventory.newProductNameRequired": "Yeni məhsulun adını daxil edin.",
   "inventory.purchaseDuplicateNewProduct": "Eyni yeni məhsulu alışa bir neçə dəfə əlavə etmək olmaz.",
   "inventory.productInputMode": "Üsul",
-  "inventory.removePurchaseItem": "Mövqeni sil"
+  "inventory.removePurchaseItem": "Mövqeni sil",
+  "inventory.purchaseLineTotal": "Cəmi"
 }

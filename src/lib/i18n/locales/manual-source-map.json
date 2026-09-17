@@ -62,5 +62,6 @@
   "Введите название нового товара.": "inventory.newProductNameRequired",
   "Один новый товар нельзя добавлять в закупку несколько раз.": "inventory.purchaseDuplicateNewProduct",
   "Способ": "inventory.productInputMode",
-  "Убрать позицию": "inventory.removePurchaseItem"
+  "Убрать позицию": "inventory.removePurchaseItem",
+  "Итого по позиции": "inventory.purchaseLineTotal"
 }

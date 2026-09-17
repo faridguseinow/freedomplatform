@@ -463,7 +463,7 @@ export function AdminInventoryPage() {
             </div>
             <div className="grid gap-3">
               {fields.map((field, index) => (
-                <div className="grid grid-cols-1 items-end gap-2 rounded-md border border-slate-200 p-2.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_95px_40px] lg:grid-cols-[minmax(310px,1fr)_80px_110px_95px_40px]" key={field.id}>
+                <div className="grid grid-cols-1 items-end gap-2 rounded-md border border-slate-200 p-2.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_80px_40px] lg:grid-cols-[minmax(310px,1fr)_80px_110px_80px_40px]" key={field.id}>
                   <div className="grid min-w-0 gap-2 sm:col-span-4 sm:grid-cols-[140px_minmax(0,1fr)] lg:col-span-1">
                     <label className="grid min-w-0 gap-1.5 text-sm font-medium text-slate-700">
                       <span>{t('Способ')}</span>
@@ -495,8 +495,8 @@ export function AdminInventoryPage() {
                   <Input id={`qty_${field.id}`} label="Кол-во" min={1} step="1" type="number" {...register(`items.${index}.quantity`, { valueAsNumber: true })} />
                   <Input id={`cost_${field.id}`} label={t('Себестоимость')} min={0} step="1" type="number" {...register(`items.${index}.unit_cost`, { valueAsNumber: true })} />
                   <div className="grid content-end gap-1.5 text-sm font-medium text-slate-700">
-                    <span>Сумма</span>
-                    <div className="flex min-h-11 items-center rounded-md bg-slate-50 px-3 text-slate-900">
+                    <span>{t('Итого по позиции')}</span>
+                    <div className="flex min-h-11 items-center rounded-md bg-slate-50 px-2 text-slate-900">
                       {formatNumber((watchedItems[index]?.quantity ?? 0) * (watchedItems[index]?.unit_cost ?? 0))}
                     </div>
                   </div>
