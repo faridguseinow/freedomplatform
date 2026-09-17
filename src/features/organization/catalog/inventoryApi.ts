@@ -122,8 +122,12 @@ export function useProductMovements(productId: string | null) {
 export function useInventoryMutations(organizationId: string | null) {
   const queryClient = useQueryClient()
   const invalidate = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['admin', 'inventory'] })
-    await queryClient.invalidateQueries({ queryKey: ['admin', 'catalog', 'products', organizationId] })
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['admin', 'inventory'] }),
+      queryClient.invalidateQueries({ queryKey: ['admin', 'catalog', 'products', organizationId] }),
+      queryClient.invalidateQueries({ queryKey: ['finance'] }),
+      queryClient.invalidateQueries({ queryKey: ['platform', 'finance'] }),
+    ])
   }
 
   return {

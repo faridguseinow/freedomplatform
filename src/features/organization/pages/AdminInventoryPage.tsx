@@ -1,6 +1,6 @@
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Archive, Loader2, Plus, Save, Search, Trash2, X } from 'lucide-react'
+import { Archive, FilePlus2, Loader2, Plus, Save, Search, ShoppingBasket, Trash2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { Link } from 'react-router-dom'
@@ -30,16 +30,66 @@ const documentSchema = z.object({
   items: z
     .array(
       z.object({
-        product_id: z.string().uuid('Выберите товар.'),
+        product_mode: z.enum(['existing', 'new']),
+        product_id: z.string().optional(),
+        new_product_name: z.string().trim().optional(),
         quantity: z.number().min(0.001, 'Количество должно быть больше 0.'),
         unit_cost: z.number().min(0, 'Цена не может быть отрицательной.').optional(),
         comment: z.string().trim().optional(),
       }),
     )
     .min(1, 'Добавьте хотя бы одну позицию.'),
+}).superRefine((value, context) => {
+  value.items.forEach((item, index) => {
+    if (item.product_mode === 'existing' && !z.string().uuid().safeParse(item.product_id).success) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Выберите товар.',
+        path: ['items', index, 'product_id'],
+      })
+    }
+    if (item.product_mode === 'new' && (item.new_product_name?.trim().length ?? 0) < 2) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Введите название нового товара.',
+        path: ['items', index, 'new_product_name'],
+      })
+    }
+  })
+
+  const productIds = value.items
+    .filter((item) => item.product_mode === 'existing')
+    .map((item) => item.product_id)
+  if (new Set(productIds).size !== productIds.length) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Один товар нельзя добавлять в закупку несколько раз.',
+      path: ['items'],
+    })
+  }
+
+  const newProductNames = value.items
+    .filter((item) => item.product_mode === 'new')
+    .map((item) => item.new_product_name?.trim().toLocaleLowerCase() ?? '')
+  if (new Set(newProductNames).size !== newProductNames.length) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Один новый товар нельзя добавлять в закупку несколько раз.',
+      path: ['items'],
+    })
+  }
+
+  if (value.type === 'purchase' && value.items.some((item) => !item.unit_cost || item.unit_cost <= 0)) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Для каждого товара укажите закупочную цену больше 0.',
+      path: ['items'],
+    })
+  }
 })
 
 type DocumentFormValues = z.infer<typeof documentSchema>
+type DocumentMode = 'purchase' | 'other'
 
 const formatNumber = (value: number | null | undefined) =>
   new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 3 }).format(value ?? 0)
@@ -47,6 +97,7 @@ const formatNumber = (value: number | null | undefined) =>
 export function AdminInventoryPage() {
   const { organizationId, user } = useAuth()
   const { language, t } = useI18n()
+  const defaultUnitName = t('inventory.unitItem')
   const balancesQuery = useInventoryBalances(organizationId)
   const documentsQuery = useStockDocuments(organizationId)
   const productsQuery = useProducts({ organizationId })
@@ -55,15 +106,18 @@ export function AdminInventoryPage() {
   const [search, setSearch] = useState('')
   const [lowOnly, setLowOnly] = useState(false)
   const [outOnly, setOutOnly] = useState(false)
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [documentMode, setDocumentMode] = useState<DocumentMode | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const {
     control,
+    clearErrors,
     formState: { errors, isSubmitting },
     handleSubmit,
     register,
     reset,
+    setValue,
   } = useForm<DocumentFormValues>({
     resolver: zodResolver(documentSchema),
     defaultValues: {
@@ -72,7 +126,7 @@ export function AdminInventoryPage() {
       reference: '',
       comment: '',
       post_now: true,
-      items: [{ product_id: '', quantity: 1, unit_cost: 0, comment: '' }],
+      items: [{ product_mode: 'existing', product_id: '', new_product_name: '', quantity: 1, unit_cost: 0, comment: '' }],
     },
   })
 
@@ -99,6 +153,20 @@ export function AdminInventoryPage() {
     0,
   )
 
+  const openDocument = (mode: DocumentMode) => {
+    reset({
+      type: mode === 'purchase' ? 'purchase' : 'write_off',
+      supplier_name: '',
+      reference: '',
+      comment: '',
+      post_now: mode === 'purchase',
+      items: [{ product_mode: 'existing', product_id: '', new_product_name: '', quantity: 1, unit_cost: 0, comment: '' }],
+    })
+    setFormError(null)
+    setSuccessMessage(null)
+    setDocumentMode(mode)
+  }
+
   const onSubmit = handleSubmit(async (values) => {
     if (!organizationId || !user) {
       setFormError('Организация или пользователь не определены.')
@@ -108,6 +176,51 @@ export function AdminInventoryPage() {
     setFormError(null)
 
     try {
+      const existingNames = new Set(products.map((product) => product.name.trim().toLocaleLowerCase()))
+      const duplicateNewProduct = values.items.find(
+        (item) => item.product_mode === 'new' && existingNames.has(item.new_product_name?.trim().toLocaleLowerCase() ?? ''),
+      )
+      if (duplicateNewProduct) {
+        setFormError(t('Товар с таким названием уже существует. Выберите его из списка.'))
+        return
+      }
+
+      const resolvedItems: Array<{ productId: string; quantity: number; unitCost: number | null; comment: string | null }> = []
+      for (const item of values.items) {
+        let productId = item.product_id ?? ''
+        if (item.product_mode === 'new') {
+          const product = await productMutations.upsert.mutateAsync({
+            id: undefined,
+            input: {
+              organization_id: organizationId,
+              category_id: null,
+              sku: null,
+              name: item.new_product_name!.trim(),
+              description: null,
+              characteristics: null,
+              image_path: null,
+              sale_price: 0,
+              purchase_price: item.unit_cost ?? null,
+              stock_quantity: 0,
+              minimum_stock_quantity: 0,
+              average_purchase_cost: 0,
+              unit_name: defaultUnitName,
+              track_stock: true,
+              sort_order: 0,
+              status: 'inactive',
+              created_by: user.id,
+            },
+          })
+          productId = product.id
+        }
+        resolvedItems.push({
+          productId,
+          quantity: item.quantity,
+          unitCost: item.unit_cost ?? null,
+          comment: item.comment || null,
+        })
+      }
+
       const document = await inventoryMutations.createDocument.mutateAsync({
         organization_id: organizationId,
         type: values.type,
@@ -119,23 +232,28 @@ export function AdminInventoryPage() {
       })
 
       await inventoryMutations.addItems.mutateAsync(
-        values.items.map((item) => ({
+        resolvedItems.map((item) => ({
           organization_id: organizationId,
           document_id: document.id,
-          product_id: item.product_id,
+          product_id: item.productId,
           quantity: item.quantity,
-          unit_cost: item.unit_cost ?? null,
-          line_total: item.quantity * (item.unit_cost ?? 0),
-          comment: item.comment || null,
+          unit_cost: item.unitCost,
+          line_total: item.quantity * (item.unitCost ?? 0),
+          comment: item.comment,
         })),
       )
 
-      if (values.post_now) {
+      if (documentMode === 'purchase' || values.post_now) {
         await inventoryMutations.postDocument.mutateAsync(document.id)
       }
 
       reset()
-      setIsModalOpen(false)
+      setDocumentMode(null)
+      setSuccessMessage(
+        values.type === 'purchase'
+          ? t('Базарлык сохранён. Остатки и расходы обновлены.')
+          : t('Складской документ сохранён.'),
+      )
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'Не удалось сохранить документ.')
     }
@@ -183,11 +301,23 @@ export function AdminInventoryPage() {
             Остатки товаров, складские документы и история движений.
           </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} type="button">
-          <Plus className="size-4" />
-          Создать документ
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button onClick={() => openDocument('other')} type="button" variant="secondary">
+            <FilePlus2 className="size-4" />
+            {t('Другой документ')}
+          </Button>
+          <Button onClick={() => openDocument('purchase')} type="button">
+            <ShoppingBasket className="size-4" />
+            {t('Базарлык')}
+          </Button>
+        </div>
       </header>
+
+      {successMessage ? (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          {successMessage}
+        </div>
+      ) : null}
 
       <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_auto_auto]">
         <label className="grid gap-1.5 text-sm font-medium text-slate-700">
@@ -294,37 +424,93 @@ export function AdminInventoryPage() {
         ))}
       </section>
 
-      {isModalOpen ? (
-        <Modal onClose={() => setIsModalOpen(false)}>
+      {documentMode ? (
+        <Modal onClose={() => setDocumentMode(null)}>
           <form className="grid max-h-[calc(100svh-3rem)] w-full max-w-3xl gap-4 overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-xl" noValidate onSubmit={onSubmit}>
             <div className="flex items-start justify-between gap-3">
-              <h3 className="text-lg font-semibold text-slate-950">Складской документ</h3>
-              <button aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setIsModalOpen(false)} type="button"><X className="size-4" /></button>
+              <div>
+                <h3 className="text-lg font-semibold text-slate-950">
+                  {documentMode === 'purchase' ? t('Базарлык — закупка товаров') : 'Складской документ'}
+                </h3>
+                {documentMode === 'purchase' ? (
+                  <p className="mt-1 text-sm text-slate-600">
+                    {t('Все позиции добавятся на склад, а итоговая сумма один раз попадёт в расходы.')}
+                  </p>
+                ) : null}
+              </div>
+              <button aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setDocumentMode(null)} type="button"><X className="size-4" /></button>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="grid gap-1.5 text-sm font-medium text-slate-700"><span>Тип</span><select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register('type')}>{(['purchase', 'write_off', 'adjustment_in', 'adjustment_out'] satisfies StockMovementType[]).map((type) => <option key={type} value={type}>{stockDocumentTypeLabel[type]}</option>)}</select></label>
-              <Input id="supplier_name" label="Поставщик" {...register('supplier_name')} />
-              <Input id="reference" label="Reference" {...register('reference')} />
-              <label className="flex min-h-11 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700"><input type="checkbox" {...register('post_now')} />Провести сразу</label>
-              <label className="grid gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2"><span>Комментарий</span><textarea className="min-h-20 rounded-md border border-slate-200 px-3 py-2 text-sm" {...register('comment')} /></label>
+              {documentMode === 'purchase' ? (
+                <>
+                  <input type="hidden" value="purchase" {...register('type')} />
+                  <Input className="sm:col-span-2" id="supplier_name" label={t('Магазин')} {...register('supplier_name')} />
+                  <input type="hidden" {...register('reference')} />
+                  <input type="hidden" {...register('comment')} />
+                </>
+              ) : (
+                <>
+                  <label className="grid gap-1.5 text-sm font-medium text-slate-700"><span>Тип</span><select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register('type')}>{(['write_off', 'adjustment_in', 'adjustment_out'] satisfies StockMovementType[]).map((type) => <option key={type} value={type}>{stockDocumentTypeLabel[type]}</option>)}</select></label>
+                  <Input id="supplier_name" label="Поставщик" {...register('supplier_name')} />
+                  <Input id="reference" label="Reference" {...register('reference')} />
+                  <label className="flex min-h-11 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700"><input type="checkbox" {...register('post_now')} />Провести сразу</label>
+                  <label className="grid gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2"><span>Комментарий</span><textarea className="min-h-20 rounded-md border border-slate-200 px-3 py-2 text-sm" {...register('comment')} /></label>
+                </>
+              )}
+              {documentMode === 'purchase' ? (
+                <input className="hidden" type="checkbox" {...register('post_now')} />
+              ) : null}
             </div>
             <div className="grid gap-3">
               {fields.map((field, index) => (
-                <div className="grid gap-3 rounded-md border border-slate-200 p-3 sm:grid-cols-[1fr_120px_120px_auto]" key={field.id}>
-                  <label className="grid gap-1.5 text-sm font-medium text-slate-700"><span>Товар</span><select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register(`items.${index}.product_id`)}><option value="">Выберите</option>{products.filter((item) => item.track_stock).map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>
-                  <Input id={`qty_${field.id}`} label="Кол-во" min={0.001} step="0.001" type="number" {...register(`items.${index}.quantity`, { valueAsNumber: true })} />
-                  <Input id={`cost_${field.id}`} label="Цена" min={0} step="0.0001" type="number" {...register(`items.${index}.unit_cost`, { valueAsNumber: true })} />
-                  <div className="flex items-end"><Button onClick={() => remove(index)} type="button" variant="danger">Убрать</Button></div>
+                <div className="grid items-end gap-2 rounded-md border border-slate-200 p-2.5 sm:grid-cols-[minmax(280px,1fr)_80px_110px_95px_40px]" key={field.id}>
+                  <div className="grid gap-2 sm:grid-cols-[120px_minmax(0,1fr)]">
+                    <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                      <span>{t('Способ')}</span>
+                      <select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register(`items.${index}.product_mode`, { onChange: () => {
+                        clearErrors(`items.${index}`)
+                        setValue(`items.${index}.product_id`, '')
+                        setValue(`items.${index}.new_product_name`, '')
+                        setValue(`items.${index}.unit_cost`, 0)
+                      } })}>
+                        <option value="existing">{t('Выбрать из списка')}</option>
+                        <option value="new">{t('Новый товар')}</option>
+                      </select>
+                    </label>
+                    {watchedItems[index]?.product_mode === 'new' ? (
+                      <Input id={`new_product_${field.id}`} label={t('Название нового товара')} title={t('Новый товар сохранится в каталоге выключенным. Продажную цену можно указать позже.')} {...register(`items.${index}.new_product_name`)} />
+                    ) : (
+                      <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                        <span>{t('Выберите товар')}</span>
+                        <select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register(`items.${index}.product_id`, { onChange: (event) => {
+                          const product = products.find((item) => item.id === event.target.value)
+                          setValue(`items.${index}.unit_cost`, product?.purchase_price ?? product?.average_purchase_cost ?? 0, { shouldValidate: true })
+                        } })}><option value="">Выберите</option>{products.filter((item) => item.track_stock).map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select>
+                      </label>
+                    )}
+                    {errors.items?.[index]?.product_id?.message || errors.items?.[index]?.new_product_name?.message ? (
+                      <p className="text-xs text-red-700 sm:col-span-2">{t(errors.items[index]?.product_id?.message ?? errors.items[index]?.new_product_name?.message ?? '')}</p>
+                    ) : null}
+                  </div>
+                  <Input id={`qty_${field.id}`} label="Кол-во" min={1} step="1" type="number" {...register(`items.${index}.quantity`, { valueAsNumber: true })} />
+                  <Input id={`cost_${field.id}`} label={t('Себестоимость')} min={0} step="1" type="number" {...register(`items.${index}.unit_cost`, { valueAsNumber: true })} />
+                  <div className="grid content-end gap-1.5 text-sm font-medium text-slate-700">
+                    <span>Сумма</span>
+                    <div className="flex min-h-11 items-center rounded-md bg-slate-50 px-3 text-slate-900">
+                      {formatNumber((watchedItems[index]?.quantity ?? 0) * (watchedItems[index]?.unit_cost ?? 0))}
+                    </div>
+                  </div>
+                  <div className="flex items-end"><button aria-label={t('Убрать позицию')} className="inline-flex size-11 items-center justify-center rounded-md text-red-600 hover:bg-red-50" onClick={() => remove(index)} type="button"><Trash2 className="size-4" /></button></div>
                 </div>
               ))}
-              <Button onClick={() => append({ product_id: '', quantity: 1, unit_cost: 0, comment: '' })} type="button" variant="secondary"><Plus className="size-4" />Добавить позицию</Button>
+              <Button onClick={() => append({ product_mode: 'existing', product_id: '', new_product_name: '', quantity: 1, unit_cost: 0, comment: '' })} type="button" variant="secondary"><Plus className="size-4" />Добавить позицию</Button>
             </div>
-            {errors.items?.message ? <p className="text-sm text-red-700">{errors.items.message}</p> : null}
+            {errors.items?.message ? <p className="text-sm text-red-700">{t(errors.items.message)}</p> : null}
             <div className="rounded-md bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800">Итого: {formatNumber(documentTotal)} AZN</div>
             {formError ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{formError}</div> : null}
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button onClick={() => setIsModalOpen(false)} type="button" variant="secondary">Отмена</Button>
-              <Button disabled={isSubmitting || inventoryMutations.createDocument.isPending} type="submit">{isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}Сохранить</Button>
+              <Button onClick={() => setDocumentMode(null)} type="button" variant="secondary">Отмена</Button>
+              <Button disabled={isSubmitting || inventoryMutations.createDocument.isPending} type="submit">{isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}{documentMode === 'purchase' ? t('Сохранить закупку') : 'Сохранить'}</Button>
             </div>
           </form>
         </Modal>

@@ -8,6 +8,7 @@ import {
   HelpCircle,
   ListChecks,
   Loader2,
+  Plus,
   ReceiptText,
   Repeat,
   Save,
@@ -27,6 +28,7 @@ import { getTenantRoutePath } from '../../../lib/routing/appHost'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import type {
   FinancePaymentMethod,
+  FinanceCategoryRow,
   FinanceTransactionRow,
   FinanceTransactionType,
   FinancialPeriodRow,
@@ -134,22 +136,6 @@ function financialPeriodMutationMessage(message: string, t: (value: string) => s
   return message
 }
 
-const statusLabel: Record<string, string> = {
-  planned: 'План',
-  pending: 'Ожидает',
-  paid: 'Оплачено',
-  partial: 'Частично',
-  cancelled: 'Отменено',
-  submitted: 'На проверке',
-  clarification_requested: 'Нужны уточнения',
-  locked: 'Закрыт',
-  rejected: 'Отклонён',
-  approved: 'Одобрен',
-  pending_approval: 'На проверке',
-  partially_paid: 'Частично оплачено',
-  overdue: 'Просрочено',
-}
-
 const periodStatusLabel: Record<string, string> = {
   open: 'Открыт',
   submitted: 'На проверке',
@@ -182,13 +168,15 @@ function PageHeader({
   description: string
   action?: ReactNode
 }) {
+  const { t } = useI18n()
+
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="grid gap-2">
         <h2 className="text-2xl font-semibold tracking-normal text-slate-950 sm:text-3xl">
-          {title}
+          {t(title)}
         </h2>
-        <p className="max-w-3xl text-sm leading-6 text-slate-600">{description}</p>
+        <p className="max-w-3xl text-sm leading-6 text-slate-600">{t(description)}</p>
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </header>
@@ -274,16 +262,16 @@ function StatGrid({
         'Все оплаченные и частично оплаченные доходы за текущий период по дате начисления: доходы из заказов и ручные доходы.',
     },
     {
-      label: 'COGS',
+      label: 'Закупка товаров',
       value: summary?.cogs,
       description:
-        'Себестоимость проданного за текущий период: сумма snapshot-себестоимости товаров и компонентов комбо в оплаченных заказах.',
+        'Общая сумма закупок, проведённых через кнопку «Базарлык» на складе за текущий период.',
     },
     {
-      label: 'Валовая прибыль',
+      label: 'После закупок',
       value: summary?.gross_profit,
       description:
-        'Доход минус COGS. Показывает прибыль после себестоимости проданного, до операционных расходов.',
+        'Доход минус все закупки товаров за период, до остальных операционных расходов.',
     },
     {
       label: 'Опер. расходы',
@@ -294,7 +282,7 @@ function StatGrid({
     {
       label: 'Чистая прибыль',
       value: summary?.net_profit_before_platform_share,
-      description: 'Валовая прибыль минус операционные расходы.',
+      description: 'Доход минус закупки товаров и операционные расходы.',
     },
   ]
 
@@ -613,7 +601,7 @@ function MonthlyForecastAnalytics({
       value: projectedGross,
     },
     {
-      description: 'Примерная прибыль за месяц с учётом COGS и операционных расходов.',
+      description: 'Примерная прибыль за месяц с учётом закупок товаров и операционных расходов.',
       label: 'Прогноз с расходами',
       value: projectedNet,
     },
@@ -667,18 +655,24 @@ function MonthlyForecastAnalytics({
 }
 
 function TransactionTable({
+  categories,
   onCancel,
   onEdit,
   onOpen,
   rows,
   type,
 }: {
+  categories: FinanceCategoryRow[] | undefined
   onCancel?: (row: FinanceTransactionRow) => void
   onEdit?: (row: FinanceTransactionRow) => void
   onOpen?: (row: FinanceTransactionRow) => void
   rows: FinanceTransactionRow[] | undefined
   type: FinanceTransactionType | undefined
 }) {
+  const { t } = useI18n()
+  const categoryById = new Map((categories ?? []).map((category) => [category.id, category.name]))
+  const paymentMethodByValue = new Map(methodOptions.map((method) => [method.value, method.label]))
+
   if (!rows?.length) {
     return (
       <EmptyState
@@ -695,10 +689,10 @@ function TransactionTable({
         <table className="min-w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
-              <th className="px-4 py-3">Дата</th>
-              <th className="px-4 py-3">Операция</th>
-              <th className="px-4 py-3">Статус</th>
-              <th className="px-4 py-3">Метод</th>
+              <th className="px-4 py-3">Дата оплаты</th>
+              <th className="px-4 py-3">Название</th>
+              <th className="px-4 py-3">Категория</th>
+              <th className="px-4 py-3">Метод оплаты</th>
               <th className="px-4 py-3 text-right">Сумма</th>
               {type === 'expense' ? <th className="px-4 py-3 text-right">Действия</th> : null}
             </tr>
@@ -706,16 +700,15 @@ function TransactionTable({
           <tbody className="divide-y divide-slate-100">
             {rows.map((row) => (
               <tr key={row.id}>
-                <td className="whitespace-nowrap px-4 py-3 text-slate-600">{row.accrual_date}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-slate-600">{row.paid_date ?? row.accrual_date}</td>
                 <td className="px-4 py-3">
                   <p className="font-medium text-slate-950">{row.title}</p>
-                  <p className="text-xs text-slate-500">{row.source_type}</p>
+                </td>
+                <td className="px-4 py-3 text-slate-600">
+                  {row.category_id ? t(categoryById.get(row.category_id) ?? '—') : '—'}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-slate-600">
-                  {statusLabel[row.status] ?? row.status}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-slate-600">
-                  {row.payment_method ?? '—'}
+                  {row.payment_method ? paymentMethodByValue.get(row.payment_method) ?? row.payment_method : '—'}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-right font-medium">
                   {money(row.amount)}
@@ -749,19 +742,25 @@ function TransactionTable({
 }
 
 function MoneyForm({
+  onCreated,
   type,
   organizationId,
   userId,
 }: {
+  onCreated?: () => void
   type: 'income' | 'expense'
   organizationId: string | null
   userId: string | undefined
 }) {
+  const { t } = useI18n()
   const categories = useFinanceCategories(organizationId, type)
   const incomeMutations = useIncomeMutations(organizationId)
   const expenseMutations = useExpenseMutations(organizationId)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const expenseIdempotencyKey = useRef(crypto.randomUUID())
+  const visibleCategories = categories.data?.filter(
+    (category) => type !== 'expense' || category.system_code !== 'purchase_goods',
+  )
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -793,6 +792,7 @@ function MoneyForm({
         expenseIdempotencyKey.current = crypto.randomUUID()
       }
       formElement.reset()
+      onCreated?.()
     } finally {
       setIsSubmitting(false)
     }
@@ -814,9 +814,9 @@ function MoneyForm({
           <span>Категория</span>
           <select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" name="category_id" required={type === 'expense'}>
             <option value="">Без категории</option>
-            {categories.data?.map((category) => (
+            {visibleCategories?.map((category) => (
               <option key={category.id} value={category.id}>
-                {category.name}
+                {t(category.name)}
               </option>
             ))}
           </select>
@@ -856,6 +856,7 @@ function ExpenseTransactionModal({
   organizationId: string | null
   row: FinanceTransactionRow
 }) {
+  const { t } = useI18n()
   const categories = useFinanceCategories(organizationId, 'expense')
   const expenseMutations = useExpenseMutations(organizationId)
 
@@ -902,7 +903,7 @@ function ExpenseTransactionModal({
               <option value="">Без категории</option>
               {categories.data?.map((category) => (
                 <option key={category.id} value={category.id}>
-                  {category.name}
+                  {t(category.name)}
                 </option>
               ))}
             </select>
@@ -938,62 +939,6 @@ function ExpenseTransactionModal({
         </div>
       </form>
     </Modal>
-  )
-}
-
-function AdminFinanceShell({
-  title,
-  description,
-  type,
-}: {
-  title: string
-  description: string
-  type?: FinanceTransactionType
-}) {
-  const { organizationId, user } = useAuth()
-  const transactions = useFinanceTransactions(organizationId, type)
-  const expenseMutations = useExpenseMutations(organizationId)
-  const [selectedTransaction, setSelectedTransaction] = useState<FinanceTransactionRow | null>(null)
-  const [transactionModalMode, setTransactionModalMode] = useState<ExpenseModalMode>('view')
-
-  const openTransaction = (row: FinanceTransactionRow) => {
-    setSelectedTransaction(row)
-    setTransactionModalMode('view')
-  }
-
-  const editTransaction = (row: FinanceTransactionRow) => {
-    setSelectedTransaction(row)
-    setTransactionModalMode('edit')
-  }
-
-  const cancelTransaction = (row: FinanceTransactionRow) => {
-    const reason = window.prompt('Причина удаления')
-    if (!reason?.trim()) return
-    expenseMutations.cancelExpense.mutate({ transactionId: row.id, reason: reason.trim() })
-  }
-
-  return (
-    <section className="grid gap-5">
-      <PageHeader title={title} description={description} />
-      {type === 'income' || type === 'expense' ? (
-        <MoneyForm organizationId={organizationId} type={type} userId={user?.id} />
-      ) : null}
-      <TransactionTable
-        onCancel={cancelTransaction}
-        onEdit={editTransaction}
-        onOpen={openTransaction}
-        rows={transactions.data}
-        type={type}
-      />
-      {selectedTransaction ? (
-        <ExpenseTransactionModal
-          mode={transactionModalMode}
-          onClose={() => setSelectedTransaction(null)}
-          organizationId={organizationId}
-          row={selectedTransaction}
-        />
-      ) : null}
-    </section>
   )
 }
 
@@ -1082,33 +1027,280 @@ export function AdminFinancePage() {
 }
 
 export function AdminFinanceIncomePage() {
+  const { organizationId, user } = useAuth()
+  const { t } = useI18n()
+  const transactions = useFinanceTransactions(organizationId, 'income')
+  const categories = useFinanceCategories(organizationId, 'income')
+  const periods = useFinancialPeriods(organizationId)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [selectedPeriod, setSelectedPeriod] = useState<FinancialPeriodRow | null>(null)
+
+  const visibleTransactions = (transactions.data ?? []).filter((row) => row.status !== 'cancelled')
+  const closedPeriods = (periods.data ?? []).filter((period) => period.status !== 'cancelled')
+  const belongsToPeriod = (row: FinanceTransactionRow, period: FinancialPeriodRow) =>
+    row.accrual_date >= period.period_start && row.accrual_date <= period.period_end
+  const currentTransactions = visibleTransactions.filter(
+    (row) => !closedPeriods.some((period) => belongsToPeriod(row, period)),
+  )
+  const selectedPeriodTransactions = selectedPeriod
+    ? visibleTransactions.filter((row) => belongsToPeriod(row, selectedPeriod))
+    : []
+
   return (
-    <AdminFinanceShell
-      description="Автоматические доходы из оплаченных заказов и ручной доход организации."
-      title="Доходы"
-      type="income"
-    />
+    <section className="grid gap-5">
+      <PageHeader
+        action={(
+          <Button onClick={() => setIsCreateOpen(true)} type="button">
+            <Plus className="size-4" />
+            {t('Добавить доход')}
+          </Button>
+        )}
+        description="Автоматические доходы из оплаченных заказов и ручной доход организации."
+        title="Доходы"
+      />
+
+      <section className="grid gap-3">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-950">{t('Текущий незакрытый период')}</h3>
+            <p className="text-sm text-slate-600">{t('Доходы отображаются подробно, пока финансовый период не закрыт.')}</p>
+          </div>
+          <p className="text-sm font-semibold text-slate-900">
+            {t('Общий доход')}: {money(currentTransactions.reduce((sum, row) => sum + row.amount, 0))}
+          </p>
+        </div>
+        <TransactionTable categories={categories.data} rows={currentTransactions} type="income" />
+      </section>
+
+      {closedPeriods.length ? (
+        <section className="grid gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-950">{t('Закрытые периоды')}</h3>
+            <p className="text-sm text-slate-600">{t('Доходы закрытого периода собраны в одну итоговую карточку.')}</p>
+          </div>
+          <div className="grid gap-3">
+            {closedPeriods.map((period) => {
+              const periodTransactions = visibleTransactions.filter((row) => belongsToPeriod(row, period))
+              const total = periodTransactions.reduce((sum, row) => sum + row.amount, 0)
+
+              return (
+                <article className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between" key={period.id}>
+                  <div>
+                    <p className="text-sm text-slate-500">{period.period_start} — {period.period_end}</p>
+                    <p className="mt-1 text-lg font-semibold text-slate-950">{t('Общий доход')}: {money(total)}</p>
+                    <p className="mt-1 text-sm text-slate-600">{periodTransactions.length} {t('операций')}</p>
+                  </div>
+                  <Button onClick={() => setSelectedPeriod(period)} type="button" variant="secondary">
+                    <Eye className="size-4" />
+                    {t('Открыть доходы')}
+                  </Button>
+                </article>
+              )
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      {isCreateOpen ? (
+        <Modal onClose={() => setIsCreateOpen(false)}>
+          <div className="grid max-h-[calc(100svh-3rem)] w-full max-w-3xl gap-4 overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-lg font-semibold text-slate-950">{t('Добавить доход')}</h3>
+              <button aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setIsCreateOpen(false)} type="button"><X className="size-4" /></button>
+            </div>
+            <MoneyForm
+              onCreated={() => setIsCreateOpen(false)}
+              organizationId={organizationId}
+              type="income"
+              userId={user?.id}
+            />
+          </div>
+        </Modal>
+      ) : null}
+
+      {selectedPeriod ? (
+        <Modal onClose={() => setSelectedPeriod(null)}>
+          <div className="flex max-h-[calc(100svh-3rem)] w-full max-w-6xl flex-col gap-4 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-950">{t('Доходы периода')}</h3>
+                <p className="mt-1 text-sm text-slate-600">{selectedPeriod.period_start} — {selectedPeriod.period_end}</p>
+              </div>
+              <button aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setSelectedPeriod(null)} type="button"><X className="size-4" /></button>
+            </div>
+            <div className="rounded-md bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
+              {t('Общий доход')}: {money(selectedPeriodTransactions.reduce((sum, row) => sum + row.amount, 0))}
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <TransactionTable categories={categories.data} rows={selectedPeriodTransactions} type="income" />
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+    </section>
   )
 }
 
 export function AdminFinanceExpensesPage() {
+  const { organizationId, user } = useAuth()
+  const { t } = useI18n()
+  const transactions = useFinanceTransactions(organizationId, ['expense', 'purchase'])
+  const categories = useFinanceCategories(organizationId, 'expense')
+  const periods = useFinancialPeriods(organizationId)
+  const expenseMutations = useExpenseMutations(organizationId)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [selectedPeriod, setSelectedPeriod] = useState<FinancialPeriodRow | null>(null)
+  const [selectedTransaction, setSelectedTransaction] = useState<FinanceTransactionRow | null>(null)
+  const [transactionModalMode, setTransactionModalMode] = useState<ExpenseModalMode>('view')
+
+  const visibleTransactions = (transactions.data ?? []).filter((row) => row.status !== 'cancelled')
+  const closedPeriods = (periods.data ?? []).filter((period) => period.status !== 'cancelled')
+  const belongsToPeriod = (row: FinanceTransactionRow, period: FinancialPeriodRow) =>
+    row.accrual_date >= period.period_start && row.accrual_date <= period.period_end
+  const currentTransactions = visibleTransactions.filter(
+    (row) => !closedPeriods.some((period) => belongsToPeriod(row, period)),
+  )
+  const selectedPeriodTransactions = selectedPeriod
+    ? visibleTransactions.filter((row) => belongsToPeriod(row, selectedPeriod))
+    : []
+
+  const openTransaction = (row: FinanceTransactionRow) => {
+    setSelectedPeriod(null)
+    setSelectedTransaction(row)
+    setTransactionModalMode('view')
+  }
+  const editTransaction = (row: FinanceTransactionRow) => {
+    setSelectedPeriod(null)
+    setSelectedTransaction(row)
+    setTransactionModalMode('edit')
+  }
+  const cancelTransaction = (row: FinanceTransactionRow) => {
+    const reason = window.prompt('Причина удаления')
+    if (!reason?.trim()) return
+    expenseMutations.cancelExpense.mutate({ transactionId: row.id, reason: reason.trim() })
+  }
+
   return (
-    <AdminFinanceShell
-      description="Операционные расходы с учётом крупных расходов и approval workflow."
-      title="Расходы"
-      type="expense"
-    />
+    <section className="grid gap-5">
+      <PageHeader
+        action={(
+          <Button onClick={() => setIsCreateOpen(true)} type="button">
+            <Plus className="size-4" />
+            {t('Добавить расход')}
+          </Button>
+        )}
+        description="Закупки из амбара появляются здесь автоматически вместе с остальными расходами."
+        title="Расходы"
+      />
+
+      <section className="grid gap-3">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-950">{t('Текущий незакрытый период')}</h3>
+            <p className="text-sm text-slate-600">{t('Расходы отображаются подробно, пока финансовый период не закрыт.')}</p>
+          </div>
+          <p className="text-sm font-semibold text-slate-900">
+            {t('Общие траты')}: {money(currentTransactions.reduce((sum, row) => sum + row.amount, 0))}
+          </p>
+        </div>
+        <TransactionTable
+          categories={categories.data}
+          onCancel={cancelTransaction}
+          onEdit={editTransaction}
+          onOpen={openTransaction}
+          rows={currentTransactions}
+          type="expense"
+        />
+      </section>
+
+      {closedPeriods.length ? (
+        <section className="grid gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-950">{t('Закрытые периоды')}</h3>
+            <p className="text-sm text-slate-600">{t('Расходы закрытого периода собраны в одну итоговую карточку.')}</p>
+          </div>
+          <div className="grid gap-3">
+            {closedPeriods.map((period) => {
+              const periodTransactions = visibleTransactions.filter((row) => belongsToPeriod(row, period))
+              const total = periodTransactions.reduce((sum, row) => sum + row.amount, 0)
+
+              return (
+                <article className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between" key={period.id}>
+                  <div>
+                    <p className="text-sm text-slate-500">{period.period_start} — {period.period_end}</p>
+                    <p className="mt-1 text-lg font-semibold text-slate-950">{t('Общие траты')}: {money(total)}</p>
+                    <p className="mt-1 text-sm text-slate-600">{periodTransactions.length} {t('операций')}</p>
+                  </div>
+                  <Button onClick={() => setSelectedPeriod(period)} type="button" variant="secondary">
+                    <Eye className="size-4" />
+                    {t('Открыть расходы')}
+                  </Button>
+                </article>
+              )
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      {isCreateOpen ? (
+        <Modal onClose={() => setIsCreateOpen(false)}>
+          <div className="grid max-h-[calc(100svh-3rem)] w-full max-w-3xl gap-4 overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-lg font-semibold text-slate-950">{t('Добавить расход')}</h3>
+              <button aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setIsCreateOpen(false)} type="button"><X className="size-4" /></button>
+            </div>
+            <MoneyForm
+              onCreated={() => setIsCreateOpen(false)}
+              organizationId={organizationId}
+              type="expense"
+              userId={user?.id}
+            />
+          </div>
+        </Modal>
+      ) : null}
+
+      {selectedPeriod ? (
+        <Modal onClose={() => setSelectedPeriod(null)}>
+          <div className="flex max-h-[calc(100svh-3rem)] w-full max-w-6xl flex-col gap-4 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-950">{t('Расходы периода')}</h3>
+                <p className="mt-1 text-sm text-slate-600">{selectedPeriod.period_start} — {selectedPeriod.period_end}</p>
+              </div>
+              <button aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setSelectedPeriod(null)} type="button"><X className="size-4" /></button>
+            </div>
+            <div className="rounded-md bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
+              {t('Общие траты')}: {money(selectedPeriodTransactions.reduce((sum, row) => sum + row.amount, 0))}
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <TransactionTable
+                categories={categories.data}
+                onCancel={cancelTransaction}
+                onEdit={editTransaction}
+                onOpen={openTransaction}
+                rows={selectedPeriodTransactions}
+                type="expense"
+              />
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+
+      {selectedTransaction ? (
+        <ExpenseTransactionModal
+          mode={transactionModalMode}
+          onClose={() => setSelectedTransaction(null)}
+          organizationId={organizationId}
+          row={selectedTransaction}
+        />
+      ) : null}
+    </section>
   )
 }
 
+// Keep the old URL working while purchases are now shown in the common expenses list.
 export function AdminFinancePurchasesPage() {
-  return (
-    <AdminFinanceShell
-      description="Закупки из складских документов. Они влияют на cash flow, но не попадают в P&L как COGS."
-      title="Закупки"
-      type="purchase"
-    />
-  )
+  return <AdminFinanceExpensesPage />
 }
 
 export function AdminFinanceCashFlowPage() {
@@ -1133,7 +1325,7 @@ export function AdminFinanceProfitLossPage() {
   const summary = useFinancePeriodSummary(organizationId, currentCycle.start, currentDate)
   return (
     <section className="grid gap-5">
-      <PageHeader description="P&L по начислению: выручка, COGS по snapshots, расходы и чистая прибыль." title="P&L" />
+      <PageHeader description="Доходы минус закупки товаров и остальные расходы организации." title="P&L" />
       <StatGrid summary={summary.data} />
     </section>
   )
@@ -1338,7 +1530,7 @@ export function AdminFinancePeriodsPage() {
         <div>
           <h3 className="font-semibold text-slate-950">{t("ui.sozdat_period_e3ec01e")}</h3>
           <p className="mt-1 text-sm text-slate-600">
-            {t("ui.vyberite_daty_sistema_pereschitaet_dohody_cogs_rasho_c964825")}
+            {t('Выберите даты: система пересчитает доходы, закупки, расходы и прибыль и отправит период на проверку.')}
           </p>
         </div>
         <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={handleSubmit}>
@@ -1368,7 +1560,7 @@ export function AdminFinancePeriodsPage() {
 
         <div className="grid gap-2 md:grid-cols-3">
           <MetricCard label="Доход" value={totals.revenue} />
-          <MetricCard label="COGS" value={totals.cogs} />
+          <MetricCard label="Закупка товаров" value={totals.cogs} />
           <MetricCard label="Чистая прибыль" value={totals.profit} />
         </div>
 
@@ -1383,7 +1575,7 @@ export function AdminFinancePeriodsPage() {
                 <th className="px-3 py-3 font-medium">{t("ui.period_b2822e2")}</th>
                 <th className="px-3 py-3 font-medium">{t("ui.status_f7f293b")}</th>
                 <th className="px-3 py-3 font-medium">{t("ui.dohod_40b65a7")}</th>
-                <th className="px-3 py-3 font-medium">COGS</th>
+                <th className="px-3 py-3 font-medium">{t('Закупка товаров')}</th>
                 <th className="px-3 py-3 font-medium">{t("ui.pribyl_539b700")}</th>
                 <th className="px-3 py-3 text-right font-medium">{t("ui.deystviya_9978ac3")}</th>
               </tr>
@@ -1415,7 +1607,7 @@ export function AdminFinancePeriodsPage() {
               </div>
               <dl className="grid grid-cols-2 gap-2 text-sm">
                 <div><dt className="text-xs uppercase text-slate-500">{t("ui.dohod_40b65a7")}</dt><dd>{money(period.revenue)}</dd></div>
-                <div><dt className="text-xs uppercase text-slate-500">COGS</dt><dd>{money(period.cogs)}</dd></div>
+                <div><dt className="text-xs uppercase text-slate-500">{t('Закупка товаров')}</dt><dd>{money(period.cogs)}</dd></div>
               </dl>
               {periodActions(period)}
             </article>

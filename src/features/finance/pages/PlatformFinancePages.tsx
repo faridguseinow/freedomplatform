@@ -244,7 +244,7 @@ export function PlatformFinanceOrganizationPage() {
                 <th className="py-3 pr-3">Период</th>
                 <th className="py-3 pr-3">Статус</th>
                 <th className="py-3 pr-3 text-right">Доход</th>
-                <th className="py-3 pr-3 text-right">COGS</th>
+                <th className="py-3 pr-3 text-right">Закупка товаров</th>
                 <th className="py-3 pr-3 text-right">Прибыль</th>
                 <th className="py-3 pr-3 text-right">Оплата платформы</th>
                 <th className="py-3 pr-3 text-right">Владельцу</th>

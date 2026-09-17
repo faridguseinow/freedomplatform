@@ -18,16 +18,16 @@
 - При `complete_order_payment` создаётся доход `income` с источником `order`.
 - Повторный доход по одному заказу невозможен из-за partial unique index.
 - Заказы со статусом `payment_refused` не попадают в финансы.
-- COGS считается из snapshot-полей `order_items` и `order_combo_components`, а не из текущей себестоимости товара.
-- При `post_stock_document` для документа типа `purchase` создаётся операция `purchase`.
-- Закупка влияет на cash flow, но не включается в P&L как COGS.
+- При `post_stock_document` для документа типа `purchase` создаётся оплаченная операция `purchase`.
+- В пользовательской модели прибыли закупка целиком относится на расход периода закупки.
+- Snapshot-себестоимость заказов сохраняется для внутренней аналитики, но не вычитается из прибыли повторно.
 
 ## P&L и cash flow
 
 P&L считается по начислению:
 
 - revenue: оплаченные доходы;
-- COGS: себестоимость оплаченных заказов по snapshots;
+- goods purchases: сумма проведённых закупок товаров; в совместимых API хранится в поле `cogs`;
 - operating expenses: подтверждённые расходы, влияющие на прибыль;
 - net profit before platform share;
 - platform share amount.

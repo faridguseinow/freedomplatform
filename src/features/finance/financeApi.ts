@@ -70,11 +70,13 @@ export function useFinanceCategories(
 
 export function useFinanceTransactions(
   organizationId: string | null,
-  type?: FinanceTransactionType,
+  type?: FinanceTransactionType | FinanceTransactionType[],
 ) {
+  const typeKey = Array.isArray(type) ? type.join(',') : (type ?? 'all')
+
   return useQuery({
     enabled: Boolean(organizationId),
-    queryKey: ['finance', 'transactions', organizationId, type ?? 'all'],
+    queryKey: ['finance', 'transactions', organizationId, typeKey],
     queryFn: async () => {
       let query = supabase
         .from('finance_transactions')
@@ -82,9 +84,13 @@ export function useFinanceTransactions(
         .eq('organization_id', organizationId!)
         .order('accrual_date', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(200)
+        .limit(1000)
 
-      if (type) query = query.eq('transaction_type', type)
+      if (Array.isArray(type)) {
+        query = query.in('transaction_type', type)
+      } else if (type) {
+        query = query.eq('transaction_type', type)
+      }
 
       const { data, error } = await query
       if (error) throw new Error(error.message)
