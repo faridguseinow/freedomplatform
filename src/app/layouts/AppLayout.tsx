@@ -58,7 +58,9 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
   const isPlatformArea = productArea === 'Freedom Platform'
 
   const displayName = profile?.full_name || user?.email || 'Пользователь'
-  const mobileNavItems = navItems.filter((item) => item.mobile !== false)
+  const mobileNavItems = navItems
+    .filter((item) => item.mobile !== false)
+    .sort((left, right) => (left.mobileOrder ?? Number.MAX_SAFE_INTEGER) - (right.mobileOrder ?? Number.MAX_SAFE_INTEGER))
   const isSettingsPage = normalizedPath === '/platform/settings' || normalizedPath.endsWith('/settings')
   const isPlatformOwnerOrganizationView =
     role === USER_ROLES.platformOwner && Boolean(currentOrganization)

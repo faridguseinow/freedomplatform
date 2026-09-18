@@ -25,6 +25,7 @@ export type NavItem = {
   icon: LucideIcon
   end?: boolean
   mobile?: boolean
+  mobileOrder?: number
 }
 
 export const platformNavItems: NavItem[] = [
@@ -57,21 +58,25 @@ export const adminNavItems: NavItem[] = [
     path: '/admin',
     icon: LayoutDashboard,
     end: true,
+    mobileOrder: 0,
   },
   {
     label: 'Рабочее место',
     path: '/employee',
     icon: BriefcaseBusiness,
+    mobile: false,
   },
   {
     label: 'Сотрудники',
     path: '/admin/employees',
     icon: Users,
+    mobile: false,
   },
   {
     label: 'Каталог',
     path: '/admin/catalog',
     icon: Box,
+    mobileOrder: 2,
   },
   {
     label: 'Места',
@@ -107,12 +112,13 @@ export const adminNavItems: NavItem[] = [
     label: 'Заказы',
     path: '/admin/orders',
     icon: ReceiptText,
+    mobileOrder: 1,
   },
   {
     label: 'Финансы',
     path: '/admin/finance',
     icon: Landmark,
-    mobile: false,
+    mobileOrder: 4,
   },
   {
     label: 'Исправления',
@@ -130,12 +136,13 @@ export const adminNavItems: NavItem[] = [
     label: 'Смены',
     path: '/admin/shifts',
     icon: Clock3,
-    mobile: false,
+    mobileOrder: 3,
   },
   {
     label: 'Настройки',
     path: '/admin/settings',
     icon: Settings,
+    mobileOrder: 5,
   },
 ]
 
