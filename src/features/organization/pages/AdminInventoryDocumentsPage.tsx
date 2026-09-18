@@ -1,11 +1,17 @@
 import { getCurrentLocale } from '../../../lib/i18n/translator'
-import { Ban, FileText, Loader2 } from 'lucide-react'
+import { Ban, ChevronDown, FileText, Loader2, ShoppingBasket } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Button } from '../../../components/ui/Button'
 import { useAuth } from '../../../hooks/useAuth'
+import { useI18n } from '../../../lib/i18n/I18nContext'
+import { formatUnitName } from '../../../lib/i18n/formatUnitName'
+import { cn } from '../../../lib/utils/cn'
 import {
   stockDocumentStatusLabel,
   stockDocumentTypeLabel,
   useInventoryMutations,
+  useStockDocumentDetail,
   useStockDocuments,
 } from '../catalog/inventoryApi'
 
@@ -13,10 +19,53 @@ const formatDate = (value: string) => new Date(value).toLocaleDateString(getCurr
 const formatNumber = (value: number | null) =>
   new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
 
+function PurchaseDocumentItems({ documentId }: { documentId: string }) {
+  const { language, t } = useI18n()
+  const detailQuery = useStockDocumentDetail(documentId)
+  const productById = useMemo(
+    () => new Map((detailQuery.data?.products ?? []).map((product) => [product.id, product])),
+    [detailQuery.data?.products],
+  )
+
+  if (detailQuery.isLoading) {
+    return <div className="flex min-h-20 items-center justify-center gap-2 border-t border-slate-100 text-sm text-slate-500"><Loader2 className="size-4 animate-spin" />{t('Загрузка состава закупки')}</div>
+  }
+
+  if (detailQuery.isError) {
+    return <div className="border-t border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">{detailQuery.error.message}</div>
+  }
+
+  return (
+    <div className="border-t border-slate-100 bg-slate-50/70 p-3 sm:p-4">
+      <div className="grid gap-2">
+        {(detailQuery.data?.items ?? []).map((item) => {
+          const product = productById.get(item.product_id)
+          return (
+            <div className="grid gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm sm:grid-cols-[minmax(0,1fr)_110px_130px_120px] sm:items-center" key={item.id}>
+              <p className="font-medium text-slate-950">{product?.name ?? t('Удалённый товар')}</p>
+              <p className="text-slate-600"><span className="sm:hidden">{t('Количество')}: </span>{formatNumber(item.quantity)} {formatUnitName(product?.unit_name, language)}</p>
+              <p className="text-slate-600"><span className="sm:hidden">{t('Себестоимость')}: </span>{formatNumber(item.unit_cost)} AZN</p>
+              <p className="font-semibold text-slate-950 sm:text-right"><span className="sm:hidden">{t('Сумма')}: </span>{formatNumber(item.line_total)} AZN</p>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export function AdminInventoryDocumentsPage() {
   const { organizationId } = useAuth()
-  const documentsQuery = useStockDocuments(organizationId)
+  const { t } = useI18n()
+  const [searchParams] = useSearchParams()
+  const purchaseHistoryMode = searchParams.get('type') === 'purchase'
+  const [expandedDocumentId, setExpandedDocumentId] = useState<string | null>(null)
+  const documentsQuery = useStockDocuments(organizationId, purchaseHistoryMode ? 'purchase' : undefined)
   const inventoryMutations = useInventoryMutations(organizationId)
+  const visibleDocuments = useMemo(
+    () => (documentsQuery.data ?? []).filter((document) => !purchaseHistoryMode || document.type === 'purchase'),
+    [documentsQuery.data, purchaseHistoryMode],
+  )
 
   const cancelDocument = (documentId: string) => {
     const reason = window.prompt('Причина отмены документа')
@@ -27,9 +76,13 @@ export function AdminInventoryDocumentsPage() {
   return (
     <section className="grid gap-5">
       <header className="grid gap-2">
-        <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">Складские документы</h2>
+        <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">
+          {purchaseHistoryMode ? t('История закупок') : 'Складские документы'}
+        </h2>
         <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
-          Черновики, проведенные и отмененные документы склада.
+          {purchaseHistoryMode
+            ? t('Магазины, суммы и состав каждой закупки товаров.')
+            : 'Черновики, проведенные и отмененные документы склада.'}
         </p>
       </header>
 
@@ -40,19 +93,41 @@ export function AdminInventoryDocumentsPage() {
         </div>
       ) : null}
 
-      {!documentsQuery.isLoading && !(documentsQuery.data ?? []).length ? (
+      {!documentsQuery.isLoading && !visibleDocuments.length ? (
         <div className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-8 text-center">
-          <FileText className="mx-auto size-8 text-cyan-700" />
-          <h3 className="mt-3 text-base font-semibold text-slate-950">Документов пока нет</h3>
+          {purchaseHistoryMode ? <ShoppingBasket className="mx-auto size-8 text-emerald-700" /> : <FileText className="mx-auto size-8 text-cyan-700" />}
+          <h3 className="mt-3 text-base font-semibold text-slate-950">
+            {purchaseHistoryMode ? t('Закупок пока нет') : 'Документов пока нет'}
+          </h3>
         </div>
       ) : null}
 
       <div className="grid gap-3">
-        {(documentsQuery.data ?? []).map((document) => (
-          <article
-            className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_auto]"
-            key={document.id}
-          >
+        {visibleDocuments.map((document) => purchaseHistoryMode ? (
+          <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" key={document.id}>
+            <button
+              aria-expanded={expandedDocumentId === document.id}
+              className="grid w-full gap-3 p-4 text-left transition hover:bg-slate-50 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+              onClick={() => setExpandedDocumentId((current) => current === document.id ? null : document.id)}
+              type="button"
+            >
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-semibold text-slate-950">{document.supplier_name || t('Магазин не указан')}</h3>
+                  <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800">#{document.document_number}</span>
+                  <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">{t(stockDocumentStatusLabel[document.status])}</span>
+                </div>
+                <p className="mt-1 text-sm text-slate-500">{formatDate(document.document_date)}</p>
+              </div>
+              <div className="flex items-center justify-between gap-3 sm:justify-end">
+                <span className="text-base font-semibold text-slate-950">{formatNumber(document.total_amount)} AZN</span>
+                <ChevronDown className={cn('size-5 text-slate-500 transition-transform', expandedDocumentId === document.id && 'rotate-180')} />
+              </div>
+            </button>
+            {expandedDocumentId === document.id ? <PurchaseDocumentItems documentId={document.id} /> : null}
+          </article>
+        ) : (
+          <article className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_auto]" key={document.id}>
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="font-semibold text-slate-950">#{document.document_number}</h3>

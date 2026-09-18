@@ -307,6 +307,23 @@ export function useProductMutations(_organizationId: string | null) {
       },
       onSuccess: invalidate,
     }),
+    updateSalePrice: useMutation({
+      mutationFn: async ({ id, salePrice }: { id: string; salePrice: number }) => {
+        const { data, error } = await supabase
+          .from('products')
+          .update({ sale_price: salePrice })
+          .eq('id', id)
+          .select(productSelect)
+          .single()
+
+        if (error) {
+          throw new Error(error.message)
+        }
+
+        return data
+      },
+      onSuccess: invalidate,
+    }),
     setStatus: useMutation({
       mutationFn: async ({ id, status }: { id: string; status: CatalogItemStatus }) => {
         const { data, error } = await supabase.rpc('set_product_status', {

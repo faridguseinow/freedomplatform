@@ -1,6 +1,6 @@
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Archive, FilePlus2, Loader2, Plus, Save, Search, ShoppingBasket, Trash2, X } from 'lucide-react'
+import { Archive, ArrowDownUp, History, Loader2, Minus, Plus, Save, Search, ShoppingBasket, Trash2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { Link } from 'react-router-dom'
@@ -13,11 +13,13 @@ import { useAuth } from '../../../hooks/useAuth'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import { formatUnitName } from '../../../lib/i18n/formatUnitName'
 import type { StockMovementType } from '../../../lib/supabase/database.types'
+import { cn } from '../../../lib/utils/cn'
 import { useProductMutations, useProducts } from '../catalog/catalogApi'
 import {
   stockDocumentTypeLabel,
   useInventoryBalances,
   useInventoryMutations,
+  useInventoryRecentAdditions,
   useStockDocuments,
 } from '../catalog/inventoryApi'
 
@@ -35,6 +37,7 @@ const documentSchema = z.object({
         new_product_name: z.string().trim().optional(),
         quantity: z.number().min(0.001, 'Количество должно быть больше 0.'),
         unit_cost: z.number().min(0, 'Цена не может быть отрицательной.').optional(),
+        sale_price: z.number().min(0, 'Цена не может быть отрицательной.'),
         comment: z.string().trim().optional(),
       }),
     )
@@ -90,6 +93,7 @@ const documentSchema = z.object({
 
 type DocumentFormValues = z.infer<typeof documentSchema>
 type DocumentMode = 'purchase' | 'other'
+type InventorySort = 'recent' | 'name' | 'stock_asc' | 'stock_desc'
 
 const formatNumber = (value: number | null | undefined) =>
   new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 3 }).format(value ?? 0)
@@ -99,6 +103,7 @@ export function AdminInventoryPage() {
   const { language, t } = useI18n()
   const defaultUnitName = t('inventory.unitItem')
   const balancesQuery = useInventoryBalances(organizationId)
+  const recentAdditionsQuery = useInventoryRecentAdditions(organizationId)
   const documentsQuery = useStockDocuments(organizationId)
   const productsQuery = useProducts({ organizationId })
   const inventoryMutations = useInventoryMutations(organizationId)
@@ -106,6 +111,10 @@ export function AdminInventoryPage() {
   const [search, setSearch] = useState('')
   const [lowOnly, setLowOnly] = useState(false)
   const [outOnly, setOutOnly] = useState(false)
+  const [sortBy, setSortBy] = useState<InventorySort>('recent')
+  const [quickAdjustQuantities, setQuickAdjustQuantities] = useState<Record<string, string>>({})
+  const [quickAdjustPendingId, setQuickAdjustPendingId] = useState<string | null>(null)
+  const [pageError, setPageError] = useState<string | null>(null)
   const [documentMode, setDocumentMode] = useState<DocumentMode | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -126,7 +135,7 @@ export function AdminInventoryPage() {
       reference: '',
       comment: '',
       post_now: true,
-      items: [{ product_mode: 'existing', product_id: '', new_product_name: '', quantity: 1, unit_cost: 0, comment: '' }],
+      items: [{ product_mode: 'existing', product_id: '', new_product_name: '', quantity: 1, unit_cost: 0, sale_price: 0, comment: '' }],
     },
   })
 
@@ -138,15 +147,36 @@ export function AdminInventoryPage() {
     [productsQuery.data],
   )
   const stockProducts = useMemo(() => balancesQuery.data ?? [], [balancesQuery.data])
+  const recentAdditionByProductId = useMemo(() => {
+    const result = new Map<string, { created_at: string; quantity_delta: number }>()
+    for (const movement of recentAdditionsQuery.data ?? []) {
+      if (!result.has(movement.product_id)) {
+        result.set(movement.product_id, {
+          created_at: movement.created_at,
+          quantity_delta: movement.quantity_delta,
+        })
+      }
+    }
+    return result
+  }, [recentAdditionsQuery.data])
   const visibleProducts = useMemo(() => {
     const needle = search.trim().toLowerCase()
-    return stockProducts.filter((product) => {
+    const filtered = stockProducts.filter((product) => {
       if (lowOnly && product.stock_quantity > product.minimum_stock_quantity) return false
       if (outOnly && product.stock_quantity > 0) return false
       if (!needle) return true
       return [product.name, product.sku].filter(Boolean).join(' ').toLowerCase().includes(needle)
     })
-  }, [lowOnly, outOnly, search, stockProducts])
+
+    return filtered.sort((left, right) => {
+      if (sortBy === 'name') return left.name.localeCompare(right.name, getCurrentLocale())
+      if (sortBy === 'stock_asc') return left.stock_quantity - right.stock_quantity
+      if (sortBy === 'stock_desc') return right.stock_quantity - left.stock_quantity
+      const leftDate = recentAdditionByProductId.get(left.id)?.created_at ?? ''
+      const rightDate = recentAdditionByProductId.get(right.id)?.created_at ?? ''
+      return rightDate.localeCompare(leftDate) || left.name.localeCompare(right.name, getCurrentLocale())
+    })
+  }, [lowOnly, outOnly, recentAdditionByProductId, search, sortBy, stockProducts])
 
   const documentTotal = watchedItems.reduce(
     (sum, item) => sum + item.quantity * (item.unit_cost ?? 0),
@@ -160,11 +190,53 @@ export function AdminInventoryPage() {
       reference: '',
       comment: '',
       post_now: mode === 'purchase',
-      items: [{ product_mode: 'existing', product_id: '', new_product_name: '', quantity: 1, unit_cost: 0, comment: '' }],
+      items: [{ product_mode: 'existing', product_id: '', new_product_name: '', quantity: 1, unit_cost: 0, sale_price: 0, comment: '' }],
     })
     setFormError(null)
     setSuccessMessage(null)
     setDocumentMode(mode)
+  }
+
+  const quickAdjustStock = async (product: (typeof stockProducts)[number], direction: 'in' | 'out') => {
+    if (!organizationId || !user || quickAdjustPendingId) return
+    const quantity = Number((quickAdjustQuantities[product.id] ?? '').replace(',', '.'))
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      setPageError(t('Введите количество больше нуля.'))
+      return
+    }
+
+    setPageError(null)
+    setSuccessMessage(null)
+    setQuickAdjustPendingId(product.id)
+    const unitCost = product.purchase_price ?? product.average_purchase_cost ?? 0
+    const isIncrease = direction === 'in'
+
+    try {
+      const document = await inventoryMutations.createDocument.mutateAsync({
+        organization_id: organizationId,
+        type: isIncrease ? 'adjustment_in' : 'adjustment_out',
+        comment: `${isIncrease ? t('Быстрое пополнение') : t('Быстрое уменьшение')}: ${product.name}`,
+        total_amount: quantity * unitCost,
+        created_by: user.id,
+      })
+      await inventoryMutations.addItems.mutateAsync([{
+        organization_id: organizationId,
+        document_id: document.id,
+        product_id: product.id,
+        quantity,
+        unit_cost: unitCost,
+        line_total: quantity * unitCost,
+        comment: isIncrease ? t('Быстрое пополнение') : t('Быстрое уменьшение'),
+      }])
+      await inventoryMutations.postDocument.mutateAsync(document.id)
+      setQuickAdjustQuantities((current) => ({ ...current, [product.id]: '' }))
+      setSortBy('recent')
+      setSuccessMessage(t('Остаток товара обновлён.'))
+    } catch (error) {
+      setPageError(error instanceof Error ? error.message : t('Не удалось обновить остаток товара.'))
+    } finally {
+      setQuickAdjustPendingId(null)
+    }
   }
 
   const onSubmit = handleSubmit(async (values) => {
@@ -199,7 +271,7 @@ export function AdminInventoryPage() {
               description: null,
               characteristics: null,
               image_path: null,
-              sale_price: 0,
+              sale_price: item.sale_price,
               purchase_price: item.unit_cost ?? null,
               stock_quantity: 0,
               minimum_stock_quantity: 0,
@@ -212,6 +284,14 @@ export function AdminInventoryPage() {
             },
           })
           productId = product.id
+        } else {
+          const product = products.find((current) => current.id === productId)
+          if (product && product.sale_price !== item.sale_price) {
+            await productMutations.updateSalePrice.mutateAsync({
+              id: productId,
+              salePrice: item.sale_price,
+            })
+          }
         }
         resolvedItems.push({
           productId,
@@ -302,10 +382,10 @@ export function AdminInventoryPage() {
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button onClick={() => openDocument('other')} type="button" variant="secondary">
-            <FilePlus2 className="size-4" />
-            {t('Другой документ')}
-          </Button>
+          <Link className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm transition hover:bg-slate-50" to="/admin/inventory/documents?type=purchase">
+            <History className="size-4" />
+            {t('История закупок')}
+          </Link>
           <Button onClick={() => openDocument('purchase')} type="button">
             <ShoppingBasket className="size-4" />
             {t('Базарлык')}
@@ -318,29 +398,49 @@ export function AdminInventoryPage() {
           {successMessage}
         </div>
       ) : null}
+      {pageError ? (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {pageError}
+        </div>
+      ) : null}
 
-      <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_auto_auto]">
-        <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-          <span>Поиск</span>
+      <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm lg:grid-cols-[minmax(280px,1fr)_220px_auto] lg:items-end">
+        <label className="grid min-w-0 gap-1.5 text-sm font-medium text-slate-700">
+          <span>{t('Поиск товаров')}</span>
           <span className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
             <input
-              className="min-h-11 w-full rounded-md border border-slate-200 bg-white px-3 pl-10 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+              className="min-h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 pl-10 text-sm outline-none transition focus:border-emerald-700 focus:bg-white focus:ring-2 focus:ring-emerald-700/15"
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Название или SKU"
+              placeholder={t('Название товара')}
               type="search"
               value={search}
             />
           </span>
         </label>
-        <label className="flex items-end gap-2 pb-2 text-sm font-medium text-slate-700">
-          <input checked={lowOnly} onChange={(event) => setLowOnly(event.target.checked)} type="checkbox" />
-          Низкий остаток
+        <label className="grid min-w-0 gap-1.5 text-sm font-medium text-slate-700">
+          <span className="inline-flex items-center gap-2"><ArrowDownUp className="size-4" />{t('Сортировка')}</span>
+          <select
+            className="min-h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm outline-none transition focus:border-emerald-700 focus:bg-white focus:ring-2 focus:ring-emerald-700/15"
+            onChange={(event) => setSortBy(event.target.value as InventorySort)}
+            value={sortBy}
+          >
+            <option value="recent">{t('Последние пополнения')}</option>
+            <option value="name">{t('По названию')}</option>
+            <option value="stock_asc">{t('Сначала меньший остаток')}</option>
+            <option value="stock_desc">{t('Сначала больший остаток')}</option>
+          </select>
         </label>
-        <label className="flex items-end gap-2 pb-2 text-sm font-medium text-slate-700">
-          <input checked={outOnly} onChange={(event) => setOutOnly(event.target.checked)} type="checkbox" />
-          Нет в наличии
-        </label>
+        <div className="flex flex-wrap gap-2 lg:pb-0.5">
+          <label className={cn('inline-flex min-h-10 cursor-pointer items-center rounded-full border px-3 text-sm font-medium transition', lowOnly ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}>
+            <input className="sr-only" checked={lowOnly} onChange={(event) => setLowOnly(event.target.checked)} type="checkbox" />
+            {t('Низкий остаток')}
+          </label>
+          <label className={cn('inline-flex min-h-10 cursor-pointer items-center rounded-full border px-3 text-sm font-medium transition', outOnly ? 'border-red-300 bg-red-50 text-red-800' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}>
+            <input className="sr-only" checked={outOnly} onChange={(event) => setOutOnly(event.target.checked)} type="checkbox" />
+            {t('Нет в наличии')}
+          </label>
+        </div>
       </div>
 
       {balancesQuery.isLoading ? (
@@ -359,46 +459,84 @@ export function AdminInventoryPage() {
           {visibleProducts.map((product) => {
             const low = product.stock_quantity <= product.minimum_stock_quantity
             const out = product.stock_quantity <= 0
+            const recentAddition = recentAdditionByProductId.get(product.id)
+            const isQuickAdjusting = quickAdjustPendingId === product.id
+            const recentDelta = recentAddition?.quantity_delta ?? 0
+            const recentDeltaSign = recentDelta > 0 ? '+' : ''
 
             return (
               <article
-                className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_auto]"
+                className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center"
                 key={product.id}
               >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
+                <div className="grid min-w-0 gap-3">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <h3 className="truncate text-base font-semibold text-slate-950">{product.name}</h3>
-                    <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
-                      {product.sku || 'без SKU'}
-                    </span>
                     <span className={out ? 'rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700' : low ? 'rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800' : 'rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800'}>
                       {out ? 'Нет в наличии' : low ? 'Низкий остаток' : 'В наличии'}
                     </span>
+                    {recentAddition ? (
+                      <span className="text-xs text-slate-500">
+                        {t('Последнее изменение')}: {recentDeltaSign}{formatNumber(recentDelta)} · {new Date(recentAddition.created_at).toLocaleString(getCurrentLocale(), { dateStyle: 'short', timeStyle: 'short' })}
+                      </span>
+                    ) : null}
                   </div>
-                  <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-5">
-                    <div><dt className="text-xs uppercase text-slate-500">Остаток</dt><dd>{formatNumber(product.stock_quantity)} {formatUnitName(product.unit_name, language)}</dd></div>
-                    <div><dt className="text-xs uppercase text-slate-500">Минимум</dt><dd>{formatNumber(product.minimum_stock_quantity)}</dd></div>
-                    <div><dt className="text-xs uppercase text-slate-500">Средняя</dt><dd>{formatNumber(product.average_purchase_cost)}</dd></div>
-                    <div><dt className="text-xs uppercase text-slate-500">Закупка</dt><dd>{formatNumber(product.purchase_price)}</dd></div>
-                    <div><dt className="text-xs uppercase text-slate-500">Стоимость</dt><dd>{formatNumber(product.stock_quantity * product.average_purchase_cost)}</dd></div>
+                  <dl className="grid gap-3 text-sm sm:grid-cols-3">
+                    <div><dt className="text-xs uppercase tracking-wide text-slate-500">{t('Осталось')}</dt><dd className="mt-1 text-lg font-semibold text-slate-950">{formatNumber(product.stock_quantity)} {formatUnitName(product.unit_name, language)}</dd></div>
+                    <div><dt className="text-xs uppercase tracking-wide text-slate-500">{t('Цена закупки')}</dt><dd className="mt-1 font-semibold text-slate-900">{formatNumber(product.purchase_price)} AZN</dd></div>
+                    <div><dt className="text-xs uppercase tracking-wide text-slate-500">{t('Цена продажи')}</dt><dd className="mt-1 font-semibold text-slate-900">{formatNumber(product.sale_price)} AZN</dd></div>
                   </dl>
                 </div>
-                <div className="flex items-start gap-2 lg:justify-end">
-                  <Link className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50" to={`/admin/inventory/products/${product.id}`}>
-                    История
-                  </Link>
-                  <Button onClick={() => inventoryMutations.reconcileProduct.mutate(product.id)} type="button" variant="secondary">
-                    Сверить
-                  </Button>
-                  <Button
-                    disabled={productMutations.deleteUnused.isPending}
-                    onClick={() => deleteProduct(product)}
-                    type="button"
-                    variant="danger"
+                <div className="grid gap-2 sm:grid-cols-[minmax(220px,1fr)_auto] xl:min-w-[390px]">
+                  <form
+                    className="grid grid-cols-[minmax(90px,1fr)_auto_auto] gap-2"
+                    onSubmit={(event) => {
+                      event.preventDefault()
+                      void quickAdjustStock(product, 'in')
+                    }}
                   >
-                    <Trash2 className="size-4" />
-                    Удалить
-                  </Button>
+                    <label className="grid gap-1 text-xs font-medium text-slate-600">
+                      <span>{t('Изменить количество')}</span>
+                      <input
+                        className="min-h-10 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-emerald-700 focus:bg-white focus:ring-2 focus:ring-emerald-700/15"
+                        inputMode="decimal"
+                        min={1}
+                        onChange={(event) => setQuickAdjustQuantities((current) => ({ ...current, [product.id]: event.target.value }))}
+                        placeholder="0"
+                        step="1"
+                        type="number"
+                        value={quickAdjustQuantities[product.id] ?? ''}
+                      />
+                    </label>
+                    <Button aria-label={t('Добавить')} className="self-end px-3" disabled={Boolean(quickAdjustPendingId)} type="submit">
+                      {isQuickAdjusting ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+                    </Button>
+                    <Button
+                      aria-label={t('Убавить')}
+                      className="self-end px-3"
+                      disabled={Boolean(quickAdjustPendingId)}
+                      onClick={() => void quickAdjustStock(product, 'out')}
+                      type="button"
+                      variant="secondary"
+                    >
+                      <Minus className="size-4" />
+                    </Button>
+                  </form>
+                  <div className="flex items-end justify-end gap-2">
+                    <Link className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50" to={`/admin/inventory/products/${product.id}`}>
+                      {t('История')}
+                    </Link>
+                    <Button
+                      aria-label={t('Удалить')}
+                      className="px-3"
+                      disabled={productMutations.deleteUnused.isPending}
+                      onClick={() => deleteProduct(product)}
+                      type="button"
+                      variant="danger"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
                 </div>
               </article>
             )
@@ -426,7 +564,7 @@ export function AdminInventoryPage() {
 
       {documentMode ? (
         <Modal onClose={() => setDocumentMode(null)}>
-          <form className="grid max-h-[calc(100svh-3rem)] w-full max-w-3xl gap-4 overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-xl" noValidate onSubmit={onSubmit}>
+          <form className="grid max-h-[calc(100svh-3rem)] w-full max-w-5xl gap-4 overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-xl" noValidate onSubmit={onSubmit}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold text-slate-950">
@@ -463,8 +601,8 @@ export function AdminInventoryPage() {
             </div>
             <div className="grid gap-3">
               {fields.map((field, index) => (
-                <div className="grid grid-cols-1 items-end gap-2 rounded-md border border-slate-200 p-2.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_80px_40px] lg:grid-cols-[minmax(310px,1fr)_80px_110px_80px_40px]" key={field.id}>
-                  <div className="grid min-w-0 gap-2 sm:col-span-4 sm:grid-cols-[140px_minmax(0,1fr)] lg:col-span-1">
+                <div className="grid grid-cols-1 items-end gap-2 rounded-md border border-slate-200 p-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(300px,1fr)_80px_105px_105px_80px_40px]" key={field.id}>
+                  <div className="grid min-w-0 gap-2 sm:col-span-2 sm:grid-cols-[140px_minmax(0,1fr)] lg:col-span-1">
                     <label className="grid min-w-0 gap-1.5 text-sm font-medium text-slate-700">
                       <span>{t('Способ')}</span>
                       <select className="min-h-11 w-full min-w-0 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register(`items.${index}.product_mode`, { onChange: () => {
@@ -472,6 +610,7 @@ export function AdminInventoryPage() {
                         setValue(`items.${index}.product_id`, '')
                         setValue(`items.${index}.new_product_name`, '')
                         setValue(`items.${index}.unit_cost`, 0)
+                        setValue(`items.${index}.sale_price`, 0)
                       } })}>
                         <option value="existing">{t('Выбрать из списка')}</option>
                         <option value="new">{t('Новый товар')}</option>
@@ -485,6 +624,7 @@ export function AdminInventoryPage() {
                         <select className="min-h-11 w-full min-w-0 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register(`items.${index}.product_id`, { onChange: (event) => {
                           const product = products.find((item) => item.id === event.target.value)
                           setValue(`items.${index}.unit_cost`, product?.purchase_price ?? product?.average_purchase_cost ?? 0, { shouldValidate: true })
+                          setValue(`items.${index}.sale_price`, product?.sale_price ?? 0, { shouldValidate: true })
                         } })}><option value="">Выберите</option>{products.filter((item) => item.track_stock).map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select>
                       </label>
                     )}
@@ -494,6 +634,7 @@ export function AdminInventoryPage() {
                   </div>
                   <Input id={`qty_${field.id}`} label="Кол-во" min={1} step="1" type="number" {...register(`items.${index}.quantity`, { valueAsNumber: true })} />
                   <Input id={`cost_${field.id}`} label={t('Себестоимость')} min={0} step="1" type="number" {...register(`items.${index}.unit_cost`, { valueAsNumber: true })} />
+                  <Input className="border-emerald-500 bg-emerald-50/60 font-semibold text-emerald-950 focus:border-emerald-700 focus:bg-white" error={errors.items?.[index]?.sale_price?.message} id={`sale_price_${field.id}`} label={t('Цена')} min={0} step="0.01" type="number" {...register(`items.${index}.sale_price`, { valueAsNumber: true })} />
                   <div className="grid content-end gap-1.5 text-sm font-medium text-slate-700">
                     <span>{t('Итого по позиции')}</span>
                     <div className="flex min-h-11 items-center rounded-md bg-slate-50 px-2 text-slate-900">
@@ -503,7 +644,7 @@ export function AdminInventoryPage() {
                   <div className="flex items-end justify-end sm:justify-start"><button aria-label={t('Убрать позицию')} className="inline-flex size-11 items-center justify-center rounded-md text-red-600 hover:bg-red-50" onClick={() => remove(index)} type="button"><Trash2 className="size-4" /></button></div>
                 </div>
               ))}
-              <Button onClick={() => append({ product_mode: 'existing', product_id: '', new_product_name: '', quantity: 1, unit_cost: 0, comment: '' })} type="button" variant="secondary"><Plus className="size-4" />Добавить позицию</Button>
+              <Button onClick={() => append({ product_mode: 'existing', product_id: '', new_product_name: '', quantity: 1, unit_cost: 0, sale_price: 0, comment: '' })} type="button" variant="secondary"><Plus className="size-4" />Добавить позицию</Button>
             </div>
             {errors.items?.message ? <p className="text-sm text-red-700">{t(errors.items.message)}</p> : null}
             <div className="rounded-md bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800">Итого: {formatNumber(documentTotal)} AZN</div>

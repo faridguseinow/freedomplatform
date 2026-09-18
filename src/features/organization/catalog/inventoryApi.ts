@@ -49,15 +49,38 @@ export function useInventoryBalances(organizationId: string | null) {
   })
 }
 
-export function useStockDocuments(organizationId: string | null) {
+export function useInventoryRecentAdditions(organizationId: string | null) {
   return useQuery({
     enabled: Boolean(organizationId),
-    queryKey: ['admin', 'inventory', 'documents', organizationId],
+    queryKey: ['admin', 'inventory', 'recent-additions', organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
+        .from('stock_movements')
+        .select('id,product_id,movement_type,quantity_delta,created_at')
+        .eq('organization_id', organizationId!)
+        .in('movement_type', ['opening_balance', 'purchase', 'return_in', 'adjustment_in', 'transfer_in'])
+        .order('created_at', { ascending: false })
+        .limit(1000)
+
+      if (error) throw new Error(error.message)
+      return data
+    },
+  })
+}
+
+export function useStockDocuments(organizationId: string | null, type?: StockMovementType) {
+  return useQuery({
+    enabled: Boolean(organizationId),
+    queryKey: ['admin', 'inventory', 'documents', organizationId, type ?? 'all'],
+    queryFn: async () => {
+      let query = supabase
         .from('stock_documents')
         .select(stockDocumentSelect)
         .eq('organization_id', organizationId!)
+
+      if (type) query = query.eq('type', type)
+
+      const { data, error } = await query
         .order('document_date', { ascending: false })
         .limit(100)
 
@@ -88,7 +111,17 @@ export function useStockDocumentDetail(documentId: string | null) {
 
       if (itemsError) throw new Error(itemsError.message)
 
-      return { document, items }
+      const productIds = [...new Set(items.map((item) => item.product_id))]
+      const { data: products, error: productsError } = productIds.length
+        ? await supabase
+            .from('products')
+            .select('id,name,unit_name')
+            .in('id', productIds)
+        : { data: [], error: null }
+
+      if (productsError) throw new Error(productsError.message)
+
+      return { document, items, products }
     },
   })
 }
@@ -174,6 +207,22 @@ export function useInventoryMutations(organizationId: string | null) {
     postDocument: useMutation({
       mutationFn: async (documentId: string) => {
         const { data, error } = await supabase.rpc('post_stock_document', {
+          target_document_id: documentId,
+        })
+        if (error) throw new Error(error.message)
+        if (data?.type === 'purchase') {
+          const { error: financeError } = await supabase.rpc('create_purchase_finance_transaction', {
+            target_document_id: data.id,
+          })
+          if (financeError) throw new Error(financeError.message)
+        }
+        return data
+      },
+      onSuccess: invalidate,
+    }),
+    syncPurchaseFinanceTransaction: useMutation({
+      mutationFn: async (documentId: string) => {
+        const { data, error } = await supabase.rpc('create_purchase_finance_transaction', {
           target_document_id: documentId,
         })
         if (error) throw new Error(error.message)

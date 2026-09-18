@@ -57,6 +57,7 @@ import {
   useRevenueBreakdown,
   useUsageHoursBreakdown,
 } from '../../orders/paymentsApi'
+import { useInventoryMutations, useStockDocuments } from '../../organization/catalog/inventoryApi'
 import {
   useRecurringExpenseMutations,
   useRecurringExpenses,
@@ -319,6 +320,20 @@ function StatGrid({
       ))}
     </div>
   )
+}
+
+function useSyncPostedPurchaseFinanceTransactions(organizationId: string | null) {
+  const purchaseDocuments = useStockDocuments(organizationId, 'purchase')
+  const inventoryMutations = useInventoryMutations(organizationId)
+  const syncedDocumentIds = useRef(new Set<string>())
+
+  useEffect(() => {
+    for (const document of purchaseDocuments.data ?? []) {
+      if (document.status !== 'posted' || syncedDocumentIds.current.has(document.id)) continue
+      syncedDocumentIds.current.add(document.id)
+      inventoryMutations.syncPurchaseFinanceTransaction.mutate(document.id)
+    }
+  }, [inventoryMutations.syncPurchaseFinanceTransaction, purchaseDocuments.data])
 }
 
 function RevenueBreakdownGrid({
@@ -945,6 +960,7 @@ function ExpenseTransactionModal({
 export function AdminFinancePage() {
   const { currentOrganization, organizationId } = useAuth()
   const { t } = useI18n()
+  useSyncPostedPurchaseFinanceTransactions(organizationId)
   const currentDate = useCurrentDate()
   const settings = useFinanceSettings(organizationId)
   const currentCycle = getFinancialCycle(settings.data?.financial_month_close_day)
@@ -1144,6 +1160,7 @@ export function AdminFinanceIncomePage() {
 export function AdminFinanceExpensesPage() {
   const { organizationId, user } = useAuth()
   const { t } = useI18n()
+  useSyncPostedPurchaseFinanceTransactions(organizationId)
   const transactions = useFinanceTransactions(organizationId, ['expense', 'purchase'])
   const categories = useFinanceCategories(organizationId, 'expense')
   const periods = useFinancialPeriods(organizationId)

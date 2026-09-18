@@ -96,6 +96,8 @@ export function AdminCombosPage() {
     [categoriesQuery.data],
   )
   const components = useMemo(() => componentsQuery.data ?? [], [componentsQuery.data])
+  const productById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products])
+  const serviceById = useMemo(() => new Map(services.map((service) => [service.id, service])), [services])
   const availabilityByCombo = useMemo(
     () => new Map((availabilityQuery.data ?? []).map((item) => [item.combo_id, item])),
     [availabilityQuery.data],
@@ -113,8 +115,8 @@ export function AdminCombosPage() {
     components
       .filter((component) => component.combo_id === comboId)
       .map((component) => {
-        const product = products.find((item) => item.id === component.product_id)
-        const service = services.find((item) => item.id === component.service_id)
+        const product = component.product_id ? productById.get(component.product_id) : null
+        const service = component.service_id ? serviceById.get(component.service_id) : null
         return `${product?.name ?? service?.name ?? t('ui.komponent_8879f45')} × ${component.quantity}`
       })
       .join(', ')
@@ -123,8 +125,8 @@ export function AdminCombosPage() {
     components
       .filter((component) => component.combo_id === comboId)
       .reduce((sum, component) => {
-        const product = products.find((item) => item.id === component.product_id)
-        const service = services.find((item) => item.id === component.service_id)
+        const product = component.product_id ? productById.get(component.product_id) : null
+        const service = component.service_id ? serviceById.get(component.service_id) : null
         const price = product?.sale_price ?? service?.fixed_price ?? service?.hourly_rate ?? 0
         return sum + price * component.quantity
       }, 0)
@@ -277,11 +279,23 @@ export function AdminCombosPage() {
                       </span>
                     </div>
                     <p className="mt-1 text-sm text-slate-600">{componentSummary(combo.id) || 'Состав не заполнен.'}</p>
-                    <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-4">
-                      <div><dt className="text-xs uppercase text-slate-500">Обычная</dt><dd>{formatNumber(basePrice)}</dd></div>
-                      <div><dt className="text-xs uppercase text-slate-500">Комбо</dt><dd>{formatNumber(combo.sale_price)}</dd></div>
-                      <div><dt className="text-xs uppercase text-slate-500">Выгода</dt><dd>{formatNumber(discount)}</dd></div>
-                      <div><dt className="text-xs uppercase text-slate-500">Скидка</dt><dd>{basePrice > 0 ? `${Math.round((discount / basePrice) * 100)}%` : '-'}</dd></div>
+                    <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4">
+                      <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                        <dt className="text-[11px] font-semibold uppercase text-slate-500">{t('Обычная цена')}</dt>
+                        <dd className="mt-1 font-semibold text-slate-950">{formatNumber(basePrice)} AZN</dd>
+                      </div>
+                      <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
+                        <dt className="text-[11px] font-semibold uppercase text-emerald-700">{t('Цена комбо')}</dt>
+                        <dd className="mt-1 font-semibold text-emerald-950">{formatNumber(combo.sale_price)} AZN</dd>
+                      </div>
+                      <div className="rounded-md border border-cyan-200 bg-cyan-50 px-3 py-2">
+                        <dt className="text-[11px] font-semibold uppercase text-cyan-700">{t('Выгода')}</dt>
+                        <dd className="mt-1 font-semibold text-cyan-950">{formatNumber(discount)} AZN</dd>
+                      </div>
+                      <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+                        <dt className="text-[11px] font-semibold uppercase text-slate-500">{t('Скидка')}</dt>
+                        <dd className="mt-1 font-semibold text-slate-950">{basePrice > 0 ? `${Math.round((discount / basePrice) * 100)}%` : '-'}</dd>
+                      </div>
                     </dl>
                   </div>
                 </div>
