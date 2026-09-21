@@ -143,8 +143,13 @@ export function AdminInventoryPage() {
   const watchedItems = useWatch({ control, name: 'items' })
 
   const products = useMemo(
-    () => (productsQuery.data ?? []).filter((product) => product.status !== 'archived'),
-    [productsQuery.data],
+    () => [...(productsQuery.data ?? [])]
+      .filter((product) => product.status !== 'archived')
+      .sort((left, right) => left.name.localeCompare(right.name, language, {
+        numeric: true,
+        sensitivity: 'base',
+      })),
+    [language, productsQuery.data],
   )
   const stockProducts = useMemo(() => balancesQuery.data ?? [], [balancesQuery.data])
   const recentAdditionByProductId = useMemo(() => {

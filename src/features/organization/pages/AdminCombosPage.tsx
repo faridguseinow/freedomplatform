@@ -58,7 +58,7 @@ const formatNumber = (value: number | null | undefined) =>
 
 export function AdminCombosPage() {
   const { organizationId, user } = useAuth()
-  const { t } = useI18n()
+  const { language, t } = useI18n()
   const combosQuery = useCombos(organizationId)
   const componentsQuery = useComboComponents(organizationId)
   const availabilityQuery = useComboAvailability(organizationId)
@@ -89,7 +89,15 @@ export function AdminCombosPage() {
   const watchedComponents = useWatch({ control, name: 'components' })
 
   const combos = useMemo(() => combosQuery.data ?? [], [combosQuery.data])
-  const products = useMemo(() => (productsQuery.data ?? []).filter((item) => item.status === 'active'), [productsQuery.data])
+  const products = useMemo(
+    () => [...(productsQuery.data ?? [])]
+      .filter((item) => item.status === 'active')
+      .sort((left, right) => left.name.localeCompare(right.name, language, {
+        numeric: true,
+        sensitivity: 'base',
+      })),
+    [language, productsQuery.data],
+  )
   const services = useMemo(() => (servicesQuery.data ?? []).filter((item) => item.status === 'active'), [servicesQuery.data])
   const comboCategories = useMemo(
     () => (categoriesQuery.data ?? []).filter((item) => item.type === 'product' && item.status !== 'archived'),
