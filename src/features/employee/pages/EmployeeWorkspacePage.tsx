@@ -61,6 +61,10 @@ const formatMoney = (value: number | null | undefined) =>
   new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
 
 const formatAzn = (value: number | null | undefined) => `${formatMoney(value)} AZN`
+const formatOrderItemAddedAt = (value: string) => new Date(value).toLocaleString(getCurrentLocale(), {
+  dateStyle: 'short',
+  timeStyle: 'short',
+})
 const parseMoneyInput = (value: string) => Number(value.replace(',', '.'))
 
 const formatElapsed = (startedAt: string | null, nowMs: number) => {
@@ -450,6 +454,7 @@ export function EmployeeWorkspacePage() {
   const selectOrder = (orderId: string) => {
     const order = orders.find((currentOrder) => currentOrder.id === orderId)
     const place = order?.place_id ? placesById.get(order.place_id) ?? null : null
+    setSearch('')
     setPaymentChoiceOrderId(null)
     setTipAmount('')
     setCashSplitAmount('')
@@ -463,6 +468,7 @@ export function EmployeeWorkspacePage() {
   }
 
   const closeOrder = () => {
+    setSearch('')
     setPaymentChoiceOrderId(null)
     setOrderCloseAction(null)
     setIsTransferOpen(false)
@@ -725,16 +731,6 @@ export function EmployeeWorkspacePage() {
     })
   }
 
-  const refusePayment = () => {
-    if (!selectedOrderId) return
-    const comment = window.prompt('Комментарий к отказу от оплаты')
-    if (!comment) return
-    void runAction(async () => {
-      await orderMutations.refusePayment.mutateAsync({ orderId: selectedOrderId, comment })
-      closeOrder()
-    })
-  }
-
   const finishEmptyOrder = () => {
     if (!selectedOrder) return
     setOrderCloseAction('finish-empty')
@@ -829,8 +825,7 @@ export function EmployeeWorkspacePage() {
     orderMutations.completeEmptyOrder.isPending ||
     orderMutations.cancelOrder.isPending ||
     orderMutations.completePayment.isPending ||
-    orderMutations.completePaymentWithTip.isPending ||
-    orderMutations.refusePayment.isPending
+    orderMutations.completePaymentWithTip.isPending
 
   return (
     <section className="flex min-h-[calc(100svh-1rem)] flex-col gap-3">
@@ -1327,17 +1322,6 @@ export function EmployeeWorkspacePage() {
                             </>
                           ) : null}
 
-                          {hasNormalPaymentAmount ? (
-                            <Button
-                              disabled={isWorkspaceReadOnly || hasActiveSession || isClosingOrder}
-                              onClick={refusePayment}
-                              type="button"
-                              variant="danger"
-                            >
-                              Отказ от оплаты
-                            </Button>
-                          ) : null}
-
                           <Button
                             disabled={isWorkspaceReadOnly || !canCancelOrder || isClosingOrder}
                             onClick={cancelOrder}
@@ -1417,8 +1401,11 @@ export function EmployeeWorkspacePage() {
                                   {item.quantity} × {formatAzn(item.unit_price)}
                                 </div>
                               </div>
-                              <div className="shrink-0 text-right font-semibold text-slate-950">
-                                {formatAzn(item.total_price)}
+                              <div className="grid shrink-0 justify-items-end gap-0.5 text-right">
+                                <span className="font-semibold text-slate-950">{formatAzn(item.total_price)}</span>
+                                <time className="text-xs font-normal text-slate-500" dateTime={item.added_at}>
+                                  {formatOrderItemAddedAt(item.added_at)}
+                                </time>
                               </div>
                             </div>
                             {item.status === 'active' && selectedOrder.status === 'open' ? (

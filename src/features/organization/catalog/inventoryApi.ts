@@ -241,6 +241,17 @@ export function useInventoryMutations(organizationId: string | null) {
       },
       onSuccess: invalidate,
     }),
+    removePurchaseDocument: useMutation({
+      mutationFn: async (documentId: string) => {
+        const { data, error } = await supabase.rpc('remove_purchase_stock_document', {
+          target_document_id: documentId,
+          target_reason: 'Removed from purchase history',
+        })
+        if (error) throw new Error(error.message)
+        return data
+      },
+      onSuccess: invalidate,
+    }),
     createOpeningStock: useMutation({
       mutationFn: async ({
         productId,

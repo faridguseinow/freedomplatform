@@ -1630,6 +1630,13 @@ export type Database = {
         }
         Returns: StockDocumentRow
       }
+      remove_purchase_stock_document: {
+        Args: {
+          target_document_id: string
+          target_reason?: string
+        }
+        Returns: Record<string, unknown>
+      }
       create_opening_stock_document: {
         Args: {
           target_product_id: string

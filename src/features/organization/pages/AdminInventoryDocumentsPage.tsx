@@ -1,5 +1,5 @@
 import { getCurrentLocale } from '../../../lib/i18n/translator'
-import { Ban, ChevronDown, FileText, Loader2, ShoppingBasket } from 'lucide-react'
+import { Ban, ChevronDown, FileText, Loader2, ShoppingBasket, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Button } from '../../../components/ui/Button'
@@ -60,12 +60,29 @@ export function AdminInventoryDocumentsPage() {
   const [searchParams] = useSearchParams()
   const purchaseHistoryMode = searchParams.get('type') === 'purchase'
   const [expandedDocumentId, setExpandedDocumentId] = useState<string | null>(null)
+  const [pageError, setPageError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const documentsQuery = useStockDocuments(organizationId, purchaseHistoryMode ? 'purchase' : undefined)
   const inventoryMutations = useInventoryMutations(organizationId)
   const visibleDocuments = useMemo(
-    () => (documentsQuery.data ?? []).filter((document) => !purchaseHistoryMode || document.type === 'purchase'),
+    () => (documentsQuery.data ?? []).filter((document) => (
+      !purchaseHistoryMode || (document.type === 'purchase' && document.status !== 'cancelled')
+    )),
     [documentsQuery.data, purchaseHistoryMode],
   )
+
+  const removePurchase = async (documentId: string) => {
+    if (!window.confirm(t('Удалить эту закупку? Остатки и связанный расход будут пересчитаны.'))) return
+    setPageError(null)
+    setSuccessMessage(null)
+    try {
+      await inventoryMutations.removePurchaseDocument.mutateAsync(documentId)
+      setExpandedDocumentId((current) => current === documentId ? null : current)
+      setSuccessMessage(t('Закупка удалена. Остатки и расходы пересчитаны.'))
+    } catch (error) {
+      setPageError(error instanceof Error ? error.message : t('Не удалось удалить закупку.'))
+    }
+  }
 
   const cancelDocument = (documentId: string) => {
     const reason = window.prompt('Причина отмены документа')
@@ -86,6 +103,9 @@ export function AdminInventoryDocumentsPage() {
         </p>
       </header>
 
+      {successMessage ? <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{successMessage}</div> : null}
+      {pageError ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{pageError}</div> : null}
+
       {documentsQuery.isLoading ? (
         <div className="inline-flex min-h-28 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600">
           <Loader2 className="size-4 animate-spin text-emerald-700" />
@@ -105,25 +125,36 @@ export function AdminInventoryDocumentsPage() {
       <div className="grid gap-3">
         {visibleDocuments.map((document) => purchaseHistoryMode ? (
           <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" key={document.id}>
-            <button
-              aria-expanded={expandedDocumentId === document.id}
-              className="grid w-full gap-3 p-4 text-left transition hover:bg-slate-50 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
-              onClick={() => setExpandedDocumentId((current) => current === document.id ? null : document.id)}
-              type="button"
-            >
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-semibold text-slate-950">{document.supplier_name || t('Магазин не указан')}</h3>
-                  <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800">#{document.document_number}</span>
-                  <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">{t(stockDocumentStatusLabel[document.status])}</span>
+            <div className="flex items-stretch">
+              <button
+                aria-expanded={expandedDocumentId === document.id}
+                className="grid min-w-0 flex-1 gap-3 p-4 text-left transition hover:bg-slate-50 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                onClick={() => setExpandedDocumentId((current) => current === document.id ? null : document.id)}
+                type="button"
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-semibold text-slate-950">{document.supplier_name || t('Магазин не указан')}</h3>
+                    <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800">#{document.document_number}</span>
+                    <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">{t(stockDocumentStatusLabel[document.status])}</span>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-500">{formatDate(document.document_date)}</p>
                 </div>
-                <p className="mt-1 text-sm text-slate-500">{formatDate(document.document_date)}</p>
-              </div>
-              <div className="flex items-center justify-between gap-3 sm:justify-end">
-                <span className="text-base font-semibold text-slate-950">{formatNumber(document.total_amount)} AZN</span>
-                <ChevronDown className={cn('size-5 text-slate-500 transition-transform', expandedDocumentId === document.id && 'rotate-180')} />
-              </div>
-            </button>
+                <div className="flex items-center justify-between gap-3 sm:justify-end">
+                  <span className="text-base font-semibold text-slate-950">{formatNumber(document.total_amount)} AZN</span>
+                  <ChevronDown className={cn('size-5 text-slate-500 transition-transform', expandedDocumentId === document.id && 'rotate-180')} />
+                </div>
+              </button>
+              <button
+                aria-label={t('Удалить закупку')}
+                className="m-2 inline-flex min-h-10 min-w-10 items-center justify-center self-center rounded-md text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                disabled={inventoryMutations.removePurchaseDocument.isPending}
+                onClick={() => removePurchase(document.id)}
+                type="button"
+              >
+                {inventoryMutations.removePurchaseDocument.isPending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+              </button>
+            </div>
             {expandedDocumentId === document.id ? <PurchaseDocumentItems documentId={document.id} /> : null}
           </article>
         ) : (
