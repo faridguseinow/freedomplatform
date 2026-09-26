@@ -102,12 +102,24 @@ export function useAdminOrderDetail(orderId: string | null) {
       if (sessionsResult.error) throw new Error(sessionsResult.error.message)
       if (reservationsResult.error) throw new Error(reservationsResult.error.message)
 
+      const placeIds = [...new Set((sessionsResult.data ?? []).map((session) => session.place_id))]
+      const placesResult = placeIds.length
+        ? await supabase.from('places').select('id,image_path').in('id', placeIds)
+        : { data: [], error: null }
+
+      if (placesResult.error) throw new Error(placesResult.error.message)
+
+      const placeImageById = Object.fromEntries(
+        (placesResult.data ?? []).map((place) => [place.id, place.image_path]),
+      ) as Record<string, string | null>
+
       return {
         order: orderResult.data,
         items: itemsResult.data,
         payments: paymentsResult.data,
         sessions: sessionsResult.data,
         reservations: reservationsResult.data,
+        placeImageById,
       }
     },
   })
