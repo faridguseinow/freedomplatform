@@ -14,9 +14,11 @@ import { useForm } from 'react-hook-form'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { CatalogImage } from '../../../components/common/CatalogImage'
+import { LanguageSwitcher } from '../../../components/common/LanguageSwitcher'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
 import { useAuth } from '../../../hooks/useAuth'
+import { useI18n } from '../../../lib/i18n/I18nContext'
 import { getCurrentAppHost } from '../../../lib/routing/appHost'
 import { getRoleHomePath, USER_ROLES } from '../../../types/roles'
 import type { DemoRole, OrganizationLoginBrand } from '../AuthContext'
@@ -77,6 +79,7 @@ export function LoginPage() {
     signInDemo,
     user,
   } = useAuth()
+  const { language, t } = useI18n()
   const appHost = getCurrentAppHost()
   const isDemoHost = appHost.mode === 'tenant' && appHost.slug === 'demo'
   const [showPassword, setShowPassword] = useState(false)
@@ -136,10 +139,10 @@ export function LoginPage() {
 
     try {
       const nextRole = await signInDemo(demoRole)
-      if (!nextRole) throw new Error('Не удалось определить демо-пространство.')
-      navigate(getRoleHomePath(nextRole, 'demo'), { replace: true })
+      if (!nextRole) throw new Error(t('auth.demo.workspaceUnknown'))
+      navigate(`${getRoleHomePath(nextRole, 'demo')}?lang=${language}`, { replace: true })
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Не удалось открыть демо-режим.')
+      setFormError(error instanceof Error ? error.message : t('auth.demo.openFailed'))
     } finally {
       setPendingDemoRole(null)
     }
@@ -153,28 +156,31 @@ export function LoginPage() {
     return (
       <main className="grid min-h-svh bg-slate-50 px-4 py-8 sm:px-6">
         <section className="mx-auto grid w-full max-w-lg content-center gap-6">
-          <LoginBrand organization={hostOrganization} showDemoFallback />
+          <div className="flex items-center justify-between gap-4">
+            <LoginBrand organization={hostOrganization} showDemoFallback />
+            <LanguageSwitcher />
+          </div>
 
           {demoStep === 'intro' ? (
             <div className="grid gap-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="grid gap-2">
-                <h1 className="text-2xl font-semibold text-slate-950">Попробуйте Freedom Platform</h1>
+                <h1 className="text-2xl font-semibold text-slate-950">{t('auth.demo.title')}</h1>
                 <p className="text-sm leading-6 text-slate-600">
-                  Посмотрите, как устроена ежедневная работа организации. Вы сможете выбрать роль и открыть готовое демо-пространство без регистрации.
+                  {t('auth.demo.intro')}
                 </p>
               </div>
 
               <div className="grid gap-2 text-sm leading-6 text-slate-600">
-                <p>Внутри уже подготовлены рабочие места, каталог, заказы и примеры операций.</p>
-                <p>Изменения выполняются только в демонстрационной организации.</p>
+                <p>{t('auth.demo.prepared')}</p>
+                <p>{t('auth.demo.scope')}</p>
               </div>
 
               <Button className="w-full" onClick={() => setDemoStep('roles')} type="button">
                 <LogIn aria-hidden="true" className="size-4" />
-                Открыть демо
+                {t('auth.demo.open')}
               </Button>
               <p className="text-center text-xs leading-5 text-slate-500">
-                Продолжая, вы соглашаетесь использовать демонстрационные данные только для знакомства с платформой.
+                {t('auth.demo.consent')}
               </p>
             </div>
           ) : (
@@ -186,11 +192,11 @@ export function LoginPage() {
                   type="button"
                 >
                   <ArrowLeft aria-hidden="true" className="size-4" />
-                  Назад
+                  {t('ui.nazad_f6dab07')}
                 </button>
-                <h1 className="text-2xl font-semibold text-slate-950">Выберите рабочее пространство</h1>
+                <h1 className="text-2xl font-semibold text-slate-950">{t('auth.demo.chooseWorkspace')}</h1>
                 <p className="text-sm leading-6 text-slate-600">
-                  Можно вернуться и открыть вторую роль после завершения просмотра.
+                  {t('auth.demo.switchRole')}
                 </p>
               </div>
 
@@ -207,10 +213,10 @@ export function LoginPage() {
                     ) : (
                       <UserRound aria-hidden="true" className="size-5 text-emerald-700" />
                     )}
-                    Пространство сотрудника
+                    {t('auth.demo.employeeWorkspace')}
                   </span>
                   <span className="text-sm leading-6 text-slate-600">
-                    Рабочая смена, места, заказы, меню и ежедневные операции.
+                    {t('auth.demo.employeeDescription')}
                   </span>
                 </button>
 
@@ -226,10 +232,10 @@ export function LoginPage() {
                     ) : (
                       <BriefcaseBusiness aria-hidden="true" className="size-5 text-emerald-700" />
                     )}
-                    Кабинет администратора
+                    {t('auth.demo.adminWorkspace')}
                   </span>
                   <span className="text-sm leading-6 text-slate-600">
-                    Управление организацией, сотрудниками, каталогом, финансами и настройками.
+                    {t('auth.demo.adminDescription')}
                   </span>
                 </button>
               </div>
@@ -242,7 +248,7 @@ export function LoginPage() {
 
               <div className="flex items-start gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
                 <ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-emerald-700" />
-                Демо-доступ изолирован от данных других организаций.
+                {t('auth.demo.isolated')}
               </div>
             </div>
           )}
@@ -254,7 +260,10 @@ export function LoginPage() {
   return (
     <main className="grid min-h-svh bg-slate-50 px-4 py-8 sm:px-6">
       <section className="mx-auto grid w-full max-w-md content-center gap-6">
-        <LoginBrand organization={hostOrganization} />
+        <div className="flex items-center justify-between gap-4">
+          <LoginBrand organization={hostOrganization} />
+          <LanguageSwitcher />
+        </div>
 
         <form
           className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"

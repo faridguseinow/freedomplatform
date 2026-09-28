@@ -304,6 +304,7 @@ $$;
 -- Detach preserved real payments before removing obsolete accrual records.
 alter table public.platform_share_payments
   drop constraint if exists platform_share_payments_accrual_id_fkey;
+select set_config('app.finance_write', '1', true);
 update public.platform_share_payments set accrual_id = null where accrual_id is not null;
 
 -- The summary keeps a zero compatibility column for older clients, but no

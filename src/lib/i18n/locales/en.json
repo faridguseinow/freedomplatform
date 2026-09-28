@@ -1,0 +1,22 @@
+{
+  "ui.nazad_f6dab07": "Back",
+  "ui.yazyk_ed3f0e5": "Language",
+  "ui.yazyk_interfeysa_d9396e7": "Interface language",
+  "auth.demo.title": "Try Freedom Platform",
+  "auth.demo.intro": "See how an organization manages its daily operations. Choose a role and open a ready-to-use demo workspace without registration.",
+  "auth.demo.prepared": "Workspaces, catalog items, orders, and sample operations are already set up.",
+  "auth.demo.scope": "Changes are made only inside the demo organization.",
+  "auth.demo.open": "Open demo",
+  "auth.demo.consent": "By continuing, you agree to use the demo data only to explore the platform.",
+  "auth.demo.chooseWorkspace": "Choose a workspace",
+  "auth.demo.switchRole": "After exploring one role, you can return and open the other one.",
+  "auth.demo.employeeWorkspace": "Employee workspace",
+  "auth.demo.employeeDescription": "Shifts, places, orders, menu, and daily operations.",
+  "auth.demo.adminWorkspace": "Administrator dashboard",
+  "auth.demo.adminDescription": "Manage the organization, employees, catalog, finances, and settings.",
+  "auth.demo.isolated": "Demo access is isolated from other organizations' data.",
+  "auth.demo.hostOnly": "Demo sign-in is available only on the demo domain.",
+  "auth.demo.openFailed": "Could not open demo mode.",
+  "auth.demo.configureFailed": "Could not configure demo access.",
+  "auth.demo.workspaceUnknown": "Could not identify the demo workspace."
+}

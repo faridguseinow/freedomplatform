@@ -2,6 +2,7 @@ import { LogOut, Monitor, Smartphone } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../../components/ui/Button'
+import { LanguageSwitcher } from '../../components/common/LanguageSwitcher'
 import { AppLayout } from './AppLayout'
 import { employeeNavItems } from '../router/routes'
 import { useAuth } from '../../hooks/useAuth'
@@ -47,6 +48,7 @@ export function EmployeeLayout() {
   if (!isDesktopViewport) {
     return (
       <main className="grid min-h-svh place-items-center bg-slate-950 px-5 py-8 text-white">
+        <LanguageSwitcher className="fixed right-4 top-4" />
         <section className="grid w-full max-w-sm gap-5 rounded-lg border border-white/10 bg-white/10 p-5 shadow-2xl">
           <div className="flex items-center gap-3">
             <span className="grid size-12 shrink-0 place-items-center rounded-md bg-white text-slate-950">

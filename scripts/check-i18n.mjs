@@ -7,11 +7,22 @@ const sourceRoot = path.join(root, 'src')
 const localesRoot = path.join(sourceRoot, 'lib/i18n/locales')
 const ru = JSON.parse(fs.readFileSync(path.join(localesRoot, 'ru.json'), 'utf8'))
 const az = JSON.parse(fs.readFileSync(path.join(localesRoot, 'az.json'), 'utf8'))
+const en = JSON.parse(fs.readFileSync(path.join(localesRoot, 'en.json'), 'utf8'))
 const sourceMap = JSON.parse(fs.readFileSync(path.join(localesRoot, 'source-map.json'), 'utf8'))
 Object.assign(ru, JSON.parse(fs.readFileSync(path.join(localesRoot, 'manual.ru.json'), 'utf8')))
 Object.assign(az, JSON.parse(fs.readFileSync(path.join(localesRoot, 'manual.az.json'), 'utf8')))
 Object.assign(sourceMap, JSON.parse(fs.readFileSync(path.join(localesRoot, 'manual-source-map.json'), 'utf8')))
 const errors = []
+const requiredEnglishKeys = [
+  'ui.nazad_f6dab07',
+  'ui.yazyk_ed3f0e5',
+  'ui.yazyk_interfeysa_d9396e7',
+  ...Object.keys(ru).filter((key) => key.startsWith('auth.demo.')),
+]
+
+for (const key of requiredEnglishKeys) {
+  if (!String(en[key] ?? '').trim()) errors.push(`Missing English demo value: ${key}`)
+}
 const allowedAzerbaijaniLiterals = new Set([
   'Azərbaycan dili',
   'ə',

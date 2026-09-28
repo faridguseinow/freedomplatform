@@ -2,6 +2,7 @@ import { ArrowLeft, LogOut, Menu, PanelLeftClose, PanelLeftOpen, UserRound } fro
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { CatalogImage } from '../../components/common/CatalogImage'
+import { LanguageSwitcher } from '../../components/common/LanguageSwitcher'
 import { Button } from '../../components/ui/Button'
 import { EmployeeLockScreen } from '../../features/employee/components/EmployeeLockScreen'
 import { useAuth } from '../../hooks/useAuth'
@@ -168,6 +169,9 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                 )}
               </button>
             </div>
+            {sidebarCollapsed ? null : (
+              <LanguageSwitcher className="mt-3 justify-center shadow-none" />
+            )}
           </div>
 
           <nav className={sidebarCollapsed ? 'grid gap-1 px-2 py-4' : 'grid gap-1 px-3 py-4'} aria-label={productAreaLabel}>
@@ -242,6 +246,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                         </p>
                       ) : null}
                     </div>
+                    <LanguageSwitcher className="mt-2 justify-center shadow-none" />
                     {isPlatformOwnerOrganizationView ? (
                       <Button
                         className="mt-2 w-full justify-start px-2"
@@ -326,6 +331,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                           </p>
                         ) : null}
                       </div>
+                      <LanguageSwitcher className="mt-2 justify-center shadow-none" />
                       {isPlatformOwnerOrganizationView ? (
                         <Button
                           className="mt-2 w-full justify-start px-2"
@@ -371,6 +377,11 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                 : 'min-w-0 flex-1 px-4 py-5 pb-28 sm:px-6 md:pb-6'
             }
           >
+            {hideHeader ? (
+              <div className="mb-3 flex justify-end md:hidden">
+                <LanguageSwitcher />
+              </div>
+            ) : null}
             <div
               className={
                 fullWidthContent
