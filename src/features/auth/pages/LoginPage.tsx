@@ -260,10 +260,7 @@ export function LoginPage() {
   return (
     <main className="grid min-h-svh bg-slate-50 px-4 py-8 sm:px-6">
       <section className="mx-auto grid w-full max-w-md content-center gap-6">
-        <div className="flex items-center justify-between gap-4">
-          <LoginBrand organization={hostOrganization} />
-          <LanguageSwitcher />
-        </div>
+        <LoginBrand organization={hostOrganization} />
 
         <form
           className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"

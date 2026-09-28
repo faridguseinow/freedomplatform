@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useI18n } from '../../lib/i18n/I18nContext'
-import { supportedLanguages, type SystemLanguage } from '../../lib/i18n/translations'
+import { demoLanguages, type SystemLanguage } from '../../lib/i18n/translations'
 
 type LanguageSwitcherProps = {
   className?: string
@@ -28,7 +28,7 @@ export function LanguageSwitcher({ className = '' }: LanguageSwitcherProps) {
       className={`flex shrink-0 items-center gap-1 rounded-full border border-slate-200 bg-white p-1 shadow-sm ${className}`}
       role="group"
     >
-      {supportedLanguages.map((item) => (
+      {demoLanguages.map((item) => (
         <button
           aria-label={`${t('ui.yazyk_ed3f0e5')}: ${item.toUpperCase()}`}
           aria-pressed={language === item}

@@ -10,7 +10,6 @@ import { OrganizationSlugRoute } from './OrganizationSlugRoute'
 import { ProtectedRoute } from './ProtectedRoute'
 import { RoleRoute } from './RoleRoute'
 import { RootRedirect } from './RootRedirect'
-import { LanguageUrlSync } from './LanguageUrlSync'
 import { AccessNotConfiguredPage } from '../../features/auth/pages/AccessNotConfiguredPage'
 import { LoginPage } from '../../features/auth/pages/LoginPage'
 import { NotFoundPage } from '../../pages/NotFoundPage'
@@ -328,7 +327,6 @@ export function AppRouter() {
 
   return (
     <BrowserRouter>
-      <LanguageUrlSync />
       <Routes>
         {host.mode === 'platform-admin' ? (
           <>

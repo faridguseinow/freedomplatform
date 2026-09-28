@@ -8,7 +8,9 @@ export const languageLabels: Record<SystemLanguage, string> = {
   en: 'English',
 }
 
-export const supportedLanguages: SystemLanguage[] = ['az', 'ru', 'en']
+export const supportedLanguages: SystemLanguage[] = ['ru', 'az']
+
+export const demoLanguages: SystemLanguage[] = ['az', 'ru', 'en']
 
 export const localeByLanguage: Record<SystemLanguage, string> = {
   ru: 'ru-RU',
@@ -19,7 +21,7 @@ export const localeByLanguage: Record<SystemLanguage, string> = {
 const hasDom = () => typeof window !== 'undefined' && typeof document !== 'undefined'
 
 export function isSystemLanguage(value: unknown): value is SystemLanguage {
-  return typeof value === 'string' && supportedLanguages.includes(value as SystemLanguage)
+  return typeof value === 'string' && demoLanguages.includes(value as SystemLanguage)
 }
 
 export function getStoredSystemLanguage(): SystemLanguage {
