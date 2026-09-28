@@ -103,5 +103,13 @@
   "Обычная цена": "combo.regularPrice",
   "Цена комбо": "combo.comboPrice",
   "Выгода": "combo.savings",
-  "Скидка": "combo.discount"
+  "Скидка": "combo.discount",
+  "Финансы организаций и фактически внесённые оплаты Freedom Platform.": "platformFinance.actualPaymentsDescription",
+  "· оплачено платформе": "platformFinance.paidInline",
+  "Финансы выбранной организации, периоды и фактически внесённые оплаты Freedom Platform.": "platformFinance.organizationDescription",
+  "Оплачено платформе": "platformFinance.paid",
+  "Финансовые периоды организации без автоматического начисления оплаты платформе.": "platformFinance.periodsDescription",
+  "Проверка финансового периода организации.": "platformFinance.periodReviewDescription",
+  "Фактические оплаты Freedom Platform из расходов организаций и финансовые показатели.": "platformOverview.description",
+  "Оплата платформе показывается только по платежам, которые организации внесли в расходы.": "platformOverview.paymentsSourceDescription"
 }

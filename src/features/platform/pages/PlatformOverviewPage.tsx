@@ -1,7 +1,6 @@
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { useQuery } from '@tanstack/react-query'
 import {
-  AlertTriangle,
   Building2,
   CreditCard,
   Landmark,
@@ -12,9 +11,8 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase/client'
 import type {
   FinanceDashboardSummaryRow,
-  FinancialPeriodSummary,
   OrganizationRow,
-  OrganizationFinanceSettingsRow,
+  PlatformSharePaymentRow,
 } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
 import { useI18n } from '../../../lib/i18n/I18nContext'
@@ -54,24 +52,7 @@ type OverviewMetricProps = {
 type PlatformOverviewData = {
   organizations: Pick<OrganizationRow, 'id' | 'name' | 'slug' | 'status' | 'created_at'>[]
   financeSummary: FinanceDashboardSummaryRow[]
-  periodSummaries: FinancialPeriodSummary[]
-}
-
-const formatDateInput = (date: Date) => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-const getCurrentFinancialCycle = (closeDay: number | null | undefined) => {
-  const day = Math.min(28, Math.max(1, closeDay ?? 15))
-  const now = new Date()
-  const start = now.getDate() >= day
-    ? new Date(now.getFullYear(), now.getMonth(), day)
-    : new Date(now.getFullYear(), now.getMonth() - 1, day)
-
-  return { end: formatDateInput(now), start: formatDateInput(start) }
+  payments: Pick<PlatformSharePaymentRow, 'organization_id' | 'amount' | 'status'>[]
 }
 
 const metricToneClassName: Record<NonNullable<OverviewMetricProps['tone']>, string> = {
@@ -100,7 +81,7 @@ export function PlatformOverviewPage() {
   const overviewQuery = useQuery({
     queryKey: ['platform', 'overview'],
     queryFn: async (): Promise<PlatformOverviewData> => {
-      const [organizationsResult, financeResult, financeSettingsResult] = await Promise.all([
+      const [organizationsResult, financeResult, paymentsResult] = await Promise.all([
         supabase
           .from('organizations')
           .select(organizationSelect)
@@ -108,13 +89,14 @@ export function PlatformOverviewPage() {
         supabase
           .from('finance_dashboard_summary')
           .select('*')
-          .order('platform_share_outstanding', { ascending: false }),
+          .order('total_income', { ascending: false }),
         supabase
-          .from('organization_finance_settings')
-          .select('organization_id,financial_month_close_day'),
+          .from('platform_share_payments')
+          .select('organization_id,amount,status')
+          .neq('status', 'rejected'),
       ])
 
-      const results = [organizationsResult, financeResult, financeSettingsResult]
+      const results = [organizationsResult, financeResult, paymentsResult]
       const failed = results.find((result) => result.error)
 
       if (failed?.error) {
@@ -123,30 +105,14 @@ export function PlatformOverviewPage() {
 
       const organizations = (organizationsResult.data as PlatformOverviewData['organizations'])
         .filter((organization) => organization.slug !== DEMO_ORGANIZATION_SLUG)
-      const settingsByOrganizationId = new Map(
-        (financeSettingsResult.data as Pick<OrganizationFinanceSettingsRow, 'organization_id' | 'financial_month_close_day'>[])
-          .map((settings) => [settings.organization_id, settings]),
-      )
-      const periodSummaries = await Promise.all(organizations.map(async (organization) => {
-        const cycle = getCurrentFinancialCycle(
-          settingsByOrganizationId.get(organization.id)?.financial_month_close_day,
-        )
-        const { data, error } = await supabase.rpc('calculate_financial_period', {
-          target_organization_id: organization.id,
-          target_period_start: cycle.start,
-          target_period_end: cycle.end,
-        })
-
-        if (error) throw new Error(error.message)
-        return data as FinancialPeriodSummary
-      }))
       const organizationIds = new Set(organizations.map((organization) => organization.id))
 
       return {
         organizations,
         financeSummary: (financeResult.data as FinanceDashboardSummaryRow[])
           .filter((row) => organizationIds.has(row.organization_id)),
-        periodSummaries,
+        payments: (paymentsResult.data as PlatformOverviewData['payments'])
+          .filter((row) => organizationIds.has(row.organization_id)),
       }
     },
   })
@@ -155,40 +121,41 @@ export function PlatformOverviewPage() {
   const organizations = data?.organizations ?? []
   const activeOrganizations = organizations.filter((organization) => organization.status === 'active')
   const financeSummary = data?.financeSummary ?? []
-  const periodSummaries = data?.periodSummaries ?? []
+  const payments = data?.payments ?? []
 
-  const totalIncome = periodSummaries.reduce((sum, row) => sum + row.revenue, 0)
-  const totalExpenses = periodSummaries.reduce(
-    (sum, row) => sum + row.cogs + row.operating_expenses,
-    0,
-  )
-  const netProfit = periodSummaries.reduce((sum, row) => sum + row.net_profit_before_platform_share, 0)
-  const outstandingShare = financeSummary.reduce((sum, row) => sum + row.platform_share_outstanding, 0)
+  const totalIncome = financeSummary.reduce((sum, row) => sum + row.total_income, 0)
+  const totalExpenses = financeSummary.reduce((sum, row) => sum + row.total_expenses, 0)
+  const netProfit = totalIncome - totalExpenses
+  const paidToPlatform = payments.reduce((sum, row) => sum + row.amount, 0)
+  const confirmedPayments = payments
+    .filter((payment) => payment.status === 'confirmed')
+    .reduce((sum, row) => sum + row.amount, 0)
+  const paymentsByOrganizationId = payments.reduce((result, payment) => {
+    result.set(payment.organization_id, (result.get(payment.organization_id) ?? 0) + payment.amount)
+    return result
+  }, new Map<string, number>())
   const periodsWaitingReview = financeSummary.reduce((sum, row) => sum + row.periods_waiting_review, 0)
   const organizationById = new Map(organizations.map((organization) => [organization.id, organization]))
-  const periodSummaryById = new Map(periodSummaries.map((summary) => [summary.organization_id, summary]))
   const financeRows = financeSummary
     .map((row) => {
-      const periodSummary = periodSummaryById.get(row.organization_id)
       return {
         ...row,
-        income: periodSummary?.revenue ?? 0,
-        expenses: (periodSummary?.cogs ?? 0) + (periodSummary?.operating_expenses ?? 0),
+        income: row.total_income,
+        expenses: row.total_expenses,
         organization: organizationById.get(row.organization_id),
-        platformShareTotal: row.platform_share_outstanding,
-        profit: periodSummary?.net_profit_before_platform_share ?? 0,
+        platformPaid: paymentsByOrganizationId.get(row.organization_id) ?? 0,
+        profit: row.total_income - row.total_expenses,
       }
     })
-    .sort((left, right) => right.platformShareTotal - left.platformShareTotal)
-  const organizationsWithDebt = financeRows.filter((row) => row.platformShareTotal > 0).length
+    .sort((left, right) => right.platformPaid - left.platformPaid)
 
   return (
-    <section className="grid content-start gap-4">
+    <section className="grid content-start gap-3 sm:gap-4">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="grid gap-1">
           <h2 className="text-2xl font-semibold tracking-normal text-slate-950 sm:text-3xl">Обзор</h2>
           <p className="max-w-3xl text-sm leading-6 text-slate-600">
-            Контроль платформы: организации, ежемесячная оплата Freedom Platform, задолженность и периоды на проверке.
+            Фактические оплаты Freedom Platform из расходов организаций и финансовые показатели.
           </p>
         </div>
         {overviewQuery.isFetching ? (
@@ -205,7 +172,7 @@ export function PlatformOverviewPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
         <OverviewMetric
           hint={t('overview.activeOrganizations', { count: activeOrganizations.length })}
           icon={Building2}
@@ -214,11 +181,11 @@ export function PlatformOverviewPage() {
           value={organizations.length}
         />
         <OverviewMetric
-          hint={t('overview.organizationsWithDebt', { count: organizationsWithDebt })}
-          icon={AlertTriangle}
-          label="Оплата платформе"
-          tone={outstandingShare > 0 ? 'orange' : 'green'}
-          value={money(outstandingShare)}
+          hint={t('overview.confirmedPayments', { amount: money(confirmedPayments) })}
+          icon={CreditCard}
+          label={t('overview.paidToPlatform')}
+          tone="green"
+          value={money(paidToPlatform)}
         />
         <OverviewMetric
           hint={t('overview.periodsWaitingReview', { count: periodsWaitingReview })}
@@ -227,9 +194,6 @@ export function PlatformOverviewPage() {
           tone={periodsWaitingReview > 0 ? 'orange' : 'default'}
           value={periodsWaitingReview}
         />
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <OverviewMetric icon={Landmark} label="Доход организаций" tone="green" value={money(totalIncome)} />
         <OverviewMetric icon={CreditCard} label="Расходы организаций" value={money(totalExpenses)} />
         <OverviewMetric
@@ -241,19 +205,19 @@ export function PlatformOverviewPage() {
       </div>
 
       <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
+        <div className="flex flex-col gap-2 border-b border-slate-100 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
           <div>
             <h3 className="text-base font-semibold text-slate-950">Организации и оплата платформы</h3>
             <p className="mt-1 text-sm text-slate-600">
-              Главное для владельца платформы: кто сколько заработал, какая прибыль и сколько должны по ежемесячной оплате.
+              Оплата платформе показывается только по платежам, которые организации внесли в расходы.
             </p>
           </div>
           <Link className="shrink-0 text-sm font-medium text-emerald-700 hover:text-emerald-800" to={getPlatformRoutePath('/finance')}>
             Все финансы
           </Link>
         </div>
-        <div className="hidden md:block">
-          <table className="w-full min-w-[920px] border-collapse text-sm">
+        <div className="hidden overflow-x-auto xl:block">
+          <table className="w-full min-w-[980px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase text-slate-500">
                 <th className="px-4 py-3">Организация</th>
@@ -261,7 +225,7 @@ export function PlatformOverviewPage() {
                 <th className="px-4 py-3 text-right">Доход</th>
                 <th className="px-4 py-3 text-right">Расходы</th>
                 <th className="px-4 py-3 text-right">Прибыль</th>
-                <th className="px-4 py-3 text-right">Оплата платформе</th>
+                <th className="px-4 py-3 text-right">Оплачено</th>
                 <th className="px-4 py-3 text-right">Действия</th>
               </tr>
             </thead>
@@ -298,7 +262,7 @@ export function PlatformOverviewPage() {
                   >
                     {money(row.profit)}
                   </td>
-                  <td className="px-4 py-3 text-right font-semibold">{money(row.platformShareTotal)}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-emerald-700">{money(row.platformPaid)}</td>
                   <td className="px-4 py-3 text-right">
                     <Link
                       className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-800 hover:bg-slate-50"
@@ -319,7 +283,7 @@ export function PlatformOverviewPage() {
             </tbody>
           </table>
         </div>
-        <div className="grid gap-3 p-3 md:hidden">
+        <div className="grid gap-2 p-2 sm:grid-cols-2 sm:gap-3 sm:p-3 xl:hidden">
           {financeRows.map((row) => (
             <article className="grid gap-3 rounded-lg border border-slate-200 p-3" key={row.organization_id}>
               <div className="flex items-start justify-between gap-3">
@@ -355,9 +319,9 @@ export function PlatformOverviewPage() {
                     {money(row.profit)}
                   </dd>
                 </div>
-                <div className="rounded-md bg-slate-50 p-2">
-                  <dt className="text-xs text-slate-500">Оплата платформе</dt>
-                  <dd className="mt-1 font-semibold text-slate-950">{money(row.platformShareTotal)}</dd>
+                <div className="rounded-md bg-emerald-50 p-2">
+                  <dt className="text-xs text-emerald-700">{t('overview.paidToPlatform')}</dt>
+                  <dd className="mt-1 font-semibold text-emerald-800">{money(row.platformPaid)}</dd>
                 </div>
               </dl>
               <Link

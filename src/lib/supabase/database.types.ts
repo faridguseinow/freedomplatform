@@ -943,7 +943,9 @@ export type PlatformShareAccrualRow = {
 export type PlatformSharePaymentRow = {
   id: string
   organization_id: string
-  accrual_id: string
+  accrual_id: string | null
+  billing_period_start: string | null
+  billing_period_end: string | null
   amount: number
   payment_method: FinancePaymentMethod | null
   payment_date: string
@@ -2061,6 +2063,34 @@ export type Database = {
           target_reference?: string | null
           target_document_path?: string | null
           target_comment?: string | null
+        }
+        Returns: PlatformSharePaymentRow
+      }
+      convert_expense_to_platform_payment: {
+        Args: {
+          target_transaction_id: string
+          target_accrual_id: string
+        }
+        Returns: PlatformSharePaymentRow
+      }
+      report_platform_period_payment: {
+        Args: {
+          target_organization_id: string
+          target_period_start: string
+          target_period_end: string
+          target_amount: number
+          target_payment_method: FinancePaymentMethod
+          target_payment_date: string
+          target_reference?: string | null
+          target_comment?: string | null
+        }
+        Returns: PlatformSharePaymentRow
+      }
+      convert_expense_to_platform_period_payment: {
+        Args: {
+          target_transaction_id: string
+          target_period_start: string
+          target_period_end: string
         }
         Returns: PlatformSharePaymentRow
       }

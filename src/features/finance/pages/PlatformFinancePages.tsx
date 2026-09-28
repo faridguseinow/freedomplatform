@@ -18,7 +18,7 @@ import { useI18n } from '../../../lib/i18n/I18nContext'
 import { getPlatformRoutePath } from '../../../lib/routing/appHost'
 import { usePaymentMethodSummary, useRevenueBreakdown } from '../../orders/paymentsApi'
 import { usePlatformOrganizations } from '../../platform/platformApi'
-import { todayDate, useFinanceSettings, useFinanceSettingsMutation } from '../financeApi'
+import { todayDate } from '../financeApi'
 import {
   useFinancialPeriod,
   useFinancialPeriodMutations,
@@ -70,13 +70,20 @@ function PageHeader({ title, description }: { title: string; description: string
 export function PlatformFinancePage() {
   const summary = usePlatformFinanceSummary()
   const organizations = usePlatformOrganizations()
+  const payments = usePlatformSharePayments()
 
   const nameById = new Map(organizations.data?.map((org) => [org.id, org.name]) ?? [])
+  const paidByOrganization = (payments.data ?? []).reduce((result, payment) => {
+    if (payment.status !== 'rejected') {
+      result.set(payment.organization_id, (result.get(payment.organization_id) ?? 0) + payment.amount)
+    }
+    return result
+  }, new Map<string, number>())
 
   return (
     <section className="grid gap-5">
       <PageHeader
-        description="Глобальный контроль финансов организаций, периодов и ежемесячной оплаты платформы."
+        description="Финансы организаций и фактически внесённые оплаты Freedom Platform."
         title="Финансы платформы"
       />
       <div className="grid gap-3">
@@ -90,7 +97,7 @@ export function PlatformFinancePage() {
               {nameById.get(row.organization_id) ?? row.organization_id}
             </p>
             <p className="text-sm text-slate-600">
-              доход {money(row.total_income)} · расходы {money(row.total_expenses)} · к оплате платформе {money(row.platform_share_outstanding)}
+              доход {money(row.total_income)} · расходы {money(row.total_expenses)} · оплачено платформе {money(paidByOrganization.get(row.organization_id))}
             </p>
           </Link>
         ))}
@@ -103,14 +110,15 @@ export function PlatformFinanceOrganizationPage() {
   const { t } = useI18n()
   const { organizationId } = useParams()
   const finance = usePlatformOrganizationFinance(organizationId ?? null)
-  const settings = useFinanceSettings(organizationId ?? null)
-  const settingsMutation = useFinanceSettingsMutation(organizationId ?? null)
+  const platformPayments = usePlatformSharePayments(organizationId ?? null)
   const periodMutations = useFinancialPeriodMutations(organizationId ?? null)
   const [editingPeriod, setEditingPeriod] = useState<{
     id: string
     periodEnd: string
     periodStart: string
   } | null>(null)
+  const [periodState, setPeriodState] = useState<'all' | 'open' | 'closed'>('all')
+  const [selectedPeriodId, setSelectedPeriodId] = useState('all')
   const today = todayDate()
   const revenueBreakdown = useRevenueBreakdown(organizationId ?? null, '1970-01-01', today)
   const paymentMethods = usePaymentMethodSummary(organizationId ?? null, '1970-01-01', today)
@@ -119,16 +127,30 @@ export function PlatformFinanceOrganizationPage() {
   const organizationName =
     organizations.data?.find((organization) => organization.id === organizationId)?.name ?? 'Организация'
 
-  const handleFeeSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const form = new FormData(event.currentTarget)
-    const amount = Number(form.get('monthly_platform_fee') ?? 0)
-    settingsMutation.mutate({
-      default_platform_share_percentage: 0,
-      monthly_platform_fee: amount,
-      platform_share_payment_due_days: Number(form.get('platform_share_payment_due_days') ?? 0) || 10,
-    })
-  }
+  const paidToPlatform = (platformPayments.data ?? [])
+    .filter((payment) => payment.status !== 'rejected')
+    .reduce((sum, payment) => sum + payment.amount, 0)
+  const periods = finance.data?.periods ?? []
+  const visiblePeriods = periods.filter((period) => {
+    if (periodState === 'closed') return period.status === 'locked'
+    if (periodState === 'open') return period.status !== 'locked' && period.status !== 'cancelled'
+    return true
+  })
+  const selectedPeriod = periods.find((period) => period.id === selectedPeriodId)
+  const displayedIncome = selectedPeriod?.revenue ?? finance.data?.summary?.total_income
+  const displayedExpenses = selectedPeriod
+    ? selectedPeriod.cogs + selectedPeriod.operating_expenses
+    : finance.data?.summary?.total_expenses
+  const displayedProfit = selectedPeriod?.net_profit_before_platform_share
+    ?? ((finance.data?.summary?.total_income ?? 0) - (finance.data?.summary?.total_expenses ?? 0))
+  const displayedPlatformPaid = selectedPeriod
+    ? (platformPayments.data ?? [])
+        .filter((payment) => payment.status !== 'rejected')
+        .filter((payment) =>
+          payment.billing_period_start === selectedPeriod.period_start
+          && payment.billing_period_end === selectedPeriod.period_end)
+        .reduce((sum, payment) => sum + payment.amount, 0)
+    : paidToPlatform
 
   const handlePeriodUpdate = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -155,42 +177,57 @@ export function PlatformFinanceOrganizationPage() {
   return (
     <section className="grid gap-5">
       <PageHeader
-        description="Финансы выбранной организации: P&L, оплаты, направления, периоды и ежемесячная оплата Freedom Platform."
+        description="Финансы выбранной организации, периоды и фактически внесённые оплаты Freedom Platform."
         title={organizationName}
       />
-      <form className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white p-4 sm:flex-row sm:items-end" onSubmit={handleFeeSubmit}>
-        <Input
-          defaultValue={settings.data?.monthly_platform_fee ?? 200}
-          label="Ежемесячная оплата платформы"
-          min="0"
-          name="monthly_platform_fee"
-          required
-          step="0.01"
-          type="number"
-        />
-        <Input
-          defaultValue={settings.data?.platform_share_payment_due_days ?? 10}
-          label="Срок оплаты, дней"
-          min="0"
-          name="platform_share_payment_due_days"
-          type="number"
-        />
-        <Button disabled={settingsMutation.isPending} type="submit">
-          Сохранить оплату
-        </Button>
-      </form>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 sm:grid-cols-2">
+        <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+          {t('platformFinance.periodState')}
+          <select
+            className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-slate-900"
+            onChange={(event) => {
+              setPeriodState(event.target.value as 'all' | 'open' | 'closed')
+              setSelectedPeriodId('all')
+            }}
+            value={periodState}
+          >
+            <option value="all">{t('platformFinance.allPeriods')}</option>
+            <option value="open">{t('platformFinance.openPeriods')}</option>
+            <option value="closed">{t('platformFinance.closedPeriods')}</option>
+          </select>
+        </label>
+        <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+          {t('platformFinance.specificPeriod')}
+          <select
+            className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-slate-900"
+            onChange={(event) => setSelectedPeriodId(event.target.value)}
+            value={selectedPeriodId}
+          >
+            <option value="all">{t('platformFinance.allTime')}</option>
+            {visiblePeriods.map((period) => (
+              <option key={period.id} value={period.id}>
+                {period.period_start} — {period.period_end} · {statusLabel[period.status] ?? period.status}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-md border border-slate-200 bg-white p-4">
           <p className="text-xs font-medium uppercase text-slate-500">Доход</p>
-          <p className="mt-2 text-xl font-semibold">{money(finance.data?.summary?.total_income)}</p>
+          <p className="mt-2 text-xl font-semibold">{money(displayedIncome)}</p>
         </div>
         <div className="rounded-md border border-slate-200 bg-white p-4">
           <p className="text-xs font-medium uppercase text-slate-500">Расходы</p>
-          <p className="mt-2 text-xl font-semibold">{money(finance.data?.summary?.total_expenses)}</p>
+          <p className="mt-2 text-xl font-semibold">{money(displayedExpenses)}</p>
         </div>
         <div className="rounded-md border border-slate-200 bg-white p-4">
-          <p className="text-xs font-medium uppercase text-slate-500">К оплате платформе</p>
-          <p className="mt-2 text-xl font-semibold">{money(finance.data?.summary?.platform_share_outstanding)}</p>
+          <p className="text-xs font-medium uppercase text-slate-500">{t('platformFinance.profit')}</p>
+          <p className="mt-2 text-xl font-semibold text-emerald-700">{money(displayedProfit)}</p>
+        </div>
+        <div className="rounded-md border border-slate-200 bg-white p-4">
+          <p className="text-xs font-medium uppercase text-slate-500">Оплачено платформе</p>
+          <p className="mt-2 text-xl font-semibold text-emerald-700">{money(displayedPlatformPaid)}</p>
         </div>
       </div>
 
@@ -220,7 +257,7 @@ export function PlatformFinanceOrganizationPage() {
           <div>
             <h3 className="text-base font-semibold text-slate-950">Периоды</h3>
             <p className="mt-1 text-sm text-slate-600">
-              Таблица показывает закрытые периоды и фиксированную месячную оплату платформы по каждому периоду.
+              Финансовые периоды организации без автоматического начисления оплаты платформе.
             </p>
           </div>
         </div>
@@ -246,14 +283,14 @@ export function PlatformFinanceOrganizationPage() {
                 <th className="py-3 pr-3 text-right">Доход</th>
                 <th className="py-3 pr-3 text-right">Закупка товаров</th>
                 <th className="py-3 pr-3 text-right">Прибыль</th>
-                <th className="py-3 pr-3 text-right">Оплата платформы</th>
-                <th className="py-3 pr-3 text-right">Владельцу</th>
                 <th className="py-3 pr-3">Отправлен</th>
                 <th className="py-3 text-right">Действия</th>
               </tr>
             </thead>
             <tbody>
-              {finance.data?.periods.map((period) => (
+              {visiblePeriods
+                .filter((period) => selectedPeriodId === 'all' || period.id === selectedPeriodId)
+                .map((period) => (
                 <tr className="border-b border-slate-100 last:border-0" key={period.id}>
                   <td className="py-3 pr-3 font-medium text-slate-950">{period.period_start} - {period.period_end}</td>
                   <td className="py-3 pr-3">
@@ -264,8 +301,6 @@ export function PlatformFinanceOrganizationPage() {
                   <td className="py-3 pr-3 text-right">{money(period.revenue)}</td>
                   <td className="py-3 pr-3 text-right">{money(period.cogs)}</td>
                   <td className="py-3 pr-3 text-right">{money(period.net_profit_before_platform_share)}</td>
-                  <td className="py-3 pr-3 text-right">{money(period.platform_share_amount)}</td>
-                  <td className="py-3 pr-3 text-right">{money(period.organization_owner_amount)}</td>
                   <td className="py-3 pr-3 text-slate-600">{formatDateTime(period.submitted_at)}</td>
                   <td className="py-3">
                     <div className="flex justify-end gap-2">
@@ -326,11 +361,11 @@ export function PlatformFinancePeriodPage() {
 
   return (
     <section className="grid gap-5">
-      <PageHeader description="Проверка периода и утверждение ежемесячной оплаты платформы." title="Период организации" />
+      <PageHeader description="Проверка финансового периода организации." title="Период организации" />
       {period.data ? (
         <div className="grid gap-3 rounded-md border border-slate-200 bg-white p-4">
           <p className="font-medium text-slate-950">{period.data.period_start} - {period.data.period_end}</p>
-          <p className="text-sm text-slate-600">прибыль {money(period.data.net_profit_before_platform_share)} · оплата платформы {money(period.data.platform_share_amount)} · {statusLabel[period.data.status] ?? period.data.status}</p>
+          <p className="text-sm text-slate-600">прибыль {money(period.data.net_profit_before_platform_share)} · {statusLabel[period.data.status] ?? period.data.status}</p>
           <div className="flex flex-wrap gap-2">
             <Button disabled={mutations.review.isPending} onClick={() => review('approved')} type="button">
               <CheckCircle2 aria-hidden="true" className="size-4" />
@@ -351,6 +386,7 @@ export function PlatformFinancePeriodPage() {
 }
 
 export function PlatformFinancePaymentsPage() {
+  const { t } = useI18n()
   const payments = usePlatformSharePayments()
   const mutations = usePlatformShareMutations(null)
 
@@ -371,6 +407,14 @@ export function PlatformFinancePaymentsPage() {
           <div className="grid gap-3 rounded-md border border-slate-200 bg-white p-4" key={payment.id}>
             <p className="font-medium text-slate-950">{money(payment.amount)} · {statusLabel[payment.status] ?? payment.status}</p>
             <p className="text-sm text-slate-600">{payment.payment_date} · {payment.reference ?? 'без reference'}</p>
+            {payment.billing_period_start && payment.billing_period_end ? (
+              <p className="text-sm font-medium text-emerald-700">
+                {t('finance.platformPaymentForPeriod', {
+                  start: payment.billing_period_start,
+                  end: payment.billing_period_end,
+                })}
+              </p>
+            ) : null}
             {payment.status === 'reported_sent' ? (
               <div className="flex gap-2">
                 <Button disabled={mutations.confirmPayment.isPending} onClick={() => mutations.confirmPayment.mutate({ paymentId: payment.id, decision: 'confirmed' })} type="button">

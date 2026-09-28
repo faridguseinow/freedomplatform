@@ -280,23 +280,6 @@ export function PlatformSettingsPage() {
           title="Финансы"
         >
           <Input
-            id="monthly_platform_fee"
-            label="Ежемесячная оплата платформы"
-            min={0}
-            onChange={(event) => updateSetting('defaultMonthlyPlatformFee', Number(event.target.value))}
-            step="0.01"
-            type="number"
-            value={settings.defaultMonthlyPlatformFee}
-          />
-          <Input
-            id="platform_payment_due_days"
-            label="Срок оплаты платформы, дней"
-            min={0}
-            onChange={(event) => updateSetting('paymentDueDays', Number(event.target.value))}
-            type="number"
-            value={settings.paymentDueDays}
-          />
-          <Input
             id="platform_large_expense_threshold"
             label="Крупный расход от"
             min={0}

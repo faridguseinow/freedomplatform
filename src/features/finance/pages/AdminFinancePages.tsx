@@ -59,6 +59,10 @@ import {
 } from '../../orders/paymentsApi'
 import { useInventoryMutations, useStockDocuments } from '../../organization/catalog/inventoryApi'
 import {
+  usePlatformShareMutations,
+  usePlatformSharePayments,
+} from '../platformShareApi'
+import {
   useRecurringExpenseMutations,
   useRecurringExpenses,
   type RecurringExpenseInput,
@@ -66,6 +70,57 @@ import {
 
 const DEFAULT_START = monthStartDate()
 const DEFAULT_END = todayDate()
+
+type PlatformPaymentPeriod = {
+  billing_period_start: string | null
+  billing_period_end: string | null
+  status: string
+}
+
+function readPlatformPeriod(
+  form: FormData,
+  formElement: HTMLFormElement,
+  payments: PlatformPaymentPeriod[],
+  t: (key: string) => string,
+) {
+  const start = String(form.get('platform_period_start') ?? '')
+  const end = String(form.get('platform_period_end') ?? '')
+  const endInput = formElement.elements.namedItem('platform_period_end') as HTMLInputElement | null
+  endInput?.setCustomValidity('')
+
+  if (!start || !end) return null
+  if (end < start) {
+    endInput?.setCustomValidity(t('finance.platformPeriodInvalid'))
+    endInput?.reportValidity()
+    return null
+  }
+
+  const overlaps = payments.some(
+    (payment) =>
+      payment.status !== 'rejected' &&
+      payment.billing_period_start &&
+      payment.billing_period_end &&
+      start <= payment.billing_period_end &&
+      end >= payment.billing_period_start,
+  )
+  if (overlaps) {
+    endInput?.setCustomValidity(t('finance.platformPeriodOverlap'))
+    endInput?.reportValidity()
+    return null
+  }
+
+  return { start, end }
+}
+
+function PlatformPeriodFields({ t }: { t: (key: string) => string }) {
+  return (
+    <div className="grid gap-3 md:col-span-2 md:grid-cols-2">
+      <Input label={t('finance.platformPeriodStart')} name="platform_period_start" required type="date" />
+      <Input label={t('finance.platformPeriodEnd')} name="platform_period_end" required type="date" />
+      <span className="text-xs font-normal text-slate-500 md:col-span-2">{t('finance.platformPrepaymentHint')}</span>
+    </div>
+  )
+}
 
 const money = (value: number | null | undefined) =>
   new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(
@@ -768,15 +823,22 @@ function MoneyForm({
   userId: string | undefined
 }) {
   const { t } = useI18n()
-  const categories = useFinanceCategories(organizationId, type)
+  const categories = useFinanceCategories(
+    organizationId,
+    type === 'expense' ? ['expense', 'platform_share_payment'] : type,
+  )
+  const platformPayments = usePlatformSharePayments(type === 'expense' ? organizationId : null)
+  const platformShareMutations = usePlatformShareMutations(organizationId)
   const incomeMutations = useIncomeMutations(organizationId)
   const expenseMutations = useExpenseMutations(organizationId)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedCategoryId, setSelectedCategoryId] = useState('')
   const expenseIdempotencyKey = useRef(crypto.randomUUID())
   const visibleCategories = categories.data?.filter(
     (category) => type !== 'expense' || category.system_code !== 'purchase_goods',
   )
-
+  const selectedCategory = visibleCategories?.find((category) => category.id === selectedCategoryId)
+  const isPlatformPayment = selectedCategory?.system_code === 'platform_share_payment'
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (isSubmitting) return
@@ -799,14 +861,29 @@ function MoneyForm({
       if (type === 'income') {
         await incomeMutations.createManualIncome.mutateAsync(input)
       } else if (categoryId) {
-        await expenseMutations.createExpense.mutateAsync({
-          ...input,
-          categoryId,
-          idempotencyKey: expenseIdempotencyKey.current,
-        })
-        expenseIdempotencyKey.current = crypto.randomUUID()
+        if (isPlatformPayment) {
+          const period = readPlatformPeriod(form, formElement, platformPayments.data ?? [], t)
+          if (!period) return
+          await platformShareMutations.reportPeriodPayment.mutateAsync({
+            periodStart: period.start,
+            periodEnd: period.end,
+            amount: input.amount,
+            paymentMethod: input.paymentMethod,
+            paymentDate: input.paidDate ?? input.accrualDate,
+            reference: input.title,
+            comment: input.description,
+          })
+        } else {
+          await expenseMutations.createExpense.mutateAsync({
+            ...input,
+            categoryId,
+            idempotencyKey: expenseIdempotencyKey.current,
+          })
+          expenseIdempotencyKey.current = crypto.randomUUID()
+        }
       }
       formElement.reset()
+      setSelectedCategoryId('')
       onCreated?.()
     } finally {
       setIsSubmitting(false)
@@ -818,7 +895,7 @@ function MoneyForm({
   const isPending =
     type === 'income'
       ? incomeMutations.createManualIncome.isPending
-      : expenseMutations.createExpense.isPending || isSubmitting
+      : expenseMutations.createExpense.isPending || platformShareMutations.reportPeriodPayment.isPending || isSubmitting
 
   return (
     <form className="grid gap-3 rounded-md border border-slate-200 bg-white p-4" onSubmit={handleSubmit}>
@@ -827,7 +904,7 @@ function MoneyForm({
         <Input label="Сумма" min="0.01" name="amount" required step="0.01" type="number" />
         <label className="grid gap-1.5 text-sm font-medium text-slate-700">
           <span>Категория</span>
-          <select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" name="category_id" required={type === 'expense'}>
+          <select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" name="category_id" onChange={(event) => setSelectedCategoryId(event.target.value)} required={type === 'expense'} value={selectedCategoryId}>
             <option value="">Без категории</option>
             {visibleCategories?.map((category) => (
               <option key={category.id} value={category.id}>
@@ -836,6 +913,7 @@ function MoneyForm({
             ))}
           </select>
         </label>
+        {isPlatformPayment ? <PlatformPeriodFields t={t} /> : null}
         <label className="grid gap-1.5 text-sm font-medium text-slate-700">
           <span>Метод оплаты</span>
           <select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" name="payment_method">
@@ -872,29 +950,49 @@ function ExpenseTransactionModal({
   row: FinanceTransactionRow
 }) {
   const { t } = useI18n()
-  const categories = useFinanceCategories(organizationId, 'expense')
+  const categories = useFinanceCategories(organizationId, ['expense', 'platform_share_payment'])
+  const platformPayments = usePlatformSharePayments(organizationId)
+  const platformShareMutations = usePlatformShareMutations(organizationId)
   const expenseMutations = useExpenseMutations(organizationId)
-
+  const [selectedCategoryId, setSelectedCategoryId] = useState(row.category_id ?? '')
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const selectedCategory = categories.data?.find((category) => category.id === selectedCategoryId)
+  const isPlatformPayment = selectedCategory?.system_code === 'platform_share_payment'
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    setSubmitError(null)
     const form = new FormData(event.currentTarget)
     const categoryId = String(form.get('category_id') ?? '')
     if (!categoryId) return
 
-    await expenseMutations.updateExpense.mutateAsync({
-      transactionId: row.id,
-      input: {
-        title: String(form.get('title') ?? ''),
-        amount: Number(form.get('amount') ?? 0),
-        categoryId,
-        paymentMethod: String(form.get('payment_method') || 'cash') as FinancePaymentMethod,
-        accrualDate: String(form.get('accrual_date') || DEFAULT_END),
-        paidDate: String(form.get('paid_date') || '') || null,
-        recipientOrSupplier: String(form.get('recipient_or_supplier') || '') || null,
-        description: String(form.get('description') || '') || null,
-      },
-    })
-    onClose()
+    try {
+      if (isPlatformPayment) {
+        const period = readPlatformPeriod(form, event.currentTarget, platformPayments.data ?? [], t)
+        if (!period) return
+        await platformShareMutations.convertExpenseToPeriodPayment.mutateAsync({
+          transactionId: row.id,
+          periodStart: period.start,
+          periodEnd: period.end,
+        })
+      } else {
+        await expenseMutations.updateExpense.mutateAsync({
+          transactionId: row.id,
+          input: {
+            title: String(form.get('title') ?? ''),
+            amount: Number(form.get('amount') ?? 0),
+            categoryId,
+            paymentMethod: String(form.get('payment_method') || 'cash') as FinancePaymentMethod,
+            accrualDate: String(form.get('accrual_date') || DEFAULT_END),
+            paidDate: String(form.get('paid_date') || '') || null,
+            recipientOrSupplier: String(form.get('recipient_or_supplier') || '') || null,
+            description: String(form.get('description') || '') || null,
+          },
+        })
+      }
+      onClose()
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : t('finance.expenseSaveFailed'))
+    }
   }
 
   const isEdit = mode === 'edit'
@@ -914,7 +1012,7 @@ function ExpenseTransactionModal({
           <Input defaultValue={row.amount} disabled={!isEdit} label="Сумма" min="0.01" name="amount" required step="0.01" type="number" />
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             <span>Категория</span>
-            <select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm disabled:bg-slate-50" defaultValue={row.category_id ?? ''} disabled={!isEdit} name="category_id" required>
+            <select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm disabled:bg-slate-50" disabled={!isEdit} name="category_id" onChange={(event) => setSelectedCategoryId(event.target.value)} required value={selectedCategoryId}>
               <option value="">Без категории</option>
               {categories.data?.map((category) => (
                 <option key={category.id} value={category.id}>
@@ -923,6 +1021,7 @@ function ExpenseTransactionModal({
               ))}
             </select>
           </label>
+          {isEdit && isPlatformPayment ? <PlatformPeriodFields t={t} /> : null}
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             <span>Метод оплаты</span>
             <select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm disabled:bg-slate-50" defaultValue={row.payment_method ?? 'cash'} disabled={!isEdit} name="payment_method">
@@ -943,11 +1042,13 @@ function ExpenseTransactionModal({
           <textarea className="min-h-24 rounded-md border border-slate-200 px-3 py-2 text-sm outline-none disabled:bg-slate-50" defaultValue={row.description ?? ''} disabled={!isEdit} name="description" />
         </label>
 
+        {submitError ? <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{submitError}</p> : null}
+
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button onClick={onClose} type="button" variant="secondary">Закрыть</Button>
           {isEdit ? (
-            <Button disabled={expenseMutations.updateExpense.isPending} type="submit">
-              {expenseMutations.updateExpense.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            <Button disabled={expenseMutations.updateExpense.isPending || platformShareMutations.convertExpenseToPeriodPayment.isPending} type="submit">
+              {expenseMutations.updateExpense.isPending || platformShareMutations.convertExpenseToPeriodPayment.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
               Сохранить
             </Button>
           ) : null}
@@ -1161,8 +1262,8 @@ export function AdminFinanceExpensesPage() {
   const { organizationId, user } = useAuth()
   const { t } = useI18n()
   useSyncPostedPurchaseFinanceTransactions(organizationId)
-  const transactions = useFinanceTransactions(organizationId, ['expense', 'purchase'])
-  const categories = useFinanceCategories(organizationId, 'expense')
+  const transactions = useFinanceTransactions(organizationId, ['expense', 'purchase', 'platform_share_payment'])
+  const categories = useFinanceCategories(organizationId, ['expense', 'platform_share_payment'])
   const periods = useFinancialPeriods(organizationId)
   const expenseMutations = useExpenseMutations(organizationId)
   const [isCreateOpen, setIsCreateOpen] = useState(false)

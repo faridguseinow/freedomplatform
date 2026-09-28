@@ -2,32 +2,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase/client'
 import type {
   FinancePaymentMethod,
-  OrganizationFinanceSettingsRow,
-  PlatformShareAccrualRow,
   PlatformSharePaymentRow,
 } from '../../lib/supabase/database.types'
 
-export const platformShareAccrualSelect =
-  'id,organization_id,financial_period_id,percentage_snapshot,net_profit_snapshot,accrued_amount,paid_amount,outstanding_amount,status,due_date,approved_at,fully_paid_at,created_at,updated_at'
 export const platformSharePaymentSelect =
-  'id,organization_id,accrual_id,amount,payment_method,payment_date,reference,document_path,marked_sent_by,confirmed_received_by,marked_sent_at,confirmed_received_at,status,comment,created_at,updated_at'
-
-export function usePlatformShareAccruals(organizationId: string | null) {
-  return useQuery({
-    enabled: Boolean(organizationId),
-    queryKey: ['finance', 'platform-share-accruals', organizationId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('platform_share_accruals')
-        .select(platformShareAccrualSelect)
-        .eq('organization_id', organizationId!)
-        .order('created_at', { ascending: false })
-
-      if (error) throw new Error(error.message)
-      return data as PlatformShareAccrualRow[]
-    },
-  })
-}
+  'id,organization_id,accrual_id,billing_period_start,billing_period_end,amount,payment_method,payment_date,reference,document_path,marked_sent_by,confirmed_received_by,marked_sent_at,confirmed_received_at,status,comment,created_at,updated_at'
 
 export function usePlatformSharePayments(organizationId?: string | null) {
   return useQuery({
@@ -54,31 +33,33 @@ export function usePlatformShareMutations(organizationId: string | null) {
   }
 
   return {
-    reportPayment: useMutation({
+    reportPeriodPayment: useMutation({
       mutationFn: async ({
-        accrualId,
+        periodStart,
+        periodEnd,
         amount,
         paymentMethod,
         paymentDate,
         reference,
-        documentPath,
         comment,
       }: {
-        accrualId: string
+        periodStart: string
+        periodEnd: string
         amount: number
         paymentMethod: FinancePaymentMethod
         paymentDate: string
         reference?: string | null
-        documentPath?: string | null
         comment?: string | null
       }) => {
-        const { data, error } = await supabase.rpc('report_platform_share_payment', {
-          target_accrual_id: accrualId,
+        if (!organizationId) throw new Error('Organization is required.')
+        const { data, error } = await supabase.rpc('report_platform_period_payment', {
+          target_organization_id: organizationId,
+          target_period_start: periodStart,
+          target_period_end: periodEnd,
           target_amount: amount,
           target_payment_method: paymentMethod,
           target_payment_date: paymentDate,
           target_reference: reference ?? null,
-          target_document_path: documentPath ?? null,
           target_comment: comment ?? null,
         })
 
@@ -87,23 +68,24 @@ export function usePlatformShareMutations(organizationId: string | null) {
       },
       onSuccess: invalidate,
     }),
-    setMonthlyFee: useMutation({
+    convertExpenseToPeriodPayment: useMutation({
       mutationFn: async ({
-        amount,
-        comment,
+        transactionId,
+        periodStart,
+        periodEnd,
       }: {
-        amount: number
-        comment?: string | null
+        transactionId: string
+        periodStart: string
+        periodEnd: string
       }) => {
-        if (!organizationId) throw new Error('Organization is required.')
-        const { data, error } = await supabase.rpc('set_monthly_platform_fee', {
-          target_organization_id: organizationId,
-          target_amount: amount,
-          target_comment: comment ?? null,
+        const { data, error } = await supabase.rpc('convert_expense_to_platform_period_payment', {
+          target_transaction_id: transactionId,
+          target_period_start: periodStart,
+          target_period_end: periodEnd,
         })
 
         if (error) throw new Error(error.message)
-        return data as OrganizationFinanceSettingsRow
+        return data as PlatformSharePaymentRow
       },
       onSuccess: invalidate,
     }),

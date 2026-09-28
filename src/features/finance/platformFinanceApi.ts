@@ -15,7 +15,7 @@ export function usePlatformFinanceSummary() {
       const { data, error } = await supabase
         .from('finance_dashboard_summary')
         .select('*')
-        .order('platform_share_outstanding', { ascending: false })
+        .order('total_income', { ascending: false })
 
       if (error) throw new Error(error.message)
       return data as FinanceDashboardSummaryRow[]

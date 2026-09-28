@@ -45,11 +45,13 @@ export function useFinanceDashboardSummary(organizationId: string | null) {
 
 export function useFinanceCategories(
   organizationId: string | null,
-  type?: FinanceTransactionType,
+  type?: FinanceTransactionType | FinanceTransactionType[],
 ) {
+  const typeKey = Array.isArray(type) ? type.join(',') : (type ?? 'all')
+
   return useQuery({
     enabled: Boolean(organizationId),
-    queryKey: ['finance', 'categories', organizationId, type ?? 'all'],
+    queryKey: ['finance', 'categories', organizationId, typeKey],
     queryFn: async () => {
       let query = supabase
         .from('finance_categories')
@@ -59,7 +61,8 @@ export function useFinanceCategories(
         .order('sort_order', { ascending: true })
         .order('name', { ascending: true })
 
-      if (type) query = query.eq('transaction_type', type)
+      if (Array.isArray(type)) query = query.in('transaction_type', type)
+      else if (type) query = query.eq('transaction_type', type)
 
       const { data, error } = await query
       if (error) throw new Error(error.message)
