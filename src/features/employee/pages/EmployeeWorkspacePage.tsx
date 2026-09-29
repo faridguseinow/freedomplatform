@@ -601,12 +601,6 @@ export function EmployeeWorkspacePage() {
               sessionId: selectedOrderPlace.active_session_id,
               addedMinutes: comboIncludedMinutes,
             })
-          } else {
-            await orderMutations.startSession.mutateAsync({
-              placeId: selectedOrderPlace.id,
-              orderId: selectedOrderId,
-              plannedMinutes: comboIncludedMinutes,
-            })
           }
           setPlannedSessionMinutes(comboIncludedMinutes)
         }

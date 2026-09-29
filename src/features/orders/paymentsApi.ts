@@ -450,7 +450,9 @@ async function buildRevenueBreakdown(paymentRows: PaymentRow[]) {
         : placeType
       allocatedAmount += amount
 
-      if (item.item_type === 'product') result.goods += amount - cost
+      if (item.item_type === 'product' || item.item_type === 'service') {
+        result.goods += amount - cost
+      }
       if (itemPlaceType === 'table' || itemPlaceType === 'vip_room') result.tables += amount
       else if (item.item_type === 'product') continue
       else if (itemPlaceType === 'playstation') result.playstation += amount
@@ -492,6 +494,129 @@ export function useRevenueBreakdown(
 
       if (paymentsErr) throw new Error(paymentsErr.message)
       return buildRevenueBreakdown((payments ?? []) as PaymentRow[])
+    },
+  })
+}
+
+export type ProductProfitRow = {
+  productId: string
+  itemType: 'product' | 'service'
+  name: string
+  imagePath: string | null
+  quantity: number
+  revenue: number
+  cost: number
+  profit: number
+}
+
+const normalizeCatalogName = (value: string) => value
+  .trim()
+  .toLocaleUpperCase('az')
+  .replace(/Ç/g, 'C')
+  .replace(/İ/g, 'I')
+  .replace(/Ə/g, 'E')
+  .replace(/Ö/g, 'O')
+  .replace(/Ü/g, 'U')
+  .replace(/Ş/g, 'S')
+  .replace(/Ğ/g, 'G')
+  .replace(/[^A-Z0-9]+/g, ' ')
+  .trim()
+
+const isTeaName = (value: string) => /(^| )(CAY|CHAY|TEA)( |$)/.test(normalizeCatalogName(value))
+
+export function useProductProfitReport(
+  organizationId: string | null,
+  dateStart: string | null,
+  dateEnd: string | null,
+) {
+  return useQuery({
+    enabled: Boolean(organizationId),
+    queryKey: ['payments', 'product-profit-report', organizationId, dateStart ?? 'all', dateEnd ?? 'all'],
+    queryFn: async () => {
+      let paymentsQuery = supabase
+        .from('payments')
+        .select('order_id')
+        .eq('organization_id', organizationId!)
+        .eq('status', 'completed')
+        .not('order_id', 'is', null)
+        .limit(10000)
+
+      if (dateStart && dateEnd) {
+        const range = getDateRange(dateStart, dateEnd)
+        paymentsQuery = paymentsQuery.gte('completed_at', range.start).lt('completed_at', range.end)
+      }
+
+      const { data: payments, error: paymentsError } = await paymentsQuery
+      if (paymentsError) throw new Error(paymentsError.message)
+
+      const orderIds = Array.from(new Set(
+        (payments ?? []).map((payment) => payment.order_id).filter((id): id is string => Boolean(id)),
+      ))
+      if (!orderIds.length) return [] as ProductProfitRow[]
+
+      const { data: services, error: servicesError } = await supabase
+        .from('services')
+        .select('id,name,image_path')
+        .eq('organization_id', organizationId!)
+
+      if (servicesError) throw new Error(servicesError.message)
+      const serviceByName = new Map((services ?? []).map((service) => [normalizeCatalogName(service.name), service]))
+      const teaServices = (services ?? []).filter((service) => isTeaName(service.name))
+
+      const items: Array<{
+        item_type: string
+        product_id: string | null
+        service_id: string | null
+        name_snapshot: string
+        image_path_snapshot: string | null
+        quantity: number
+        total_price: number
+        total_cost_snapshot: number | null
+      }> = []
+
+      for (const chunk of chunkValues(orderIds)) {
+        const { data, error } = await supabase
+          .from('order_items')
+          .select('item_type,product_id,service_id,name_snapshot,image_path_snapshot,quantity,total_price,total_cost_snapshot')
+          .eq('organization_id', organizationId!)
+          .in('item_type', ['product', 'service'])
+          .eq('status', 'active')
+          .in('order_id', chunk)
+
+        if (error) throw new Error(error.message)
+        items.push(...(data ?? []))
+      }
+
+      const rows = new Map<string, ProductProfitRow>()
+      for (const item of items) {
+        const matchedService = item.item_type === 'service'
+          ? (services ?? []).find((service) => service.id === item.service_id)
+          : serviceByName.get(normalizeCatalogName(item.name_snapshot))
+            ?? (isTeaName(item.name_snapshot) && teaServices.length === 1 ? teaServices[0] : undefined)
+        const itemType = matchedService ? 'service' : 'product'
+        const productId = matchedService
+          ? `service:${matchedService.id}`
+          : item.product_id
+            ? `product:${item.product_id}`
+            : `product-snapshot:${normalizeCatalogName(item.name_snapshot)}`
+        const current = rows.get(productId) ?? {
+          productId,
+          itemType,
+          name: matchedService?.name ?? item.name_snapshot,
+          imagePath: matchedService?.image_path ?? item.image_path_snapshot,
+          quantity: 0,
+          revenue: 0,
+          cost: 0,
+          profit: 0,
+        }
+        current.quantity += item.quantity
+        current.revenue += item.total_price
+        current.cost += item.total_cost_snapshot ?? 0
+        current.profit = current.revenue - current.cost
+        rows.set(productId, current)
+      }
+
+      return [...rows.values()].sort((first, second) => second.profit - first.profit)
     },
   })
 }

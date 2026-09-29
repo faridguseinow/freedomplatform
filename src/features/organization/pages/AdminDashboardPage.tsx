@@ -1,12 +1,12 @@
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import {
-  AlertTriangle,
   Clock3,
   Eye,
   HelpCircle,
   LayoutDashboard,
   ReceiptText,
 } from 'lucide-react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CatalogImage } from '../../../components/common/CatalogImage'
 import { Button } from '../../../components/ui/Button'
@@ -22,6 +22,7 @@ import { todayDate } from '../../finance/financeApi'
 import { useAdminAdjustmentRequests } from '../../orders/adjustmentRequestsApi'
 import {
   usePaymentMethodSummaryByShiftIds,
+  useProductProfitReport,
   useRevenueBreakdownByShiftIds,
   useUsageHoursBreakdownByShiftIds,
 } from '../../orders/paymentsApi'
@@ -127,6 +128,10 @@ export function AdminDashboardPage() {
   const servicesQuery = useServices({ organizationId })
   const combosQuery = useCombos(organizationId)
   const inventoryQuery = useInventoryBalances(organizationId)
+  const [productReportRange, setProductReportRange] = useState<'today' | 'all' | 'period'>('today')
+  const [productReportStart, setProductReportStart] = useState(todayDate())
+  const [productReportEnd, setProductReportEnd] = useState(todayDate())
+  const [selectedProductId, setSelectedProductId] = useState('all')
 
   const orders = ordersQuery.data ?? []
   const adjustments = adjustmentsQuery.data ?? []
@@ -154,6 +159,14 @@ export function AdminDashboardPage() {
   const revenueBreakdown = revenueBreakdownQuery.data
   const usageHoursQuery = useUsageHoursBreakdownByShiftIds(organizationId, currentShiftIds)
   const usageHours = usageHoursQuery.data
+  const productProfitQuery = useProductProfitReport(
+    organizationId,
+    productReportRange === 'all' ? null : productReportRange === 'today' ? reportBusinessDate : productReportStart,
+    productReportRange === 'all' ? null : productReportRange === 'today' ? reportBusinessDate : productReportEnd,
+  )
+  const productProfitRows = (productProfitQuery.data ?? []).filter(
+    (row) => selectedProductId === 'all' || row.productId === selectedProductId,
+  )
   const openOrders = orders.filter((order) => order.status === 'open').length
   const openShifts = shifts.filter((shift) => shift.status === 'open' || shift.status === 'closing').length
   const timedPlaces = places.filter((place) => place.has_timer).length
@@ -172,7 +185,8 @@ export function AdminDashboardPage() {
     inventoryQuery.isLoading ||
     paymentSummaryQuery.isLoading ||
     revenueBreakdownQuery.isLoading ||
-    usageHoursQuery.isLoading
+    usageHoursQuery.isLoading ||
+    productProfitQuery.isLoading
 
   const firstError =
     ordersQuery.error ??
@@ -186,7 +200,8 @@ export function AdminDashboardPage() {
     inventoryQuery.error ??
     paymentSummaryQuery.error ??
     revenueBreakdownQuery.error ??
-    usageHoursQuery.error
+    usageHoursQuery.error ??
+    productProfitQuery.error
   const buildAdminPath = (path: string) =>
     getTenantRoutePath(path, currentOrganization?.slug)
   const recentOrders = orders.slice(0, 5)
@@ -268,8 +283,8 @@ export function AdminDashboardPage() {
             value={formatMoney(revenueBreakdown?.tables ?? 0)}
           />
           <StatCard
-            description="Чистая прибыль по товарным позициям: сумма продаж товаров минус snapshot-себестоимость этих товаров в заказах."
-            label="Прибыль товаров"
+            description="dashboard.catalogProfitDescription"
+            label="dashboard.catalogProfit"
             tone="default"
             value={formatMoney(revenueBreakdown?.goods ?? 0)}
           />
@@ -304,35 +319,92 @@ export function AdminDashboardPage() {
         </div>
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-        <section className="grid content-start gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="grid content-start gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-lg font-semibold text-slate-950">{t("ui.rabochee_sostoyanie_135cf32")}</h3>
             <LayoutDashboard className="size-5 text-emerald-700" />
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-5">
             <StatCard label="Места" value={`${places.length} / ${t("ui.taymer_831d20c")} ${timedPlaces}`} />
             <StatCard label="Товары" value={products.length} />
             <StatCard label="Услуги" value={services.length} />
             <StatCard label="Комбо" value={combos.length} />
+            <StatCard label="Низкий остаток" tone={lowStock ? 'danger' : 'default'} value={lowStock} />
           </div>
           <div className="grid gap-2 md:grid-cols-3">
             <Button type="button" variant="secondary"><Link className="inline-flex items-center gap-2" to={buildAdminPath('/admin/live')}><Eye className="size-4" />{t("ui.monitoring_6e44fdc")}</Link></Button>
             <Button type="button" variant="secondary"><Link className="inline-flex items-center gap-2" to={buildAdminPath('/admin/orders')}><ReceiptText className="size-4" />{t("ui.zakazy_22ac845")}</Link></Button>
             <Button type="button" variant="secondary"><Link className="inline-flex items-center gap-2" to={buildAdminPath('/admin/shifts')}><Clock3 className="size-4" />{t("ui.smeny_415748c")}</Link></Button>
           </div>
-        </section>
+      </section>
 
-        <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold text-slate-950">{t("ui.kontrol_3468f38")}</h3>
-            <AlertTriangle className="size-5 text-amber-600" />
+      <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+        <div className="grid items-end gap-4 xl:grid-cols-[minmax(220px,0.65fr)_minmax(0,1.35fr)]">
+          <div className="min-w-0">
+            <h3 className="text-lg font-semibold text-slate-950">{t('dashboard.productProfitReport')}</h3>
+            <p className="mt-1 text-sm text-slate-600">{t('dashboard.productProfitDescription')}</p>
           </div>
-          <div className="grid gap-2 sm:gap-3">
-            <StatCard label="Низкий остаток" tone={lowStock ? 'danger' : 'default'} value={lowStock} />
+          <div className={cn('grid min-w-0 gap-x-3 gap-y-2', productReportRange === 'period' ? 'sm:grid-cols-2 xl:grid-cols-4' : 'sm:grid-cols-2')}>
+            <label className="grid gap-1 text-xs font-medium text-slate-600">
+              {t('dashboard.reportRange')}
+              <select
+                className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900"
+                onChange={(event) => setProductReportRange(event.target.value as 'today' | 'all' | 'period')}
+                value={productReportRange}
+              >
+                <option value="today">{t('dashboard.today')}</option>
+                <option value="all">{t('dashboard.allTime')}</option>
+                <option value="period">{t('dashboard.customPeriod')}</option>
+              </select>
+            </label>
+            {productReportRange === 'period' ? (
+              <>
+                <label className="grid gap-1 text-xs font-medium text-slate-600">
+                  {t('dashboard.periodStart')}
+                  <input className="min-h-10 rounded-md border border-slate-200 px-3 text-sm" max={productReportEnd} onChange={(event) => setProductReportStart(event.target.value)} type="date" value={productReportStart} />
+                </label>
+                <label className="grid gap-1 text-xs font-medium text-slate-600">
+                  {t('dashboard.periodEnd')}
+                  <input className="min-h-10 rounded-md border border-slate-200 px-3 text-sm" min={productReportStart} onChange={(event) => setProductReportEnd(event.target.value)} type="date" value={productReportEnd} />
+                </label>
+              </>
+            ) : null}
+            <label className="grid gap-1 text-xs font-medium text-slate-600">
+              {t('dashboard.catalogPosition')}
+              <select className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900" onChange={(event) => setSelectedProductId(event.target.value)} value={selectedProductId}>
+                <option value="all">{t('dashboard.allProductsAndServices')}</option>
+                {(productProfitQuery.data ?? []).map((row) => (
+                  <option key={row.productId} value={row.productId}>
+                    {row.name} · {t(row.itemType === 'service' ? 'dashboard.service' : 'dashboard.product')}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
-        </section>
-      </div>
+        </div>
+        <div className="grid gap-2">
+          {productProfitRows.length ? productProfitRows.map((row) => (
+            <article className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-slate-200 p-3" key={row.productId}>
+              <CatalogImage alt={row.name} className="size-11" imagePath={row.imagePath} />
+              <div className="min-w-0">
+                <h4 className="truncate font-medium text-slate-950">{row.name}</h4>
+                <p className="mt-1 text-xs text-slate-500">
+                  {t(row.itemType === 'service' ? 'dashboard.service' : 'dashboard.product')} ·{' '}
+                  {t('dashboard.soldQuantity')}: {formatMoney(row.quantity)} · {t('dashboard.revenue')}: {formatMoney(row.revenue)} · {t('dashboard.cost')}: {formatMoney(row.cost)}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-medium text-slate-500">{t('dashboard.netProfit')}</p>
+                <p className={cn('mt-1 text-lg font-semibold', row.profit >= 0 ? 'text-emerald-700' : 'text-red-700')}>{formatMoney(row.profit)}</p>
+              </div>
+            </article>
+          )) : (
+            <div className="rounded-md border border-dashed border-slate-200 px-3 py-6 text-center text-sm text-slate-500">
+              {productProfitQuery.isLoading ? t('dashboard.reportLoading') : t('dashboard.noProductSales')}
+            </div>
+          )}
+        </div>
+      </section>
 
       <section className="grid gap-3 xl:grid-cols-3">
         <section className="grid content-start gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">

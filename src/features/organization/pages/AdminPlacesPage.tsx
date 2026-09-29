@@ -10,7 +10,6 @@ import {
   Save,
   Search,
   SquareDashedMousePointer,
-  Trash2,
   X,
 } from 'lucide-react'
 import { type PointerEvent, useEffect, useMemo, useRef, useState } from 'react'
@@ -191,6 +190,7 @@ export function AdminPlacesPage() {
   const visiblePlaces = useMemo(() => {
     const needle = search.trim().toLowerCase()
     return places.filter((place) => {
+      if (place.status === 'archived') return false
       const matchesType = typeFilter === 'all' || place.type === typeFilter
       const matchesStatus = statusFilter === 'all' || place.status === statusFilter
       if (!matchesType || !matchesStatus) return false
@@ -198,6 +198,19 @@ export function AdminPlacesPage() {
       return [place.name, place.custom_type_name, place.description].filter(Boolean).join(' ').toLowerCase().includes(needle)
     })
   }, [places, search, statusFilter, typeFilter])
+  const archivedPlaces = useMemo(() => {
+    const needle = search.trim().toLowerCase()
+    return places.filter((place) => {
+      if (place.status !== 'archived') return false
+      if (typeFilter !== 'all' && place.type !== typeFilter) return false
+      if (!needle) return true
+      return [place.name, place.custom_type_name, place.description]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(needle)
+    })
+  }, [places, search, typeFilter])
 
   useEffect(() => {
     cacheWorkspacePlaces(organizationId, places)
@@ -402,6 +415,10 @@ export function AdminPlacesPage() {
     placeMutations.setStatus.mutate({ id: place.id, status: 'archived' })
   }
 
+  const restorePlace = (place: PlaceRow) => {
+    placeMutations.setStatus.mutate({ id: place.id, status: 'active' })
+  }
+
   return (
     <section className="grid gap-5">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -428,7 +445,7 @@ export function AdminPlacesPage() {
           ))}
         </div>
         <div className="flex flex-wrap gap-2">
-          {(['all', 'active', 'inactive', 'archived'] as const).map((item) => (
+          {(['all', 'active', 'inactive'] as const).map((item) => (
             <button className={cn('min-h-9 rounded-md border px-3 text-sm font-medium', statusFilter === item ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-white text-slate-600')} key={item} onClick={() => setStatusFilter(item)} type="button">
               {item === 'all' ? 'Все статусы' : statusLabel[item]}
             </button>
@@ -542,13 +559,13 @@ export function AdminPlacesPage() {
                           <Edit3 className="size-3.5" />
                         </button>
                         <button
-                          aria-label="Удалить рабочее место"
+                          aria-label={t('places.archivePlace')}
                           className="inline-flex size-7 items-center justify-center rounded-md text-red-600 hover:bg-red-50"
                           onClick={() => archivePlaceFromBoard(place)}
                           onPointerDown={(event) => event.stopPropagation()}
                           type="button"
                         >
-                          <Trash2 className="size-3.5" />
+                          <Archive className="size-3.5" />
                         </button>
                       </div>
                     </div>
@@ -602,13 +619,54 @@ export function AdminPlacesPage() {
               </dl>
               <div className="flex flex-wrap gap-2">
                 <Button className="min-h-9 w-full px-2 text-xs sm:min-h-10 sm:w-auto sm:px-4 sm:text-sm" onClick={() => openEdit(place)} type="button" variant="secondary"><Edit3 className="size-4" />Редактировать</Button>
-                <Button className="hidden sm:inline-flex" onClick={() => placeMutations.setStatus.mutate({ id: place.id, status: place.status === 'archived' ? 'active' : 'archived' })} type="button" variant={place.status === 'archived' ? 'secondary' : 'danger'}>
-                  {place.status === 'archived' ? <RotateCcw className="size-4" /> : <Archive className="size-4" />}{place.status === 'archived' ? 'Восстановить' : 'Архивировать'}
+                <Button onClick={() => archivePlaceFromBoard(place)} type="button" variant="danger">
+                  <Archive className="size-4" />{t('places.archivePlace')}
                 </Button>
               </div>
             </article>
           ))}
         </div>
+      ) : null}
+
+      {!placesQuery.isLoading ? (
+        <section className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 shadow-sm sm:p-4">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-950">{t('places.archiveTitle')}</h3>
+              <p className="mt-1 text-sm text-slate-600">{t('places.archiveDescription')}</p>
+            </div>
+            <span className="w-fit rounded-md bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">
+              {archivedPlaces.length}
+            </span>
+          </div>
+          {archivedPlaces.length ? (
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
+              {archivedPlaces.map((place) => (
+                <article className="grid gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-sm sm:gap-3 sm:p-4" key={place.id}>
+                  <CatalogImage alt={place.name} className="h-24 w-full opacity-80 sm:h-32" imagePath={place.image_path} />
+                  <div className="min-w-0">
+                    <h4 className="truncate text-sm font-semibold text-slate-950 sm:text-base">{place.name}</h4>
+                    <p className="mt-0.5 truncate text-xs text-slate-600 sm:text-sm">
+                      {placeTypeLabel[place.type]}{place.custom_type_name ? ` · ${place.custom_type_name}` : ''}
+                    </p>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Button className="min-h-9 px-2 text-xs sm:text-sm" onClick={() => openEdit(place)} type="button" variant="secondary">
+                      <Edit3 className="size-4" />{t('places.editPlace')}
+                    </Button>
+                    <Button className="min-h-9 px-2 text-xs sm:text-sm" disabled={placeMutations.setStatus.isPending} onClick={() => restorePlace(place)} type="button" variant="secondary">
+                      <RotateCcw className="size-4" />{t('places.restorePlace')}
+                    </Button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-md border border-dashed border-slate-300 bg-white px-3 py-6 text-center text-sm text-slate-500">
+              {t('places.archiveEmpty')}
+            </div>
+          )}
+        </section>
       ) : null}
 
       {isModalOpen ? (
