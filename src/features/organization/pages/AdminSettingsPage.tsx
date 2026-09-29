@@ -3,6 +3,7 @@ import type { ChangeEvent } from 'react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { EmptyState } from '../../../components/common/EmptyState'
+import { ThemeToggle } from '../../../components/common/ThemeToggle'
 import { Button } from '../../../components/ui/Button'
 import { useAuth } from '../../../hooks/useAuth'
 import { useI18n } from '../../../lib/i18n/I18nContext'
@@ -132,6 +133,11 @@ export function AdminSettingsPage() {
             ))}
           </select>
         </label>
+
+        <div className="grid max-w-sm gap-1 text-sm font-medium text-slate-700">
+          <span>{t('theme.appearance')}</span>
+          <ThemeToggle />
+        </div>
       </article>
 
       <article className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">

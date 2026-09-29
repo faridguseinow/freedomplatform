@@ -314,5 +314,10 @@
   "places.archiveEmpty": "Arxivdə hələ yer yoxdur.",
   "places.archivePlace": "Arxivləşdir",
   "places.restorePlace": "Bərpa et",
-  "places.editPlace": "Redaktə et"
+  "places.editPlace": "Redaktə et",
+  "theme.appearance": "Görünüş",
+  "theme.darkTheme": "Qaranlıq tema",
+  "theme.switchToDark": "Qaranlıq temanı aktivləşdir",
+  "theme.switchToLight": "İşıqlı temanı aktivləşdir",
+  "theme.regionalDescription": "Yeni təşkilatlar üçün dil, görünüş, saat qurşağı və regional dəyərlər."
 }

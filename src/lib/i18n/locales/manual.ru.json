@@ -314,5 +314,10 @@
   "places.archiveEmpty": "В архиве пока нет мест.",
   "places.archivePlace": "Архивировать",
   "places.restorePlace": "Восстановить",
-  "places.editPlace": "Редактировать"
+  "places.editPlace": "Редактировать",
+  "theme.appearance": "Оформление",
+  "theme.darkTheme": "Тёмная тема",
+  "theme.switchToDark": "Включить тёмную тему",
+  "theme.switchToLight": "Включить светлую тему",
+  "theme.regionalDescription": "Язык, оформление, часовой пояс и региональные значения для новых организаций."
 }

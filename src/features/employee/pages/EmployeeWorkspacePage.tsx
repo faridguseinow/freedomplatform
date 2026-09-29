@@ -238,10 +238,10 @@ const getSlotClassName = (place: EmployeeWorkspacePlaceRow, shape: string, hasSe
     'group relative grid min-h-24 content-between overflow-hidden rounded-lg border p-3 text-left shadow-sm transition',
     'focus-within:ring-2 focus-within:ring-emerald-700 hover:-translate-y-0.5 hover:shadow-md',
     place.active_order_id || place.active_session_id
-      ? 'border-red-200 bg-red-50/70'
+      ? 'workspace-slot-occupied border-red-200 bg-red-50/70'
       : 'border-slate-200 bg-white hover:border-emerald-200',
-    place.active_order_status === 'waiting_payment' && 'border-orange-200 bg-orange-50',
-    hasSessionLimitAlert && 'border-red-400 bg-red-100 ring-2 ring-red-200',
+    place.active_order_status === 'waiting_payment' && 'workspace-slot-waiting border-orange-200 bg-orange-50',
+    hasSessionLimitAlert && 'workspace-slot-alert border-red-400 bg-red-100 ring-2 ring-red-200',
     place.status !== 'active' && 'border-slate-200 bg-slate-100 opacity-70',
     shape === 'compact' && 'min-h-24',
     shape === 'room' && 'min-h-36',

@@ -1,8 +1,14 @@
 @import "tailwindcss";
 
 :root {
+  --theme-accent: #047857;
+  --theme-background: #f6f8fb;
+  --theme-border: #e2e8f0;
+  --theme-surface: #ffffff;
+  --theme-surface-muted: #f8fafc;
+  --theme-text: #0f172a;
   color: #009454;
-  background: #f6f8fb;
+  background: var(--theme-background);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -10,6 +16,19 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+:root.theme-dark {
+  --theme-accent: #047857;
+  --theme-accent-hover: #065f46;
+  --theme-accent-soft: #102f26;
+  --theme-background: #15181f;
+  --theme-border: #353d49;
+  --theme-surface: #1d222b;
+  --theme-surface-muted: #252b35;
+  --theme-text: #f2f0e9;
+  background: var(--theme-background);
+  color: var(--theme-text);
 }
 
 * {
@@ -24,6 +43,9 @@ body {
   min-width: 320px;
   min-height: 100svh;
   margin: 0;
+  background: var(--theme-background);
+  color: var(--theme-text);
+  transition: background-color 160ms ease, color 160ms ease;
 }
 
 button,
@@ -44,10 +66,171 @@ button:disabled {
   min-height: 100svh;
 }
 
+/*
+ * First theme layer for the existing Tailwind palette. Keeping the mapping here
+ * lets us tune the dark scheme without touching hundreds of feature components.
+ */
+.theme-dark .bg-white,
+.theme-dark .bg-white\/95,
+.theme-dark .bg-white\/70 {
+  background-color: var(--theme-surface);
+}
+
+.theme-dark .bg-slate-50,
+.theme-dark .bg-slate-50\/80,
+.theme-dark .bg-slate-50\/70,
+.theme-dark .bg-slate-50\/60,
+.theme-dark .bg-slate-50\/40,
+.theme-dark .bg-slate-50\/30 {
+  background-color: var(--theme-background);
+}
+
+.theme-dark .bg-slate-100,
+.theme-dark .bg-slate-200,
+.theme-dark .bg-slate-300 {
+  background-color: var(--theme-surface-muted);
+}
+
+.theme-dark .text-slate-950,
+.theme-dark .text-slate-900,
+.theme-dark .text-slate-800 {
+  color: var(--theme-text);
+}
+
+.theme-dark .text-slate-700,
+.theme-dark .text-slate-600 {
+  color: #c5c9d0;
+}
+
+.theme-dark .text-slate-500,
+.theme-dark .text-slate-400 {
+  color: #979eaa;
+}
+
+.theme-dark .border-slate-100,
+.theme-dark .border-slate-200,
+.theme-dark .border-slate-300 {
+  border-color: var(--theme-border);
+}
+
+.theme-dark .bg-emerald-50,
+.theme-dark .bg-emerald-50\/60,
+.theme-dark .bg-emerald-50\/50,
+.theme-dark .bg-emerald-50\/40,
+.theme-dark .bg-emerald-50\/30,
+.theme-dark .bg-emerald-100 {
+  background-color: var(--theme-accent-soft);
+}
+
+.theme-dark .bg-emerald-500 {
+  background-color: #10b981;
+}
+
+.theme-dark .bg-emerald-600 {
+  background-color: #059669;
+}
+
+.theme-dark .bg-emerald-700 {
+  background-color: var(--theme-accent);
+}
+
+.theme-dark .bg-emerald-800 {
+  background-color: var(--theme-accent-hover);
+}
+
+.theme-dark .text-emerald-700,
+.theme-dark .text-emerald-800,
+.theme-dark .text-emerald-900,
+.theme-dark .text-emerald-950 {
+  color: #34d399;
+}
+
+.theme-dark .border-emerald-100,
+.theme-dark .border-emerald-200,
+.theme-dark .border-emerald-300,
+.theme-dark .border-emerald-400,
+.theme-dark .border-emerald-500,
+.theme-dark .border-emerald-600,
+.theme-dark .border-emerald-700 {
+  border-color: #2f765d;
+}
+
+.theme-dark .bg-cyan-50,
+.theme-dark .bg-cyan-100 {
+  background-color: #172f38;
+}
+
+.theme-dark .text-cyan-700,
+.theme-dark .text-cyan-800,
+.theme-dark .text-cyan-900,
+.theme-dark .text-cyan-950 {
+  color: #77c9d7;
+}
+
+.theme-dark .border-cyan-100,
+.theme-dark .border-cyan-200 {
+  border-color: #315966;
+}
+
+.theme-dark .hover\:bg-slate-50:hover,
+.theme-dark .hover\:bg-slate-100:hover {
+  background-color: var(--theme-surface-muted);
+}
+
+.theme-dark .hover\:text-slate-950:hover {
+  color: var(--theme-text);
+}
+
+.theme-dark .hover\:bg-emerald-800:hover {
+  background-color: var(--theme-accent-hover);
+}
+
+.theme-dark .focus-visible\:ring-emerald-700:focus-visible,
+.theme-dark .focus\:ring-emerald-700\/15:focus,
+.theme-dark .focus\:ring-emerald-700\/20:focus {
+  --tw-ring-color: color-mix(in srgb, var(--theme-accent) 45%, transparent);
+}
+
+.theme-dark input,
+.theme-dark select,
+.theme-dark textarea {
+  color-scheme: dark;
+}
+
+.theme-dark .theme-toggle-thumb {
+  background-color: #f8fafc;
+}
+
+/* Occupied workspace slots keep their red status, adapted to the dark palette. */
+.theme-dark .workspace-slot-occupied {
+  background-color: #512e36;
+  border-color: #93515c;
+  box-shadow:
+    inset 0 0 0 1px rgb(248 113 113 / 12%),
+    0 8px 22px rgb(69 10 10 / 18%);
+}
+
+.theme-dark .workspace-slot-occupied .text-red-800,
+.theme-dark .workspace-slot-occupied .text-red-900 {
+  color: #fca5a5;
+}
+
+.theme-dark .workspace-slot-waiting {
+  background-color: #3b2b18;
+  border-color: #85612d;
+  box-shadow:
+    inset 0 0 0 1px rgb(251 146 60 / 9%),
+    0 8px 22px rgb(67 38 8 / 16%);
+}
+
+.theme-dark .workspace-slot-alert {
+  --tw-ring-color: rgb(248 113 113 / 35%);
+  background-color: #4a2027;
+  border-color: #ef4444;
+}
+
 
 .modal-panel {
   overflow: auto;
   transform-origin: center;
 }
-
-

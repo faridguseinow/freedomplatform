@@ -18,5 +18,10 @@
   "auth.demo.hostOnly": "Demo sign-in is available only on the demo domain.",
   "auth.demo.openFailed": "Could not open demo mode.",
   "auth.demo.configureFailed": "Could not configure demo access.",
-  "auth.demo.workspaceUnknown": "Could not identify the demo workspace."
+  "auth.demo.workspaceUnknown": "Could not identify the demo workspace.",
+  "theme.appearance": "Appearance",
+  "theme.darkTheme": "Dark theme",
+  "theme.switchToDark": "Turn on dark theme",
+  "theme.switchToLight": "Turn on light theme",
+  "theme.regionalDescription": "Language, appearance, time zone, and regional defaults for new organizations."
 }

@@ -2,6 +2,8 @@ import { ArrowLeft, LogOut, Menu, PanelLeftClose, PanelLeftOpen, UserRound } fro
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { CatalogImage } from '../../components/common/CatalogImage'
+import { LanguageSwitcher } from '../../components/common/LanguageSwitcher'
+import { ThemeToggle } from '../../components/common/ThemeToggle'
 import { Button } from '../../components/ui/Button'
 import { EmployeeLockScreen } from '../../features/employee/components/EmployeeLockScreen'
 import { useAuth } from '../../hooks/useAuth'
@@ -56,6 +58,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
     pageTitles.find((item) => item.path === normalizedPath)?.label ?? productArea
   const productAreaLabel = t(productArea)
   const isPlatformArea = productArea === 'Freedom Platform'
+  const isEmployeeArea = productArea === 'Рабочее место'
 
   const displayName = profile?.full_name || user?.email || 'Пользователь'
   const mobileNavItems = navItems
@@ -242,6 +245,12 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                         </p>
                       ) : null}
                     </div>
+                    {isEmployeeArea ? (
+                      <div className="grid gap-2 border-b border-slate-100 py-2">
+                        <LanguageSwitcher className="w-full justify-center shadow-none" />
+                        <ThemeToggle className="w-full shadow-none" compact />
+                      </div>
+                    ) : null}
                     {isPlatformOwnerOrganizationView ? (
                       <Button
                         className="mt-2 w-full justify-start px-2"
@@ -326,6 +335,12 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                           </p>
                         ) : null}
                       </div>
+                      {isEmployeeArea ? (
+                        <div className="grid gap-2 border-b border-slate-100 py-2">
+                          <LanguageSwitcher className="w-full justify-center shadow-none" />
+                          <ThemeToggle className="w-full shadow-none" compact />
+                        </div>
+                      ) : null}
                       {isPlatformOwnerOrganizationView ? (
                         <Button
                           className="mt-2 w-full justify-start px-2"

@@ -14,6 +14,7 @@ import {
 import { useState } from 'react'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
+import { ThemeToggle } from '../../../components/common/ThemeToggle'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import { languageLabels, supportedLanguages, type SystemLanguage } from '../../../lib/i18n/translations'
 import { getOrganizationUrl, PLATFORM_BASE_DOMAIN } from '../../../lib/routing/appHost'
@@ -337,7 +338,7 @@ export function PlatformSettingsPage() {
         </SettingSection>
 
         <SettingSection
-          description="Язык, часовой пояс и региональные значения для новых организаций."
+          description={t('theme.regionalDescription')}
           icon={SlidersHorizontal}
           title="Региональные параметры"
         >
@@ -355,6 +356,10 @@ export function PlatformSettingsPage() {
               ))}
             </select>
           </label>
+          <div className="grid gap-1.5 text-sm font-medium text-slate-700">
+            <span>{t('theme.appearance')}</span>
+            <ThemeToggle />
+          </div>
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             <span>Язык новых организаций по умолчанию</span>
             <select
