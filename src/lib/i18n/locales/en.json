@@ -23,5 +23,8 @@
   "theme.darkTheme": "Dark theme",
   "theme.switchToDark": "Turn on dark theme",
   "theme.switchToLight": "Turn on light theme",
-  "theme.regionalDescription": "Language, appearance, time zone, and regional defaults for new organizations."
+  "theme.regionalDescription": "Language, appearance, time zone, and regional defaults for new organizations.",
+  "finance.periodNotReady": "The next calendar month is not complete yet. The report can be submitted on the day after it ends.",
+  "finance.calendarCycleDescription": "The period starts on the first day and ends on the last day of the calendar month.",
+  "finance.calendarPeriodRule": "Financial periods close as complete calendar months without gaps or overlaps."
 }

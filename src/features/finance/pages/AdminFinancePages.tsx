@@ -36,7 +36,6 @@ import type {
 } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
 import {
-  monthStartDate,
   todayDate,
   useFinanceCategories,
   useFinancePeriodSummary,
@@ -50,6 +49,10 @@ import {
   useFinancialPeriodMutations,
   useFinancialPeriods,
 } from '../financialPeriodsApi'
+import {
+  getCurrentFinancialCycle,
+  getNextFinancialPeriodRange,
+} from '../financialCycle'
 import { useIncomeMutations } from '../incomeApi'
 import {
   usePaymentMethodSummary,
@@ -68,7 +71,6 @@ import {
   type RecurringExpenseInput,
 } from '../recurringExpensesApi'
 
-const DEFAULT_START = monthStartDate()
 const DEFAULT_END = todayDate()
 
 type PlatformPaymentPeriod = {
@@ -135,30 +137,6 @@ const formatUsageDuration = (hours: number | null | undefined, t: (value: string
   if (wholeHours && minutes) return `${wholeHours} ${t("ui.ch_285cc40")} ${minutes} ${t("ui.min_d6035dc")}`
   if (wholeHours) return `${wholeHours} ${t("ui.ch_285cc40")}`
   return `${minutes} ${t("ui.min_d6035dc")}`
-}
-
-function formatDateInput(date: Date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function getFinancialCycle(closeDay: number | null | undefined) {
-  const day = Math.min(28, Math.max(1, closeDay ?? 15))
-  const now = new Date()
-  const start =
-    now.getDate() >= day
-      ? new Date(now.getFullYear(), now.getMonth(), day)
-      : new Date(now.getFullYear(), now.getMonth() - 1, day)
-  const end = new Date(start.getFullYear(), start.getMonth() + 1, day - 1)
-  const nextClose = new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1)
-
-  return {
-    end: formatDateInput(end),
-    nextClose: formatDateInput(nextClose),
-    start: formatDateInput(start),
-  }
 }
 
 function parseLocalDate(value: string) {
@@ -1063,12 +1041,12 @@ export function AdminFinancePage() {
   const { t } = useI18n()
   useSyncPostedPurchaseFinanceTransactions(organizationId)
   const currentDate = useCurrentDate()
-  const settings = useFinanceSettings(organizationId)
-  const currentCycle = getFinancialCycle(settings.data?.financial_month_close_day)
-  const periodSummary = useFinancePeriodSummary(organizationId, currentCycle.start, currentDate)
-  const paymentMethodSummary = usePaymentMethodSummary(organizationId, currentCycle.start, currentDate)
-  const revenueBreakdown = useRevenueBreakdown(organizationId, currentCycle.start, currentDate)
-  const usageHours = useUsageHoursBreakdown(organizationId, currentCycle.start, currentDate)
+  const periods = useFinancialPeriods(organizationId)
+  const currentCycle = getCurrentFinancialCycle(periods.data ?? [], currentDate)
+  const periodSummary = useFinancePeriodSummary(organizationId, currentCycle.start, currentCycle.toDate)
+  const paymentMethodSummary = usePaymentMethodSummary(organizationId, currentCycle.start, currentCycle.toDate)
+  const revenueBreakdown = useRevenueBreakdown(organizationId, currentCycle.start, currentCycle.toDate)
+  const usageHours = useUsageHoursBreakdown(organizationId, currentCycle.start, currentCycle.toDate)
   const revenueBreakdownData = revenueBreakdown.data ?? {
     billiard: 0,
     goods: 0,
@@ -1087,7 +1065,7 @@ export function AdminFinancePage() {
         description="Финансовый центр организации: доходы, расходы, P&L, движение денег и аналитика оплат."
       />
       <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-900">
-        {t("ui.tekuschiy_raschetnyy_period_f675682")}: {currentCycle.start} - {currentDate}
+        {t("ui.tekuschiy_raschetnyy_period_f675682")}: {currentCycle.start} - {currentCycle.end}
       </div>
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         {financeLinks.map(({ href, label, Icon }) => (
@@ -1424,9 +1402,9 @@ export function AdminFinancePurchasesPage() {
 export function AdminFinanceCashFlowPage() {
   const { organizationId } = useAuth()
   const currentDate = useCurrentDate()
-  const settings = useFinanceSettings(organizationId)
-  const currentCycle = getFinancialCycle(settings.data?.financial_month_close_day)
-  const summary = useFinancePeriodSummary(organizationId, currentCycle.start, currentDate)
+  const periods = useFinancialPeriods(organizationId)
+  const currentCycle = getCurrentFinancialCycle(periods.data ?? [], currentDate)
+  const summary = useFinancePeriodSummary(organizationId, currentCycle.start, currentCycle.toDate)
   return (
     <section className="grid gap-5">
       <PageHeader description="Движение денег по датам оплаты за текущий финансовый период." title="Cash flow" />
@@ -1438,9 +1416,9 @@ export function AdminFinanceCashFlowPage() {
 export function AdminFinanceProfitLossPage() {
   const { organizationId } = useAuth()
   const currentDate = useCurrentDate()
-  const settings = useFinanceSettings(organizationId)
-  const currentCycle = getFinancialCycle(settings.data?.financial_month_close_day)
-  const summary = useFinancePeriodSummary(organizationId, currentCycle.start, currentDate)
+  const periods = useFinancialPeriods(organizationId)
+  const currentCycle = getCurrentFinancialCycle(periods.data ?? [], currentDate)
+  const summary = useFinancePeriodSummary(organizationId, currentCycle.start, currentCycle.toDate)
   return (
     <section className="grid gap-5">
       <PageHeader description="Доходы минус закупки товаров и остальные расходы организации." title="P&L" />
@@ -1532,6 +1510,8 @@ export function AdminFinancePeriodsPage() {
   const buildAdminPath = (path: string) =>
     getTenantRoutePath(path, currentOrganization?.slug)
   const periods = rows.data ?? []
+  const currentDate = useCurrentDate()
+  const nextPeriod = getNextFinancialPeriodRange(periods, currentDate)
   const visiblePeriods = periods.filter((period) => {
     if (periodFilter === 'active') return period.status !== 'cancelled'
     if (periodFilter === 'cancelled') return period.status === 'cancelled'
@@ -1555,8 +1535,8 @@ export function AdminFinancePeriodsPage() {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
     mutations.submit.mutate({
-      periodStart: String(form.get('period_start') || DEFAULT_START),
-      periodEnd: String(form.get('period_end') || DEFAULT_END),
+      periodStart: String(form.get('period_start') || nextPeriod.start),
+      periodEnd: String(form.get('period_end') || nextPeriod.end),
     })
   }
   const handleEditSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -1652,13 +1632,16 @@ export function AdminFinancePeriodsPage() {
           </p>
         </div>
         <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={handleSubmit}>
-          <Input defaultValue={DEFAULT_START} label={t("ui.nachalo_cb26bdc")} name="period_start" required type="date" />
-          <Input defaultValue={DEFAULT_END} label={t("ui.konets_4e895fd")} name="period_end" required type="date" />
-          <Button disabled={mutations.submit.isPending} type="submit">
+          <Input key={`start-${nextPeriod.start}`} label={t("ui.nachalo_cb26bdc")} name="period_start" readOnly required type="date" value={nextPeriod.start} />
+          <Input key={`end-${nextPeriod.end}`} label={t("ui.konets_4e895fd")} name="period_end" readOnly required type="date" value={nextPeriod.end} />
+          <Button disabled={mutations.submit.isPending || !nextPeriod.isReady} type="submit">
             <ListChecks aria-hidden="true" className="size-4" />
             {t("ui.otpravit_76dcf73")}
           </Button>
         </form>
+        {!nextPeriod.isReady ? (
+          <p className="text-sm text-slate-500">{t('finance.periodNotReady')}</p>
+        ) : null}
       </section>
 
       <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4">
@@ -1812,9 +1795,10 @@ export function AdminFinanceSettingsPage() {
   const { t } = useI18n()
   const settings = useFinanceSettings(organizationId)
   const mutation = useFinanceSettingsMutation(organizationId)
-  const closeDay = settings.data?.financial_month_close_day ?? 15
+  const periods = useFinancialPeriods(organizationId)
+  const currentDate = useCurrentDate()
   const reportingCurrency = settings.data?.reporting_currency_code || 'AZN'
-  const cycle = getFinancialCycle(closeDay)
+  const cycle = getCurrentFinancialCycle(periods.data ?? [], currentDate)
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -1823,7 +1807,6 @@ export function AdminFinanceSettingsPage() {
       large_expense_threshold: Number(form.get('large_expense_threshold') ?? 0) || null,
       require_large_expense_approval: form.get('require_large_expense_approval') === 'on',
       reporting_currency_code: String(form.get('reporting_currency_code') || '') || null,
-      financial_month_close_day: Number(form.get('financial_month_close_day') ?? 0) || 15,
     }
 
     mutation.mutate(input)
@@ -1845,13 +1828,13 @@ export function AdminFinanceSettingsPage() {
         </div>
         <div className="grid gap-3">
           <InfoCard
-            description="Если день 15, текущий период идёт с 15-го числа до 14-го числа следующего месяца."
+            description={t('finance.calendarCycleDescription')}
             label="Текущий финансовый период"
             value={`${cycle.start} - ${cycle.end}`}
           />
         </div>
         <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900">
-          {t("ui.sleduyuschee_zakrytie_finansovogo_mesyatsa_9ec43f2")}: {cycle.nextClose}.{' '}
+          {t("ui.sleduyuschee_zakrytie_finansovogo_mesyatsa_9ec43f2")}: {cycle.end}.{' '}
           {t("ui.proverte_chto_vse_smeny_zakryty_rashody_vneseny_a_sp_3d41fb3")}
         </p>
       </section>
@@ -1881,14 +1864,6 @@ export function AdminFinanceSettingsPage() {
             name="reporting_currency_code"
             placeholder="AZN"
           />
-          <Input
-            defaultValue={closeDay}
-            label={t("ui.den_zakrytiya_mesyatsa_e84ae96")}
-            max="28"
-            min="1"
-            name="financial_month_close_day"
-            type="number"
-          />
           <label className="flex min-h-11 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700">
             <input defaultChecked={settings.data?.require_large_expense_approval ?? false} name="require_large_expense_approval" type="checkbox" />
             {t("ui.trebovat_podtverzhdenie_krupnyh_rashodov_780ba89")}
@@ -1896,10 +1871,7 @@ export function AdminFinanceSettingsPage() {
         </div>
 
         <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-600">
-          <p>
-            <span className="font-medium text-slate-800">{t("ui.den_zakrytiya_mesyatsa_e84ae96")}:</span>{' '}
-            {t("ui.dlya_the_liga_seychas_logichno_derzhat_15_potomu_cht_6850744")}
-          </p>
+          <p>{t('finance.calendarPeriodRule')}</p>
           <p>
             <span className="font-medium text-slate-800">{t("ui.porog_krupnogo_rashoda_140afa5")}:</span>{' '}
             {t("ui.esli_vklyucheno_podtverzhdenie_rashody_ot_etoy_summy_1017151")}
