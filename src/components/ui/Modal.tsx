@@ -10,6 +10,9 @@ type ModalProps = {
   panelClassName?: string
 }
 
+let activeBodyScrollLocks = 0
+let bodyOverflowBeforeModal = ''
+
 export function Modal({
   children,
   onClose,
@@ -25,9 +28,21 @@ export function Modal({
   }
 
   useEffect(() => {
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    if (activeBodyScrollLocks === 0) {
+      bodyOverflowBeforeModal = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+    }
+    activeBodyScrollLocks += 1
 
+    return () => {
+      activeBodyScrollLocks = Math.max(0, activeBodyScrollLocks - 1)
+      if (activeBodyScrollLocks === 0) {
+        document.body.style.overflow = bodyOverflowBeforeModal
+      }
+    }
+  }, [])
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onClose()
@@ -36,7 +51,6 @@ export function Modal({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => {
-      document.body.style.overflow = previousOverflow
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [onClose])

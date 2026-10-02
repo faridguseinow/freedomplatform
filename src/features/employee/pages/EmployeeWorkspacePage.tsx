@@ -1070,9 +1070,9 @@ export function EmployeeWorkspacePage() {
           className="bg-slate-950/35"
           onClose={closeOrder}
           padding="none"
-          panelClassName="!h-full !overflow-hidden lg:flex lg:justify-end"
+          panelClassName="!h-full !overflow-hidden md:flex md:justify-end"
         >
-          <aside className="grid h-full w-full max-w-6xl grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-white shadow-xl lg:w-[1040px]">
+          <aside className="grid h-full w-full max-w-6xl grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-white shadow-xl md:w-[1040px] md:max-w-full">
             <header className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
               <div className="grid min-w-0 flex-1 gap-2">
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -1105,7 +1105,7 @@ export function EmployeeWorkspacePage() {
               </button>
             </header>
 
-            <div className="grid min-h-0 gap-3 overflow-hidden p-3 lg:grid-cols-[minmax(0,1fr)_380px]">
+            <div className="grid min-h-0 gap-3 overflow-hidden p-3 md:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
               <section className="grid min-h-0 content-start gap-3 overflow-y-auto pr-1">
                 {(() => {
                   const selectedPlace = placesById.get(selectedOrder.place_id ?? '') ?? null
@@ -1452,7 +1452,7 @@ export function EmployeeWorkspacePage() {
                 </div>
               </section>
 
-              <section className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-2">
+              <section className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-2 overflow-hidden">
                 {(() => {
                   const selectedPlace = placesById.get(selectedOrder.place_id ?? '') ?? null
                   const hasActiveSession = Boolean(selectedPlace?.active_session_id)
@@ -1483,7 +1483,7 @@ export function EmployeeWorkspacePage() {
                   return (
                     <>
                       {canAddItems ? (
-                        <div className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-2 rounded-lg border border-slate-200 p-2">
+                        <div className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-2 overflow-hidden rounded-lg border border-slate-200 p-2">
                           <div className="grid grid-cols-3 gap-1.5">
                             {(['products', 'services', 'combos'] as const).map((tab) => (
                               <button
@@ -1513,7 +1513,7 @@ export function EmployeeWorkspacePage() {
                               value={search}
                             />
                           </label>
-                          <div className="grid min-h-0 content-start gap-1.5 overflow-y-auto pr-1">
+                          <div className="grid min-h-0 content-start gap-1.5 overflow-y-auto overscroll-contain pr-1">
                             {pickerTab === 'products' ? (
                               productsQuery.isLoading ? (
                                 <div className="rounded-md border border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">
