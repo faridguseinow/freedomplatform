@@ -25,6 +25,9 @@ export function Modal({
   }
 
   useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onClose()
@@ -32,7 +35,10 @@ export function Modal({
     }
 
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
   }, [onClose])
 
   return (
@@ -40,7 +46,7 @@ export function Modal({
       className={cn(
         'modal-overlay fixed inset-0 z-50 grid bg-slate-950/40',
         align === 'center' ? 'place-items-center' : 'lg:place-items-end',
-        padding === 'default' ? 'px-4 py-6' : null,
+        padding === 'default' ? 'p-0 md:px-4 md:py-6' : null,
         className,
       )}
       onPointerDown={closeFromBackdrop}
@@ -48,7 +54,7 @@ export function Modal({
     >
       <div
         aria-modal="true"
-        className={cn('modal-panel w-full', align === 'center' ? 'flex justify-center' : null, panelClassName)}
+        className={cn('modal-panel h-svh w-full md:h-auto', align === 'center' ? 'flex justify-center' : null, panelClassName)}
         onPointerDown={closeFromBackdrop}
         role="dialog"
       >

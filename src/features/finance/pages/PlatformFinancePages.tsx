@@ -1,17 +1,13 @@
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import {
-  Building2,
   CheckCircle2,
   Edit3,
   Eye,
-  Landmark,
-  ReceiptText,
   Trash2,
   XCircle,
 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { EmptyState } from '../../../components/common/EmptyState'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
 import { useI18n } from '../../../lib/i18n/I18nContext'
@@ -24,10 +20,7 @@ import {
   useFinancialPeriodMutations,
 } from '../financialPeriodsApi'
 import { usePlatformOrganizationFinance, usePlatformFinanceSummary } from '../platformFinanceApi'
-import {
-  usePlatformShareMutations,
-  usePlatformSharePayments,
-} from '../platformShareApi'
+import { usePlatformSharePayments } from '../platformShareApi'
 
 const money = (value: number | null | undefined) =>
   new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(
@@ -40,7 +33,6 @@ const statusLabel: Record<string, string> = {
   locked: 'Закрыт',
   rejected: 'Отклонён',
   cancelled: 'Удалён',
-  reported_sent: 'Ожидает подтверждения',
   confirmed: 'Подтверждён',
   paid: 'Оплачено',
 }
@@ -74,7 +66,7 @@ export function PlatformFinancePage() {
 
   const nameById = new Map(organizations.data?.map((org) => [org.id, org.name]) ?? [])
   const paidByOrganization = (payments.data ?? []).reduce((result, payment) => {
-    if (payment.status !== 'rejected') {
+    if (payment.status === 'confirmed') {
       result.set(payment.organization_id, (result.get(payment.organization_id) ?? 0) + payment.amount)
     }
     return result
@@ -128,7 +120,7 @@ export function PlatformFinanceOrganizationPage() {
     organizations.data?.find((organization) => organization.id === organizationId)?.name ?? 'Организация'
 
   const paidToPlatform = (platformPayments.data ?? [])
-    .filter((payment) => payment.status !== 'rejected')
+    .filter((payment) => payment.status === 'confirmed')
     .reduce((sum, payment) => sum + payment.amount, 0)
   const periods = finance.data?.periods ?? []
   const visiblePeriods = periods.filter((period) => {
@@ -145,7 +137,7 @@ export function PlatformFinanceOrganizationPage() {
     ?? ((finance.data?.summary?.total_income ?? 0) - (finance.data?.summary?.total_expenses ?? 0))
   const displayedPlatformPaid = selectedPeriod
     ? (platformPayments.data ?? [])
-        .filter((payment) => payment.status !== 'rejected')
+        .filter((payment) => payment.status === 'confirmed')
         .filter((payment) =>
           payment.billing_period_start === selectedPeriod.period_start
           && payment.billing_period_end === selectedPeriod.period_end)
@@ -381,63 +373,6 @@ export function PlatformFinancePeriodPage() {
           </div>
         </div>
       ) : null}
-    </section>
-  )
-}
-
-export function PlatformFinancePaymentsPage() {
-  const { t } = useI18n()
-  const payments = usePlatformSharePayments()
-  const mutations = usePlatformShareMutations(null)
-
-  if (!payments.data?.length) {
-    return (
-      <section className="grid gap-5">
-        <PageHeader description="Подтверждение платежей организаций по ежемесячной оплате платформы." title="Платежи платформе" />
-        <EmptyState description="Организации пока не отправляли платежи на подтверждение." icon={ReceiptText} title="Платежей нет" />
-      </section>
-    )
-  }
-
-  return (
-    <section className="grid gap-5">
-      <PageHeader description="Подтверждение платежей организаций по ежемесячной оплате платформы." title="Платежи платформе" />
-      <div className="grid gap-2">
-        {payments.data.map((payment) => (
-          <div className="grid gap-3 rounded-md border border-slate-200 bg-white p-4" key={payment.id}>
-            <p className="font-medium text-slate-950">{money(payment.amount)} · {statusLabel[payment.status] ?? payment.status}</p>
-            <p className="text-sm text-slate-600">{payment.payment_date} · {payment.reference ?? 'без reference'}</p>
-            {payment.billing_period_start && payment.billing_period_end ? (
-              <p className="text-sm font-medium text-emerald-700">
-                {t('finance.platformPaymentForPeriod', {
-                  start: payment.billing_period_start,
-                  end: payment.billing_period_end,
-                })}
-              </p>
-            ) : null}
-            {payment.status === 'reported_sent' ? (
-              <div className="flex gap-2">
-                <Button disabled={mutations.confirmPayment.isPending} onClick={() => mutations.confirmPayment.mutate({ paymentId: payment.id, decision: 'confirmed' })} type="button">
-                  <Landmark aria-hidden="true" className="size-4" />
-                  Подтвердить
-                </Button>
-                <Button disabled={mutations.confirmPayment.isPending} onClick={() => mutations.confirmPayment.mutate({ paymentId: payment.id, decision: 'rejected' })} type="button" variant="danger">
-                  Отклонить
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-export function PlatformFinancePlaceholderPage() {
-  return (
-    <section className="grid gap-5">
-      <PageHeader description="Финансовый раздел платформы." title="Финансы" />
-      <EmptyState description="Выберите организацию или платежи в разделе финансов." icon={Building2} title="Нет выбранного объекта" />
     </section>
   )
 }

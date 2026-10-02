@@ -107,6 +107,18 @@ button:disabled {
   color: #979eaa;
 }
 
+.theme-dark .fill-slate-500 {
+  fill: #979eaa;
+}
+
+.theme-dark .stroke-slate-200 {
+  stroke: var(--theme-border);
+}
+
+.theme-dark .stroke-slate-400 {
+  stroke: #66707e;
+}
+
 .theme-dark .border-slate-100,
 .theme-dark .border-slate-200,
 .theme-dark .border-slate-300 {
@@ -172,7 +184,59 @@ button:disabled {
   border-color: #315966;
 }
 
+.theme-dark .bg-amber-50,
+.theme-dark .bg-amber-50\/50,
+.theme-dark .bg-amber-100 {
+  background-color: #382d1b;
+}
+
+.theme-dark .text-amber-700,
+.theme-dark .text-amber-800,
+.theme-dark .text-amber-900,
+.theme-dark .text-amber-950 {
+  color: #e7bd62;
+}
+
+.theme-dark .border-amber-100,
+.theme-dark .border-amber-200,
+.theme-dark .border-amber-300 {
+  border-color: #775c2c;
+}
+
+.theme-dark .bg-red-50,
+.theme-dark .bg-red-50\/50,
+.theme-dark .bg-red-100 {
+  background-color: #44252b;
+}
+
+.theme-dark .text-red-700,
+.theme-dark .text-red-800,
+.theme-dark .text-red-900,
+.theme-dark .text-red-950 {
+  color: #fca5a5;
+}
+
+.theme-dark .border-red-100,
+.theme-dark .border-red-200,
+.theme-dark .border-red-300,
+.theme-dark .border-red-400 {
+  border-color: #884650;
+}
+
+.theme-dark .bg-amber-50\/50 .text-slate-500 {
+  color: #c9a75d;
+}
+
+.theme-dark .bg-amber-50\/50 .text-slate-900 {
+  color: #f1c96f;
+}
+
 .theme-dark .hover\:bg-slate-50:hover,
+.theme-dark .hover\:bg-slate-50\/80:hover,
+.theme-dark .hover\:bg-slate-50\/70:hover,
+.theme-dark .hover\:bg-slate-50\/60:hover,
+.theme-dark .hover\:bg-slate-50\/40:hover,
+.theme-dark .hover\:bg-slate-50\/30:hover,
 .theme-dark .hover\:bg-slate-100:hover {
   background-color: var(--theme-surface-muted);
 }
@@ -195,6 +259,16 @@ button:disabled {
 .theme-dark select,
 .theme-dark textarea {
   color-scheme: dark;
+}
+
+.theme-dark textarea {
+  background-color: var(--theme-surface);
+  border-color: var(--theme-border);
+  color: var(--theme-text);
+}
+
+.theme-dark textarea:disabled {
+  background-color: var(--theme-surface-muted);
 }
 
 .theme-dark .theme-toggle-thumb {
@@ -233,4 +307,29 @@ button:disabled {
 .modal-panel {
   overflow: auto;
   transform-origin: center;
+}
+
+@media (max-width: 767px) {
+  .modal-overlay {
+    place-items: stretch;
+  }
+
+  .modal-panel {
+    display: block;
+    overflow: hidden;
+  }
+
+  .modal-panel > * {
+    width: 100%;
+    min-height: 100%;
+    height: 100%;
+    max-width: none !important;
+    max-height: 100svh !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    align-content: start;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom)) !important;
+  }
 }

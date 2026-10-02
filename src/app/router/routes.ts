@@ -189,7 +189,6 @@ export const pageTitles = [
   { label: 'Финансы организации', path: '/platform/finance/organizations', icon: Landmark },
   { label: 'Setup организации', path: '/platform/organizations', icon: Building2 },
   { label: 'Финансовый период', path: '/platform/finance/periods', icon: Landmark },
-  { label: 'Платежи платформе', path: '/platform/finance/payments', icon: Landmark },
   { label: 'Рабочая панель', path: '/employee/workspace', icon: BriefcaseBusiness },
   ...employeeNavItems,
 ]

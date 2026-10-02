@@ -2094,13 +2094,33 @@ export type Database = {
         }
         Returns: PlatformSharePaymentRow
       }
-      confirm_platform_share_payment: {
+      get_platform_daily_revenue: {
         Args: {
-          target_payment_id: string
-          target_decision: 'confirmed' | 'rejected'
-          target_comment?: string | null
+          target_start_date: string
+          target_end_date: string
         }
-        Returns: PlatformSharePaymentRow
+        Returns: {
+          organization_id: string
+          revenue_date: string
+          revenue: number
+        }[]
+      }
+      get_platform_payment_summary: {
+        Args: Record<string, never>
+        Returns: {
+          organization_id: string
+          total_paid: number
+          last_payment_date: string | null
+          last_billing_period_start: string | null
+          last_billing_period_end: string | null
+        }[]
+      }
+      get_platform_business_dates: {
+        Args: Record<string, never>
+        Returns: {
+          organization_id: string
+          business_date: string
+        }[]
       }
       get_organization_readiness: {
         Args: {

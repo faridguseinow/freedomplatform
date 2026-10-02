@@ -115,7 +115,7 @@ export function AdminAdjustmentRequestsPage() {
         </div>
       ) : null}
 
-      <div className="hidden overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm md:block">
+      <div className="hidden overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm xl:block">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50">
@@ -175,41 +175,21 @@ export function AdminAdjustmentRequestsPage() {
         </div>
       </div>
 
-      <div className="grid gap-2 md:hidden">
+      <div className="grid gap-2 xl:hidden">
         {requests.map((request) => (
-          <article className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm" key={request.id}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h3 className="font-semibold text-slate-950">{t(requestTypeLabel[request.request_type])}</h3>
-                <p className="mt-0.5 text-xs text-slate-500">{formatDateTime(request.requested_at)}</p>
-              </div>
+          <article className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm" key={request.id}>
+            <div className="min-w-0">
+              <h3 className="truncate font-semibold text-slate-950">{t(requestTypeLabel[request.request_type])}</h3>
+              <p className="mt-1 truncate text-xs text-slate-500">
+                {formatDateTime(request.requested_at)} · {orderLabel(request)}
+              </p>
+            </div>
+            <div className="grid justify-items-end gap-1">
               <span className={statusTone(request.status)}>{t(statusLabel[request.status])}</span>
+              {request.requested_quantity != null ? (
+                <span className="text-xs font-semibold text-slate-700">{formatQuantity(request.requested_quantity)}</span>
+              ) : null}
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-              <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                <div className="text-[11px] font-semibold uppercase text-slate-500">{t("ui.zakaz_c7b64dd")}</div>
-                <div className="mt-0.5 font-semibold text-slate-950">{orderLabel(request)}</div>
-                {orderContext(request) ? <div className="mt-0.5 text-xs text-slate-500">{orderContext(request)}</div> : null}
-              </div>
-              <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                <div className="text-[11px] font-semibold uppercase text-slate-500">{t("ui.kol_vo_5ae5e23")}</div>
-                <div className="mt-0.5 font-semibold text-slate-950">{formatQuantity(request.requested_quantity)}</div>
-              </div>
-              <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                <div className="text-[11px] font-semibold uppercase text-slate-500">{t("ui.pozitsiya_c139a7f")}</div>
-                <div className="mt-0.5 font-semibold text-slate-950">{request.order_item?.name_snapshot ?? t("ui.pozitsiya_ne_ukazana_2f7cfdc")}</div>
-              </div>
-              <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                <div className="text-[11px] font-semibold uppercase text-slate-500">{t("ui.sotrudnik_fb26b42")}</div>
-                <div className="mt-0.5 font-semibold text-slate-950">{userLabel(request, 'requested')}</div>
-              </div>
-            </div>
-            <p className="mt-3 text-sm text-slate-700">{request.reason}</p>
-            <p className="mt-2 text-xs text-slate-500">
-              {request.reviewed_at
-                ? `${t("ui.proveril_6379d89")}: ${userLabel(request, 'reviewed')} · ${formatDateTime(request.reviewed_at)}${systemCommentLabel(request.review_comment) ? ` · ${t(systemCommentLabel(request.review_comment) ?? '')}` : ''}`
-                : t("ui.ne_provereno_5f49633")}
-            </p>
           </article>
         ))}
       </div>

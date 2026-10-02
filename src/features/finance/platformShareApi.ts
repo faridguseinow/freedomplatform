@@ -89,26 +89,5 @@ export function usePlatformShareMutations(organizationId: string | null) {
       },
       onSuccess: invalidate,
     }),
-    confirmPayment: useMutation({
-      mutationFn: async ({
-        paymentId,
-        decision,
-        comment,
-      }: {
-        paymentId: string
-        decision: 'confirmed' | 'rejected'
-        comment?: string | null
-      }) => {
-        const { data, error } = await supabase.rpc('confirm_platform_share_payment', {
-          target_payment_id: paymentId,
-          target_decision: decision,
-          target_comment: comment ?? null,
-        })
-
-        if (error) throw new Error(error.message)
-        return data as PlatformSharePaymentRow
-      },
-      onSuccess: invalidate,
-    }),
   }
 }

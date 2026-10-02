@@ -26,6 +26,7 @@ import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
 import { getTenantRoutePath } from '../../../lib/routing/appHost'
 import { useI18n } from '../../../lib/i18n/I18nContext'
+import { USER_ROLES } from '../../../types/roles'
 import type {
   FinancePaymentMethod,
   FinanceCategoryRow,
@@ -488,11 +489,24 @@ type PaymentChartPoint = {
   hour: number
 }
 
-function PaymentBarChart({ compact = false, points }: { compact?: boolean; points: PaymentChartPoint[] }) {
+function PaymentLineChart({ compact = false, points }: { compact?: boolean; points: PaymentChartPoint[] }) {
   const { t } = useI18n()
   const maxAmount = Math.max(...points.map((point) => point.amount), 0)
   const chartMaximum = maxAmount || 1
   const yAxisTicks = [1, 0.75, 0.5, 0.25, 0]
+  const chartWidth = 1000
+  const chartHeight = compact ? 208 : 256
+  const coordinates = points.map((point, index) => ({
+    x: points.length > 1 ? (index / (points.length - 1)) * chartWidth : chartWidth / 2,
+    y: chartHeight - (point.amount / chartMaximum) * (chartHeight - 8),
+  }))
+  const linePath = coordinates
+    .map((point, index) => `${index ? 'L' : 'M'} ${point.x} ${point.y}`)
+    .join(' ')
+  const areaPath = coordinates.length
+    ? `${linePath} L ${coordinates.at(-1)?.x ?? 0} ${chartHeight} L ${coordinates[0]?.x ?? 0} ${chartHeight} Z`
+    : ''
+  const gradientId = compact ? 'payment-line-gradient-compact' : 'payment-line-gradient-full'
 
   return (
     <div className={compact ? 'w-full' : 'min-w-[64rem]'}>
@@ -509,7 +523,7 @@ function PaymentBarChart({ compact = false, points }: { compact?: boolean; point
         </div>
         <div className="min-w-0">
           <div
-            aria-label={t("ui.vertikalnaya_diagramma_summy_oplat_po_chasam_c511fe8")}
+            aria-label={t("ui.po_gorizontali_chas_po_vertikali_summa_oplat_0ead36f")}
             className={cn(
               'relative border-b border-l border-slate-300',
               compact ? 'h-52' : 'h-64',
@@ -521,24 +535,37 @@ function PaymentBarChart({ compact = false, points }: { compact?: boolean; point
                 <span className="border-t border-dashed border-slate-200" key={tick} />
               ))}
             </div>
+            <svg
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 size-full overflow-visible text-emerald-600"
+              preserveAspectRatio="none"
+              viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+            >
+              <defs>
+                <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stopColor="currentColor" stopOpacity="0.28" />
+                  <stop offset="100%" stopColor="currentColor" stopOpacity="0.03" />
+                </linearGradient>
+              </defs>
+              {areaPath ? <path d={areaPath} fill={`url(#${gradientId})`} /> : null}
+              {linePath ? (
+                <path
+                  d={linePath}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinejoin="round"
+                  strokeWidth="3"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ) : null}
+            </svg>
             <div
-              className={cn('absolute inset-x-1 bottom-0 top-0 grid items-end', compact ? 'gap-1' : 'gap-1.5')}
+              className="absolute inset-0 grid"
               style={{ gridTemplateColumns: `repeat(${Math.max(points.length, 1)}, minmax(0, 1fr))` }}
             >
               {points.map((point) => {
-                const height = point.amount > 0 ? Math.max((point.amount / chartMaximum) * 100, 3) : 0
                 const details = `${String(point.hour).padStart(2, '0')}:00 — ${money(point.amount)}, ${point.count} ${t("ui.oplat_feb6c81")}`
-
-                return (
-                  <div className="flex h-full items-end justify-center" key={point.hour}>
-                    <div
-                      aria-label={details}
-                      className="w-full rounded-t-sm bg-emerald-600 transition-colors hover:bg-emerald-700"
-                      style={{ height: `${height}%` }}
-                      title={details}
-                    />
-                  </div>
-                )
+                return <span aria-label={details} key={point.hour} title={details} />
               })}
             </div>
           </div>
@@ -599,11 +626,11 @@ function PaymentTrafficAnalytics({ organizationId }: { organizationId: string | 
         </div>
       ) : null}
 
-      <div className="min-w-0 sm:hidden">
-        <PaymentBarChart compact points={mobilePoints} />
+      <div className="min-w-0 lg:hidden">
+        <PaymentLineChart compact points={mobilePoints} />
       </div>
-      <div className="hidden overflow-x-auto pb-2 sm:block">
-        <PaymentBarChart points={points} />
+      <div className="hidden overflow-x-auto pb-2 lg:block">
+        <PaymentLineChart points={points} />
       </div>
     </section>
   )
@@ -705,14 +732,12 @@ function MonthlyForecastAnalytics({
 function TransactionTable({
   categories,
   onCancel,
-  onEdit,
   onOpen,
   rows,
   type,
 }: {
   categories: FinanceCategoryRow[] | undefined
   onCancel?: (row: FinanceTransactionRow) => void
-  onEdit?: (row: FinanceTransactionRow) => void
   onOpen?: (row: FinanceTransactionRow) => void
   rows: FinanceTransactionRow[] | undefined
   type: FinanceTransactionType | undefined
@@ -733,7 +758,43 @@ function TransactionTable({
 
   return (
     <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
-      <div className="overflow-x-auto">
+      <div className="divide-y divide-slate-100 lg:hidden">
+        {rows.map((row) => (
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-3 py-3" key={row.id}>
+            <div className="min-w-0">
+              <p className="truncate font-medium text-slate-950">{row.title}</p>
+              <p className="mt-1 text-xs text-slate-500">{row.paid_date ?? row.accrual_date}</p>
+            </div>
+            <p className="whitespace-nowrap text-sm font-semibold text-slate-950">{money(row.amount)}</p>
+            {type === 'expense' ? (
+              <div className="flex shrink-0 gap-1">
+                <Button
+                  aria-label={t("ui.otkryt_1259571")}
+                  className="min-h-9 px-2"
+                  onClick={() => onOpen?.(row)}
+                  type="button"
+                  variant="secondary"
+                >
+                  <Eye className="size-4" />
+                </Button>
+                {row.source_type === 'manual' && row.status !== 'cancelled' ? (
+                  <Button
+                    aria-label={t("ui.udalit_86ea33a")}
+                    className="min-h-9 px-2"
+                    onClick={() => onCancel?.(row)}
+                    type="button"
+                    variant="danger"
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden overflow-x-auto lg:block">
         <table className="min-w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
@@ -764,18 +825,13 @@ function TransactionTable({
                 {type === 'expense' ? (
                   <td className="whitespace-nowrap px-4 py-3">
                     <div className="flex justify-end gap-2">
-                      <Button className="min-h-9 px-2" onClick={() => onOpen?.(row)} type="button" variant="secondary">
+                      <Button aria-label={t("ui.otkryt_1259571")} className="min-h-9 px-2" onClick={() => onOpen?.(row)} type="button" variant="secondary">
                         <Eye className="size-4" />
                       </Button>
                       {row.source_type === 'manual' && row.status !== 'cancelled' ? (
-                        <>
-                          <Button className="min-h-9 px-2" onClick={() => onEdit?.(row)} type="button" variant="secondary">
-                            <Edit3 className="size-4" />
-                          </Button>
-                          <Button className="min-h-9 px-2" onClick={() => onCancel?.(row)} type="button" variant="danger">
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </>
+                        <Button aria-label={t("ui.udalit_86ea33a")} className="min-h-9 px-2" onClick={() => onCancel?.(row)} type="button" variant="danger">
+                          <Trash2 className="size-4" />
+                        </Button>
                       ) : null}
                     </div>
                   </td>
@@ -919,11 +975,13 @@ type ExpenseModalMode = 'view' | 'edit'
 function ExpenseTransactionModal({
   mode,
   onClose,
+  onEdit,
   organizationId,
   row,
 }: {
   mode: ExpenseModalMode
   onClose: () => void
+  onEdit?: (() => void) | undefined
   organizationId: string | null
   row: FinanceTransactionRow
 }) {
@@ -1024,6 +1082,12 @@ function ExpenseTransactionModal({
 
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button onClick={onClose} type="button" variant="secondary">Закрыть</Button>
+          {!isEdit && onEdit ? (
+            <Button onClick={onEdit} type="button">
+              <Edit3 className="size-4" />
+              {t("ui.izmenit_9d809f8")}
+            </Button>
+          ) : null}
           {isEdit ? (
             <Button disabled={expenseMutations.updateExpense.isPending || platformShareMutations.convertExpenseToPeriodPayment.isPending} type="submit">
               {expenseMutations.updateExpense.isPending || platformShareMutations.convertExpenseToPeriodPayment.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
@@ -1237,7 +1301,7 @@ export function AdminFinanceIncomePage() {
 }
 
 export function AdminFinanceExpensesPage() {
-  const { organizationId, user } = useAuth()
+  const { organizationId, role, user } = useAuth()
   const { t } = useI18n()
   useSyncPostedPurchaseFinanceTransactions(organizationId)
   const transactions = useFinanceTransactions(organizationId, ['expense', 'purchase', 'platform_share_payment'])
@@ -1263,12 +1327,8 @@ export function AdminFinanceExpensesPage() {
   const openTransaction = (row: FinanceTransactionRow) => {
     setSelectedPeriod(null)
     setSelectedTransaction(row)
-    setTransactionModalMode('view')
-  }
-  const editTransaction = (row: FinanceTransactionRow) => {
-    setSelectedPeriod(null)
-    setSelectedTransaction(row)
-    setTransactionModalMode('edit')
+    const canEdit = row.source_type === 'manual' && row.status !== 'cancelled'
+    setTransactionModalMode(role === USER_ROLES.platformOwner && canEdit ? 'edit' : 'view')
   }
   const cancelTransaction = (row: FinanceTransactionRow) => {
     const reason = window.prompt('Причина удаления')
@@ -1302,7 +1362,6 @@ export function AdminFinanceExpensesPage() {
         <TransactionTable
           categories={categories.data}
           onCancel={cancelTransaction}
-          onEdit={editTransaction}
           onOpen={openTransaction}
           rows={currentTransactions}
           type="expense"
@@ -1372,7 +1431,6 @@ export function AdminFinanceExpensesPage() {
               <TransactionTable
                 categories={categories.data}
                 onCancel={cancelTransaction}
-                onEdit={editTransaction}
                 onOpen={openTransaction}
                 rows={selectedPeriodTransactions}
                 type="expense"
@@ -1386,6 +1444,11 @@ export function AdminFinanceExpensesPage() {
         <ExpenseTransactionModal
           mode={transactionModalMode}
           onClose={() => setSelectedTransaction(null)}
+          onEdit={
+            selectedTransaction.source_type === 'manual' && selectedTransaction.status !== 'cancelled'
+              ? () => setTransactionModalMode('edit')
+              : undefined
+          }
           organizationId={organizationId}
           row={selectedTransaction}
         />
@@ -1781,11 +1844,16 @@ export function AdminFinancePeriodsPage() {
 export function AdminFinancePeriodDetailPage() {
   const { periodId } = useParams()
   const period = useFinancialPeriod(periodId ?? null)
+  const liveSummary = useFinancePeriodSummary(
+    period.data?.organization_id ?? null,
+    period.data?.period_start ?? '',
+    period.data?.period_end ?? '',
+  )
 
   return (
     <section className="grid gap-5">
       <PageHeader description="Детальный финансовый период организации." title="Финансовый период" />
-      {period.data ? <StatGrid summary={period.data} /> : null}
+      {period.data ? <StatGrid summary={liveSummary.data ?? period.data} /> : null}
     </section>
   )
 }

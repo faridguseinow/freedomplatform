@@ -13,26 +13,19 @@ import { Button } from '../../../components/ui/Button'
 import { useAuth } from '../../../hooks/useAuth'
 import { getTenantRoutePath } from '../../../lib/routing/appHost'
 import { useI18n } from '../../../lib/i18n/I18nContext'
-import type {
-  AdjustmentRequestStatus,
-  AdjustmentRequestType,
-} from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
 import { todayDate } from '../../finance/financeApi'
-import { useAdminAdjustmentRequests } from '../../orders/adjustmentRequestsApi'
 import {
   usePaymentMethodSummaryByShiftIds,
   useProductProfitReport,
   useRevenueBreakdownByShiftIds,
   useUsageHoursBreakdownByShiftIds,
 } from '../../orders/paymentsApi'
-import { orderStatusLabel } from '../../orders/employeeOrdersApi'
-import { useAdminOrders } from '../../orders/ordersApi'
+import { useAdminOpenOrdersCount } from '../../orders/ordersApi'
 import { useAdminShifts } from '../../shifts/shiftsApi'
 import { useCombos } from '../catalog/comboApi'
 import { useInventoryBalances } from '../catalog/inventoryApi'
 import { usePlaces, useProducts, useServices } from '../catalog/catalogApi'
-import { useAdminActivityEvents } from '../activity/activityApi'
 
 const formatMoney = (value: number | null | undefined) =>
   new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
@@ -45,33 +38,6 @@ const formatUsageDuration = (hours: number | null | undefined, t: (value: string
   if (wholeHours && minutes) return `${wholeHours} ${t("ui.ch_285cc40")} ${minutes} ${t("ui.min_d6035dc")}`
   if (wholeHours) return `${wholeHours} ${t("ui.ch_285cc40")}`
   return `${minutes} ${t("ui.min_d6035dc")}`
-}
-
-const formatDateTime = (value: string | null | undefined) => {
-  if (!value) return '-'
-  return new Intl.DateTimeFormat(getCurrentLocale(), {
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    month: '2-digit',
-  }).format(new Date(value))
-}
-
-const adjustmentStatusLabel: Record<AdjustmentRequestStatus, string> = {
-  pending: 'Ожидало подтверждения',
-  approved: 'Выполнено',
-  rejected: 'Отклонено',
-  expired: 'Истекло',
-  cancelled: 'Отменено',
-}
-
-const adjustmentTypeLabel: Record<AdjustmentRequestType, string> = {
-  remove_order_item: 'Удаление позиции',
-  change_quantity: 'Изменение количества',
-  cancel_order: 'Отмена заказа',
-  change_payment_method: 'Изменение метода оплаты',
-  correct_session_time: 'Коррекция времени сессии',
-  other: 'Другое',
 }
 
 type StatCardProps = {
@@ -119,9 +85,7 @@ function StatCard({ description, label, tone = 'default', value }: StatCardProps
 export function AdminDashboardPage() {
   const { currentOrganization, organizationId } = useAuth()
   const { t } = useI18n()
-  const ordersQuery = useAdminOrders(organizationId, 'all')
-  const adjustmentsQuery = useAdminAdjustmentRequests(organizationId, 'all')
-  const activityQuery = useAdminActivityEvents(organizationId)
+  const openOrdersCountQuery = useAdminOpenOrdersCount(organizationId)
   const shiftsQuery = useAdminShifts(organizationId, 'all')
   const placesQuery = usePlaces({ organizationId })
   const productsQuery = useProducts({ organizationId })
@@ -133,9 +97,6 @@ export function AdminDashboardPage() {
   const [productReportEnd, setProductReportEnd] = useState(todayDate())
   const [selectedProductId, setSelectedProductId] = useState('all')
 
-  const orders = ordersQuery.data ?? []
-  const adjustments = adjustmentsQuery.data ?? []
-  const activityEvents = activityQuery.data ?? []
   const shifts = shiftsQuery.data ?? []
   const places = placesQuery.data ?? []
   const products = productsQuery.data ?? []
@@ -167,16 +128,14 @@ export function AdminDashboardPage() {
   const productProfitRows = (productProfitQuery.data ?? []).filter(
     (row) => selectedProductId === 'all' || row.productId === selectedProductId,
   )
-  const openOrders = orders.filter((order) => order.status === 'open').length
+  const openOrders = openOrdersCountQuery.data ?? 0
   const openShifts = shifts.filter((shift) => shift.status === 'open' || shift.status === 'closing').length
   const timedPlaces = places.filter((place) => place.has_timer).length
   const lowStock = inventory.filter((item) => item.stock_quantity <= item.minimum_stock_quantity).length
   const operationalDayLabel = currentDayShifts.length ? reportBusinessDate : t("ui.smena_ne_otkryta_a04a370")
 
   const isLoading =
-    ordersQuery.isLoading ||
-    adjustmentsQuery.isLoading ||
-    activityQuery.isLoading ||
+    openOrdersCountQuery.isLoading ||
     shiftsQuery.isLoading ||
     placesQuery.isLoading ||
     productsQuery.isLoading ||
@@ -189,9 +148,7 @@ export function AdminDashboardPage() {
     productProfitQuery.isLoading
 
   const firstError =
-    ordersQuery.error ??
-    adjustmentsQuery.error ??
-    activityQuery.error ??
+    openOrdersCountQuery.error ??
     shiftsQuery.error ??
     placesQuery.error ??
     productsQuery.error ??
@@ -204,9 +161,6 @@ export function AdminDashboardPage() {
     productProfitQuery.error
   const buildAdminPath = (path: string) =>
     getTenantRoutePath(path, currentOrganization?.slug)
-  const recentOrders = orders.slice(0, 5)
-  const recentAdjustments = adjustments.slice(0, 5)
-  const recentActivityEvents = activityEvents.slice(0, 5)
 
   return (
     <section className="grid gap-5">
@@ -406,108 +360,6 @@ export function AdminDashboardPage() {
         </div>
       </section>
 
-      <section className="grid gap-3 xl:grid-cols-3">
-        <section className="grid content-start gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold text-slate-950">{t("ui.poslednie_zakazy_24d3598")}</h3>
-            <Link className="text-sm font-medium text-emerald-700 hover:text-emerald-800" to={buildAdminPath('/admin/orders')}>
-              {t("ui.smotret_vse_5c3f478")}
-            </Link>
-          </div>
-          <div className="grid gap-2">
-            {recentOrders.length ? (
-              recentOrders.map((order) => (
-                <Link
-                  className="grid gap-1 rounded-md border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50"
-                  key={order.id}
-                  to={buildAdminPath(`/admin/orders/${order.id}`)}
-                >
-                  <span className="flex min-w-0 items-center justify-between gap-3">
-                    <span className="truncate font-medium text-slate-950">
-                      #{order.order_number} · {order.current_place_name_snapshot ?? t("ui.bez_mesta_da3a88d")}
-                    </span>
-                    <span className="shrink-0 font-semibold text-slate-950">{formatMoney(order.total_amount)}</span>
-                  </span>
-                  <span className="truncate text-xs text-slate-500">
-                    {t(orderStatusLabel[order.status] ?? order.status)} · {formatDateTime(order.opened_at)}
-                  </span>
-                </Link>
-              ))
-            ) : (
-              <div className="rounded-md border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
-                {t("ui.zakazov_net_5ddb25e")}
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section className="grid content-start gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold text-slate-950">{t("ui.poslednie_ispravleniya_9479799")}</h3>
-            <Link
-              className="text-sm font-medium text-emerald-700 hover:text-emerald-800"
-              to={buildAdminPath('/admin/adjustment-requests')}
-            >
-              {t("ui.smotret_vse_5c3f478")}
-            </Link>
-          </div>
-          <div className="grid gap-2">
-            {recentAdjustments.length ? (
-              recentAdjustments.map((request) => (
-                <Link
-                  className="grid gap-1 rounded-md border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50"
-                  key={request.id}
-                  to={buildAdminPath('/admin/adjustment-requests')}
-                >
-                  <span className="flex min-w-0 items-center justify-between gap-3">
-                    <span className="truncate font-medium text-slate-950">{t(adjustmentTypeLabel[request.request_type])}</span>
-                    <span className="shrink-0 text-xs font-medium text-slate-500">{t(adjustmentStatusLabel[request.status])}</span>
-                  </span>
-                  <span className="truncate text-xs text-slate-500">
-                    {request.order ? `#${request.order.order_number}` : request.order_id.slice(0, 8)} · {formatDateTime(request.requested_at)}
-                  </span>
-                </Link>
-              ))
-            ) : (
-              <div className="rounded-md border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
-                {t("ui.ispravleniy_net_a9223b1")}
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section className="grid content-start gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold text-slate-950">{t("ui.posledniy_zhurnal_74fd894")}</h3>
-            <Link className="text-sm font-medium text-emerald-700 hover:text-emerald-800" to={buildAdminPath('/admin/activity')}>
-              {t("ui.smotret_vse_5c3f478")}
-            </Link>
-          </div>
-          <div className="grid gap-2">
-            {recentActivityEvents.length ? (
-              recentActivityEvents.map((event) => (
-                <Link
-                  className="grid gap-1 rounded-md border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50"
-                  key={`${event.source}-${event.id}`}
-                  to={buildAdminPath('/admin/activity')}
-                >
-                  <span className="flex min-w-0 items-center justify-between gap-3">
-                    <span className="truncate font-medium text-slate-950">{event.actorName}</span>
-                    <span className="shrink-0 text-xs font-medium text-slate-500">{formatDateTime(event.createdAt)}</span>
-                  </span>
-                  <span className="truncate text-xs text-slate-600">
-                    {t(event.actionLabel)} · {t(event.entityType)}
-                  </span>
-                </Link>
-              ))
-            ) : (
-              <div className="rounded-md border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
-                {t("ui.sobytiy_poka_net_69cb057")}
-              </div>
-            )}
-          </div>
-        </section>
-      </section>
     </section>
   )
 }

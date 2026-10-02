@@ -197,11 +197,6 @@ const PlatformFinancePeriodPage = lazy(() =>
     default: module.PlatformFinancePeriodPage,
   })),
 )
-const PlatformFinancePaymentsPage = lazy(() =>
-  import('../../features/finance/pages/PlatformFinancePages').then((module) => ({
-    default: module.PlatformFinancePaymentsPage,
-  })),
-)
 const PlatformOverviewPage = lazy(() =>
   import('../../features/platform/pages/PlatformOverviewPage').then((module) => ({
     default: module.PlatformOverviewPage,
@@ -256,7 +251,6 @@ const platformRoutes = (path: string) => (
     <Route element={lazyPage(<PlatformFinancePage />)} path="finance" />
     <Route element={lazyPage(<PlatformFinanceOrganizationPage />)} path="finance/organizations/:organizationId" />
     <Route element={lazyPage(<PlatformFinancePeriodPage />)} path="finance/periods/:periodId" />
-    <Route element={lazyPage(<PlatformFinancePaymentsPage />)} path="finance/payments" />
     <Route element={lazyPage(<PlatformSettingsPage />)} path="settings" />
   </Route>
 )

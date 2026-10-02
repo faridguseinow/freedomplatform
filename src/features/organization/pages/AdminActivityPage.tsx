@@ -86,7 +86,7 @@ export function AdminActivityPage() {
         />
       ) : null}
 
-      <div className="hidden overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm md:block">
+      <div className="hidden overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm xl:block">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50">
@@ -133,33 +133,19 @@ export function AdminActivityPage() {
         </div>
       </div>
 
-      <div className="grid gap-2 md:hidden">
+      <div className="grid gap-2 xl:hidden">
         {events.map((event) => (
           <article
-            className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
+            className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
             key={event.id}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h3 className="font-semibold text-slate-950">{t(event.actionLabel)}</h3>
-                <p className="mt-0.5 text-xs text-slate-500">{event.actorName} · {formatDateTime(event.createdAt)}</p>
-              </div>
-              <span className={cn('shrink-0 rounded-md px-2 py-1 text-xs font-semibold', sourceTone[event.source])}>
-                {t(sourceLabel[event.source])}
-              </span>
+            <div className="min-w-0">
+              <h3 className="truncate font-semibold text-slate-950">{t(event.actionLabel)}</h3>
+              <p className="mt-1 truncate text-xs text-slate-500">{formatDateTime(event.createdAt)} · {event.actorName}</p>
             </div>
-            <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
-              <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                <dt className="text-[11px] font-semibold uppercase text-slate-500">{t("ui.obekt_1f85d20")}</dt>
-                <dd className="mt-0.5 font-semibold text-slate-950">{t(event.entityType)}</dd>
-              </div>
-              <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                <dt className="text-[11px] font-semibold uppercase text-slate-500">ID</dt>
-                <dd className="mt-0.5 truncate font-mono text-xs text-slate-700">{objectIdLabel(event)}</dd>
-              </div>
-            </dl>
-            <p className="mt-3 text-sm leading-6 text-slate-700">{detailsLabel(event)}</p>
-            {event.entityId ? <p className="mt-1 text-xs text-slate-500">ID: {shortId(event.entityId)}</p> : null}
+            <span className={cn('shrink-0 rounded-md px-2 py-1 text-xs font-semibold', sourceTone[event.source])}>
+              {t(sourceLabel[event.source])}
+            </span>
           </article>
         ))}
       </div>

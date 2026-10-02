@@ -14,6 +14,23 @@ export type AdminOrderRow = OrderRow & {
   items_preview: string[]
 }
 
+export function useAdminOpenOrdersCount(organizationId: string | null) {
+  return useQuery({
+    enabled: Boolean(organizationId),
+    queryKey: ['admin', 'orders', organizationId, 'open', 'count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', organizationId!)
+        .eq('status', 'open')
+
+      if (error) throw new Error(error.message)
+      return count ?? 0
+    },
+  })
+}
+
 export function useAdminOrders(organizationId: string | null, status: OrderStatus | 'all' = 'all') {
   return useQuery({
     enabled: Boolean(organizationId),

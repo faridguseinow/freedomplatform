@@ -90,6 +90,7 @@ const actionLabels: Record<string, string> = {
   'finance.platform_share_rate_set': 'изменил оплату платформы',
   'finance.monthly_platform_fee_set': 'изменил ежемесячную оплату платформы',
   'finance.platform_share_payment_reported': 'сообщил об оплате платформы',
+  'finance.platform_period_payment_recorded': 'сообщил об оплате платформы',
   'finance.platform_share_payment_confirmed': 'подтвердил оплату платформы',
   'finance.platform_share_payment_rejected': 'отклонил оплату платформы',
   'catalog.product_deleted': 'удалил товар',
