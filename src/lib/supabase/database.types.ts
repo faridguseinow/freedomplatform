@@ -1786,6 +1786,13 @@ export type Database = {
         }
         Returns: OrderRow
       }
+      record_order_prepayment: {
+        Args: {
+          target_order_id: string
+          target_method: PaymentMethod
+        }
+        Returns: OrderRow
+      }
       complete_order_payment: {
         Args: {
           target_order_id: string

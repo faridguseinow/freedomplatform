@@ -7,6 +7,7 @@
   "Удалено навсегда владельцем платформы": "platform.deletedForeverReason",
   "Система": "common.system",
   "Не оплачено": "payment.unpaid",
+  "принял предоплату": "activity.paymentPrepaid",
   "Задана ежемесячная оплата Freedom Platform.": "platform.monthlyFeeConfigured",
   "Этот slug зарезервирован платформой.": "platform.slugReserved",
   "Закупка товаров": "finance.goodsPurchases",

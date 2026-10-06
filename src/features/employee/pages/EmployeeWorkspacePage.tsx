@@ -325,6 +325,7 @@ export function EmployeeWorkspacePage() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [pickerTab, setPickerTab] = useState<PickerTab>('products')
   const [paymentChoiceOrderId, setPaymentChoiceOrderId] = useState<string | null>(null)
+  const [prepaymentChoiceOrderId, setPrepaymentChoiceOrderId] = useState<string | null>(null)
   const [orderCloseAction, setOrderCloseAction] = useState<OrderCloseAction | null>(null)
   const [isTransferOpen, setIsTransferOpen] = useState(false)
   const [transferTargetPlaceId, setTransferTargetPlaceId] = useState('')
@@ -375,15 +376,17 @@ export function EmployeeWorkspacePage() {
     [orders, selectedOrderId],
   )
   const paymentChoiceOpen = Boolean(selectedOrderId && selectedOrderId === paymentChoiceOrderId)
+  const prepaymentChoiceOpen = Boolean(selectedOrderId && selectedOrderId === prepaymentChoiceOrderId)
   const tipValue = parseMoneyInput(tipAmount)
   const hasValidTipAmount =
     tipAmount.trim().length === 0 ||
     (Number.isFinite(tipValue) && tipValue >= 0)
   const normalizedTipAmount = hasValidTipAmount && tipAmount.trim().length ? tipValue : 0
   const selectedOrderTotalWithTip = (selectedOrder?.total_amount ?? 0) + normalizedTipAmount
+  const selectedOrderOutstandingWithTip = (selectedOrder?.unpaid_amount ?? 0) + normalizedTipAmount
   const cashSplitValue = parseMoneyInput(cashSplitAmount)
   const cardSplitValue = parseMoneyInput(cardSplitAmount)
-  const splitPaymentTargetTotal = selectedOrderTotalWithTip
+  const splitPaymentTargetTotal = selectedOrderOutstandingWithTip
   const splitPaymentTotal = cashSplitValue + cardSplitValue
   const isSplitPaymentValid =
     Number.isFinite(cashSplitValue) &&
@@ -410,10 +413,7 @@ export function EmployeeWorkspacePage() {
   }, [comboItems, combosQuery.data])
   const selectedOrderPlace = selectedOrder?.place_id ? placesById.get(selectedOrder.place_id) ?? null : null
   const transferTargets = places.filter((place) =>
-    place.status === 'active' &&
-    place.id !== selectedOrder?.place_id &&
-    !place.active_order_id &&
-    !place.active_session_id,
+    place.status === 'active' && place.id !== selectedOrder?.place_id,
   )
   const ordersWithoutPlace = orders.filter((order) => !order.place_id && order.status !== 'paid')
 
@@ -456,6 +456,7 @@ export function EmployeeWorkspacePage() {
     const place = order?.place_id ? placesById.get(order.place_id) ?? null : null
     setSearch('')
     setPaymentChoiceOrderId(null)
+    setPrepaymentChoiceOrderId(null)
     setTipAmount('')
     setCashSplitAmount('')
     setCardSplitAmount('')
@@ -470,6 +471,7 @@ export function EmployeeWorkspacePage() {
   const closeOrder = () => {
     setSearch('')
     setPaymentChoiceOrderId(null)
+    setPrepaymentChoiceOrderId(null)
     setOrderCloseAction(null)
     setIsTransferOpen(false)
     setTransferTargetPlaceId('')
@@ -570,12 +572,13 @@ export function EmployeeWorkspacePage() {
   const transferOrder = () => {
     if (!selectedOrder || !transferTargetPlaceId) return
     void runAction(async () => {
-      await orderMutations.transferOrder.mutateAsync({
+      const destinationOrder = await orderMutations.transferOrder.mutateAsync({
         orderId: selectedOrder.id,
         placeId: transferTargetPlaceId,
       })
       setIsTransferOpen(false)
       setTransferTargetPlaceId('')
+      selectOrder(destinationOrder.id)
     })
   }
 
@@ -721,7 +724,22 @@ export function EmployeeWorkspacePage() {
       if (selectedOrder.status === 'open') {
         await orderMutations.waitPayment.mutateAsync(selectedOrder.id)
       }
+      setPrepaymentChoiceOrderId(null)
       setPaymentChoiceOrderId(selectedOrder.id)
+    })
+  }
+
+  const openPrepaymentChoice = () => {
+    if (!selectedOrderId || !selectedOrder || selectedOrder.status !== 'open') return
+    setPaymentChoiceOrderId(null)
+    setPrepaymentChoiceOrderId(selectedOrder.id)
+  }
+
+  const recordPrepayment = (method: PaymentMethod) => {
+    if (!selectedOrderId) return
+    void runAction(async () => {
+      await orderMutations.prepayOrder.mutateAsync({ orderId: selectedOrderId, method })
+      setPrepaymentChoiceOrderId(null)
     })
   }
 
@@ -819,7 +837,9 @@ export function EmployeeWorkspacePage() {
     orderMutations.completeEmptyOrder.isPending ||
     orderMutations.cancelOrder.isPending ||
     orderMutations.completePayment.isPending ||
-    orderMutations.completePaymentWithTip.isPending
+    orderMutations.completePaymentWithTip.isPending ||
+    orderMutations.completeSplitPayment.isPending ||
+    orderMutations.prepayOrder.isPending
 
   return (
     <section className="flex min-h-[calc(100svh-1rem)] flex-col gap-3">
@@ -1123,15 +1143,30 @@ export function EmployeeWorkspacePage() {
                     selectedOrder.total_amount <= 0 &&
                     normalizedTipAmount <= 0
                   const canCancelOrder =
-                    (selectedOrder.status === 'open' || selectedOrder.status === 'waiting_payment') && !hasActiveSession
+                    (selectedOrder.status === 'open' || selectedOrder.status === 'waiting_payment') &&
+                    !hasActiveSession &&
+                    selectedOrder.paid_amount <= 0
+                  const canPrepayOrder =
+                    selectedOrder.status === 'open' && selectedOrder.unpaid_amount > 0
                   const isClosingOrder = isOrderCloseActionPending
 
                   return (
-                    <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+                    <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50/60 p-2.5">
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-sm font-semibold text-slate-950">Сумма заказа</span>
-                        <span className="text-2xl font-semibold text-slate-950">{formatAzn(selectedOrder.total_amount)}</span>
+                        <span className="text-xl font-semibold text-slate-950">{formatAzn(selectedOrderTotalWithTip)}</span>
                       </div>
+
+                      {selectedOrder.paid_amount > 0 ? (
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm">
+                          <span className="font-medium text-emerald-800">
+                            {t('payment.paid')}: {formatAzn(selectedOrder.paid_amount)}
+                          </span>
+                          <span className="text-slate-600">
+                            {t('payment.remaining')}: {formatAzn(selectedOrder.unpaid_amount)}
+                          </span>
+                        </div>
+                      ) : null}
 
                       {isOrderWithoutPlace ? (
                         <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
@@ -1164,63 +1199,55 @@ export function EmployeeWorkspacePage() {
                         </div>
                       ) : null}
 
-                      <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
-                        <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                      <div className="grid grid-cols-[96px_minmax(0,1fr)] items-start gap-2 sm:grid-cols-[120px_minmax(0,1fr)]">
+                        <label className="grid gap-1 text-sm font-medium text-slate-700">
                           <span className="sr-only">Чаевые</span>
                           <input
                             className={cn(
-                              'min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15',
+                              'min-h-9 w-full min-w-0 rounded-md border border-slate-200 bg-white px-2.5 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15',
                               !hasValidTipAmount && 'border-red-300 focus:border-red-600 focus:ring-red-600/15',
                             )}
                             inputMode="decimal"
                             min={0}
                             onChange={(event) => setTipAmount(event.target.value)}
-                            placeholder={`${t("ui.chaevye_e37f9f4")} — ${t("ui.esli_chaevyh_net_ostavte_0_ili_pusto_12ee03b")}`}
+                            placeholder={t('ui.chaevye_e37f9f4')}
                             readOnly={isWorkspaceReadOnly}
                             type="number"
                             value={tipAmount}
                           />
                           {!hasValidTipAmount ? (
-                            <span className="text-xs font-normal text-red-700">
+                            <span className="col-span-2 text-xs font-normal text-red-700">
                               Чаевые не могут быть отрицательными.
                             </span>
                           ) : null}
                         </label>
-                        <div className="grid min-h-5 content-center rounded-md bg-green-900 px-2 py-2 text-sm text-white">
-                          <span className="text-xs text-slate-300">Итого с чаевыми</span>
-                          <span className="text-base font-semibold">{formatAzn(selectedOrderTotalWithTip)}</span>
-                        </div>
-                      </div>
-
-                      <div className="rounded-md border border-slate-200 bg-white">
-                        <button
-                          className="flex min-h-10 w-full items-center justify-between gap-3 px-3 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
-                          onClick={() => setIsOrderCommentOpen((isOpen) => !isOpen)}
-                          type="button"
-                        >
-                          <span>Комментарий к заказу</span>
-                          <span className="inline-flex items-center gap-2 text-xs font-normal text-slate-500">
-                            {orderComment.trim() ? t('common.filled') : t('common.empty')}
-                            <ChevronDown
-                              className={cn('size-4 transition-transform', isOrderCommentOpen && 'rotate-180')}
-                            />
-                          </span>
-                        </button>
-                        {isOrderCommentOpen ? (
-                          <label className="grid gap-1.5 border-t border-slate-200 p-3 text-sm font-medium text-slate-700">
-                            <span className="sr-only">Комментарий к заказу</span>
-                            <textarea
-                              className="min-h-20 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
-                              onChange={(event) => setOrderComment(event.target.value)}
-                              placeholder={t('ui.naprimer_klient_ostavil_bolshe_oplata_ot_druga_osoby_a24810f')}
-                              readOnly={isWorkspaceReadOnly}
-                              value={orderComment}
-                            />
-                            <span className="text-xs font-normal text-slate-500">
-                              Этот комментарий сохранится в заказе после оплаты или завершения.
+                        <div className="rounded-md border border-slate-200 bg-white">
+                          <button
+                            className="flex min-h-9 w-full items-center justify-between gap-2 px-2.5 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
+                            onClick={() => setIsOrderCommentOpen((isOpen) => !isOpen)}
+                            type="button"
+                          >
+                            <span className="truncate">Комментарий к заказу</span>
+                            <span className="inline-flex shrink-0 items-center gap-1 text-xs font-normal text-slate-500">
+                              {orderComment.trim() ? t('common.filled') : t('common.empty')}
+                              <ChevronDown
+                                className={cn('size-3.5 transition-transform', isOrderCommentOpen && 'rotate-180')}
+                              />
                             </span>
-                          </label>
-                        ) : null}
+                          </button>
+                          {isOrderCommentOpen ? (
+                            <label className="grid gap-1.5 border-t border-slate-200 p-2 text-sm font-medium text-slate-700">
+                              <span className="sr-only">Комментарий к заказу</span>
+                              <textarea
+                                className="min-h-16 rounded-md border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                                onChange={(event) => setOrderComment(event.target.value)}
+                                placeholder={t('ui.naprimer_klient_ostavil_bolshe_oplata_ot_druga_osoby_a24810f')}
+                                readOnly={isWorkspaceReadOnly}
+                                value={orderComment}
+                              />
+                            </label>
+                          ) : null}
+                        </div>
                       </div>
 
                       {selectedOrder.status === 'payment_refused' ? (
@@ -1228,22 +1255,89 @@ export function EmployeeWorkspacePage() {
                           {t('payment.refused')} {selectedOrder.payment_refusal_comment ?? ''}
                         </div>
                       ) : (
-                        <div className="grid gap-2 md:grid-cols-3">
+                        <div className="grid grid-cols-4 gap-1.5">
                           {hasNormalPaymentAmount ? (
-                            <Button disabled={isWorkspaceReadOnly || !canPreparePayment || isClosingOrder} onClick={openPaymentChoice} type="button">
-                              <Hourglass className="size-4" />
-                              {selectedOrder.status === 'waiting_payment' ? 'Принять оплату' : 'К оплате'}
+                            <Button className="min-h-9 min-w-0 gap-1 px-2 py-1 text-xs leading-tight" disabled={isWorkspaceReadOnly || !canPreparePayment || isClosingOrder} onClick={openPaymentChoice} type="button">
+                              <Hourglass className="size-3.5 shrink-0" />
+                              <span className="min-w-0 truncate">
+                                {selectedOrder.status === 'waiting_payment' ? 'Принять оплату' : 'К оплате'}
+                              </span>
                             </Button>
                           ) : (
                             <Button
+                              className="min-h-9 min-w-0 gap-1 px-2 py-1 text-xs leading-tight"
                               disabled={isWorkspaceReadOnly || !canFinishEmptyOrder || isClosingOrder}
                               onClick={finishEmptyOrder}
                               type="button"
                             >
-                              <CheckCircle2 className="size-4" />
-                              Завершить заказ
+                              <CheckCircle2 className="size-3.5 shrink-0" />
+                              <span className="min-w-0 truncate">Завершить заказ</span>
                             </Button>
                           )}
+
+                          <Button
+                            className="min-h-9 min-w-0 gap-1 px-2 py-1 text-xs leading-tight"
+                            disabled={isWorkspaceReadOnly || !canPrepayOrder || isClosingOrder}
+                            onClick={openPrepaymentChoice}
+                            type="button"
+                            variant="secondary"
+                          >
+                            <CheckCircle2 className="size-3.5 shrink-0" />
+                            <span className="min-w-0 truncate">{t('payment.prepaidAction')}</span>
+                          </Button>
+
+                          <Button
+                            className="min-h-9 min-w-0 gap-1 px-2 py-1 text-xs leading-tight"
+                            disabled={isWorkspaceReadOnly || !canCancelOrder || isClosingOrder}
+                            onClick={cancelOrder}
+                            type="button"
+                            variant="danger"
+                          >
+                            <X className="size-3.5 shrink-0" />
+                            <span className="min-w-0 truncate">Отменить заказ</span>
+                          </Button>
+                          {selectedOrder.status === 'open' ? (
+                            <Button
+                              className="min-h-9 min-w-0 gap-1 px-2 py-1 text-xs leading-tight"
+                              disabled={isWorkspaceReadOnly || orderMutations.transferOrder.isPending || isClosingOrder}
+                              onClick={() => setIsTransferOpen(true)}
+                              type="button"
+                              variant="secondary"
+                            >
+                              <ArrowRightLeft className="size-3.5 shrink-0" />
+                              <span className="min-w-0 truncate">{t('order.changePlace')}</span>
+                            </Button>
+                          ) : <span />}
+
+                          {prepaymentChoiceOpen ? (
+                            <div className="col-span-4 grid gap-2 rounded-lg border border-emerald-200 bg-emerald-50/60 p-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm font-semibold text-slate-950">
+                                  {t('payment.prepayment')}
+                                </span>
+                                <span className="text-sm font-semibold text-emerald-800">
+                                  {formatAzn(selectedOrder.unpaid_amount)}
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <Button
+                                  disabled={isWorkspaceReadOnly || isClosingOrder}
+                                  onClick={() => recordPrepayment('cash')}
+                                  type="button"
+                                >
+                                  <Banknote className="size-4" /> {t('adminOrderDetail.payment.cash')}
+                                </Button>
+                                <Button
+                                  disabled={isWorkspaceReadOnly || isClosingOrder}
+                                  onClick={() => recordPrepayment('card_transfer')}
+                                  type="button"
+                                  variant="secondary"
+                                >
+                                  <CreditCard className="size-4" /> {t('adminOrderDetail.payment.card')}
+                                </Button>
+                              </div>
+                            </div>
+                          ) : null}
 
                           {paymentChoiceOpen ? (
                             <>
@@ -1262,7 +1356,7 @@ export function EmployeeWorkspacePage() {
                               >
                                 <CreditCard className="size-4" /> Картой
                               </Button>
-                              <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3 md:col-span-3">
+                              <div className="col-span-4 grid gap-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
                                 <div className="flex items-center justify-between gap-3">
                                   <span className="text-sm font-semibold text-slate-950">
                                     {t('payment.splitPayment')}
@@ -1316,26 +1410,6 @@ export function EmployeeWorkspacePage() {
                             </>
                           ) : null}
 
-                          <Button
-                            disabled={isWorkspaceReadOnly || !canCancelOrder || isClosingOrder}
-                            onClick={cancelOrder}
-                            type="button"
-                            variant="danger"
-                          >
-                            <X className="size-4" />
-                            Отменить заказ
-                          </Button>
-                          {selectedOrder.status === 'open' ? (
-                            <Button
-                              disabled={isWorkspaceReadOnly || orderMutations.transferOrder.isPending || isClosingOrder}
-                              onClick={() => setIsTransferOpen(true)}
-                              type="button"
-                              variant="secondary"
-                            >
-                              <ArrowRightLeft className="size-4" />
-                              {t('order.changePlace')}
-                            </Button>
-                          ) : null}
                         </div>
                       )}
                     </div>
@@ -1806,32 +1880,65 @@ export function EmployeeWorkspacePage() {
               <section className="grid w-full max-w-lg gap-4 rounded-xl bg-white p-5 shadow-xl">
                 <div className="grid gap-1">
                   <h4 className="text-lg font-semibold text-slate-950">{t('order.changePlace')}</h4>
-                  <p className="text-sm leading-6 text-slate-600">
-                    {t('order.changePlaceDescription')}
-                  </p>
                 </div>
 
-                <div className="grid max-h-80 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
-                  {transferTargets.map((place) => (
-                    <button
-                      className={cn(
-                        'grid min-h-16 gap-1 rounded-lg border p-3 text-left transition-colors',
-                        transferTargetPlaceId === place.id
-                          ? 'border-emerald-600 bg-emerald-50 text-emerald-950'
-                          : 'border-slate-200 bg-white text-slate-800 hover:border-emerald-200 hover:bg-emerald-50/40',
-                      )}
-                      key={place.id}
-                      onClick={() => setTransferTargetPlaceId(place.id)}
-                      type="button"
-                    >
-                      <span className="font-semibold">{place.name}</span>
-                      <span className="text-xs text-slate-500">
-                        {place.has_timer ? t('order.sessionStartsAutomatically') : t('order.withoutTimer')}
-                      </span>
-                    </button>
-                  ))}
+                <div className="grid max-h-96 gap-2 overflow-y-auto pr-1">
+                  {transferTargets.map((place) => {
+                    const isWaitingForPayment = place.active_order_status === 'waiting_payment'
+                    const hasOrphanSession = Boolean(place.active_session_id && !place.active_order_id)
+                    const isDisabled = isWaitingForPayment || hasOrphanSession
+                    const isOccupied = Boolean(place.active_order_id || place.active_session_id)
+                    const isSelected = transferTargetPlaceId === place.id
+                    const sessionAmount = calculateCurrentSessionAmount(place, nowMs)
+
+                    return (
+                      <button
+                        className={cn(
+                          'grid min-h-16 gap-2 rounded-lg border p-3 text-left transition-colors',
+                          isOccupied
+                            ? 'border-red-200 bg-red-50/70 text-red-950'
+                            : 'border-emerald-200 bg-emerald-50/70 text-emerald-950',
+                          !isDisabled && (isOccupied ? 'hover:border-red-400' : 'hover:border-emerald-400'),
+                          isSelected && 'ring-2 ring-emerald-600 ring-offset-1',
+                          isDisabled && 'cursor-not-allowed opacity-55',
+                        )}
+                        disabled={isDisabled}
+                        key={place.id}
+                        onClick={() => setTransferTargetPlaceId(place.id)}
+                        type="button"
+                      >
+                        <span className="flex min-w-0 items-center justify-between gap-3">
+                          <span className="truncate font-semibold">{place.name}</span>
+                          <span
+                            className={cn(
+                              'shrink-0 rounded-full px-2 py-0.5 text-xs font-medium',
+                              isWaitingForPayment
+                                ? 'bg-orange-100 text-orange-700'
+                                : isOccupied
+                                  ? 'bg-red-100 text-red-700'
+                                  : 'bg-emerald-100 text-emerald-700',
+                            )}
+                          >
+                            {placeStatus(place)}
+                          </span>
+                        </span>
+                        {place.active_order_id ? (
+                          <span className="flex items-center justify-between gap-3 text-xs text-slate-600">
+                            <span>#{place.active_order_number} · {place.active_order_item_count} поз.</span>
+                            <span className="font-semibold text-slate-800">
+                              {formatAzn((place.active_order_total ?? 0) + sessionAmount)}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-500">
+                            {place.has_timer ? t('order.sessionStartsAutomatically') : t('order.withoutTimer')}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
                   {!transferTargets.length ? (
-                    <div className="rounded-lg border border-dashed border-slate-200 p-4 text-sm text-slate-500 sm:col-span-2">
+                    <div className="rounded-lg border border-dashed border-slate-200 p-4 text-sm text-slate-500">
                       {t('order.noFreePlaces')}
                     </div>
                   ) : null}

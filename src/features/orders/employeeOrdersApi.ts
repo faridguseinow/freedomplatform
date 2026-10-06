@@ -407,7 +407,10 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
         if (error) throw new Error(error.message)
         return data
       },
-      onSuccess: (order) => invalidate(order.id),
+      onSuccess: async (order, { orderId }) => {
+        await invalidate(orderId)
+        if (order.id !== orderId) await invalidate(order.id)
+      },
     }),
     pauseSession: useMutation({
       mutationFn: async (sessionId: string) => {
@@ -433,6 +436,17 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
       mutationFn: async (orderId: string) => {
         const { data, error } = await supabase.rpc('set_order_waiting_payment', {
           target_order_id: orderId,
+        })
+        if (error) throw new Error(error.message)
+        return data
+      },
+      onSuccess: (order) => invalidate(order.id),
+    }),
+    prepayOrder: useMutation({
+      mutationFn: async ({ orderId, method }: { orderId: string; method: PaymentMethod }) => {
+        const { data, error } = await supabase.rpc('record_order_prepayment', {
+          target_order_id: orderId,
+          target_method: method,
         })
         if (error) throw new Error(error.message)
         return data

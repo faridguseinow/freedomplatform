@@ -64,6 +64,7 @@ const actionLabels: Record<string, string> = {
   'session.started': 'запустил сессию',
   'session.completed': 'завершил сессию',
   'payment.completed': 'принял оплату',
+  'payment.prepaid': 'принял предоплату',
   'payment.tip_recorded': 'записал чаевые',
   'payment.refused': 'оформил отказ от оплаты',
   'shift.opened': 'открыл смену',
