@@ -1136,7 +1136,7 @@ export function EmployeeWorkspacePage() {
                       {isOrderWithoutPlace ? (
                         <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
                           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                            <span>Имя клиента</span>
+                            <span className="sr-only">Имя клиента</span>
                             <input
                               className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
                               onBlur={saveOrderCustomerLabel}
@@ -1146,7 +1146,7 @@ export function EmployeeWorkspacePage() {
                                   event.currentTarget.blur()
                                 }
                               }}
-                              placeholder="Например: Эльвин"
+                              placeholder="Имя клиента"
                               readOnly={isWorkspaceReadOnly}
                               value={orderCustomerLabel}
                             />
@@ -1166,7 +1166,7 @@ export function EmployeeWorkspacePage() {
 
                       <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
                         <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                          <span>Чаевые</span>
+                          <span className="sr-only">Чаевые</span>
                           <input
                             className={cn(
                               'min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15',
@@ -1175,16 +1175,16 @@ export function EmployeeWorkspacePage() {
                             inputMode="decimal"
                             min={0}
                             onChange={(event) => setTipAmount(event.target.value)}
-                            placeholder="Например: 5"
+                            placeholder={`${t("ui.chaevye_e37f9f4")} — ${t("ui.esli_chaevyh_net_ostavte_0_ili_pusto_12ee03b")}`}
                             readOnly={isWorkspaceReadOnly}
                             type="number"
                             value={tipAmount}
                           />
-                          <span className={cn('text-xs font-normal text-slate-500', !hasValidTipAmount && 'text-red-700')}>
-                            {hasValidTipAmount
-                              ? 'Если чаевых нет, оставьте 0 или пусто.'
-                              : 'Чаевые не могут быть отрицательными.'}
-                          </span>
+                          {!hasValidTipAmount ? (
+                            <span className="text-xs font-normal text-red-700">
+                              Чаевые не могут быть отрицательными.
+                            </span>
+                          ) : null}
                         </label>
                         <div className="grid min-h-5 content-center rounded-md bg-green-900 px-2 py-2 text-sm text-white">
                           <span className="text-xs text-slate-300">Итого с чаевыми</span>

@@ -1,20 +1,17 @@
-import { getCurrentLocale } from '../../../lib/i18n/translator'
-import { Package, ReceiptText, Sofa, Timer } from 'lucide-react'
+import { Sofa, Timer, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { CatalogImage } from '../../../components/common/CatalogImage'
+import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
 import { useI18n } from '../../../lib/i18n/I18nContext'
-import { formatUnitName } from '../../../lib/i18n/formatUnitName'
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import type { EmployeeWorkspacePlaceRow, PlaceType } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
-import {
-  useEmployeeCategories,
-  useEmployeeProducts,
-} from '../../employee/catalog/employeeCatalogApi'
-import { useEmployeeWorkspaceData } from '../../orders/employeeOrdersApi'
-import { useCurrentEmployeeShift } from '../../shifts/shiftsApi'
+import { useEmployeeOrderItems, useEmployeeWorkspaceData } from '../../orders/employeeOrdersApi'
+import { useAdminShiftDetail, useAdminShifts } from '../../shifts/shiftsApi'
 
 const BILLING_GRACE_MINUTES = 10
+const LIVE_REFRESH_INTERVAL = 15_000
 
 const placeTypeLabel: Record<PlaceType, string> = {
   table: 'Стол',
@@ -32,11 +29,6 @@ const formatMoney = (value: number | null | undefined) =>
 
 const formatAzn = (value: number | null | undefined) => `${formatMoney(value)} AZN`
 
-const formatQuantity = (value: number | null | undefined) => {
-  if (value === null || value === undefined) return null
-  return new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 3 }).format(value)
-}
-
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return '-'
   return new Intl.DateTimeFormat(getCurrentLocale(), {
@@ -44,10 +36,15 @@ const formatDateTime = (value: string | null | undefined) => {
     hour: '2-digit',
     minute: '2-digit',
     month: '2-digit',
+    year: 'numeric',
   }).format(new Date(value))
 }
 
-const formatElapsed = (startedAt: string | null, nowMs: number, t: (key: string, options?: Record<string, unknown>) => string) => {
+const formatElapsed = (
+  startedAt: string | null,
+  nowMs: number,
+  t: (key: string, options?: Record<string, unknown>) => string,
+) => {
   if (!startedAt) return '00:00'
   const totalSeconds = Math.max(0, Math.floor((nowMs - new Date(startedAt).getTime()) / 1000))
   const hours = Math.floor(totalSeconds / 3600)
@@ -72,29 +69,24 @@ const calculateCurrentSessionAmount = (place: EmployeeWorkspacePlaceRow, nowMs: 
   return (place.active_session_hourly_rate * billable) / 60
 }
 
-const getPlaceStatus = (place: EmployeeWorkspacePlaceRow) => {
-  if (place.status !== 'active') return 'Недоступно'
-  if (place.active_order_status === 'waiting_payment') return 'Ожидает оплату'
-  if (place.active_order_id || place.active_session_id) return 'Занято'
-  return 'Свободно'
-}
+const getPlaceStatus = (place: EmployeeWorkspacePlaceRow) =>
+  place.active_order_status === 'waiting_payment' ? 'Ожидает оплату' : 'Занято'
 
 const getStatusClassName = (status: string) =>
   cn(
     'inline-flex rounded-md px-2 py-1 text-[11px] font-semibold',
-    status === 'Свободно' && 'bg-emerald-50 text-emerald-800',
     status === 'Занято' && 'bg-red-50 text-red-700',
     status === 'Ожидает оплату' && 'bg-amber-50 text-amber-800',
-    status === 'Недоступно' && 'bg-slate-100 text-slate-600',
   )
 
 export function AdminLiveMonitorPage() {
   const { organizationId } = useAuth()
-  const { language, t } = useI18n()
-  const workspaceQuery = useEmployeeWorkspaceData(organizationId)
-  const productsQuery = useEmployeeProducts({ organizationId })
-  const categoriesQuery = useEmployeeCategories({ organizationId })
-  const currentShiftQuery = useCurrentEmployeeShift(organizationId)
+  const { t } = useI18n()
+  const workspaceQuery = useEmployeeWorkspaceData(organizationId, LIVE_REFRESH_INTERVAL)
+  const openShiftsQuery = useAdminShifts(organizationId, 'open', LIVE_REFRESH_INTERVAL)
+  const activeShift = openShiftsQuery.data?.[0] ?? null
+  const shiftDetailQuery = useAdminShiftDetail(activeShift?.id ?? null, LIVE_REFRESH_INTERVAL)
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null)
   const [nowMs, setNowMs] = useState(() => Date.now())
 
   useEffect(() => {
@@ -102,56 +94,81 @@ export function AdminLiveMonitorPage() {
     return () => window.clearInterval(intervalId)
   }, [])
 
-  const places = workspaceQuery.data?.places ?? []
-  const orders = workspaceQuery.data?.orders ?? []
-  const products = productsQuery.data ?? []
-  const categories = categoriesQuery.data ?? []
-  const categoryById = useMemo(
-    () => new Map(categories.map((category) => [category.id, category.name])),
-    [categories],
+  const places = useMemo(() => workspaceQuery.data?.places ?? [], [workspaceQuery.data?.places])
+  const orders = useMemo(() => workspaceQuery.data?.orders ?? [], [workspaceQuery.data?.orders])
+  const occupiedPlaces = useMemo(
+    () =>
+      places
+        .filter((place) => place.active_order_id || place.active_session_id)
+        .sort(
+          (first, second) =>
+            (first.sort_order || 0) - (second.sort_order || 0) || first.name.localeCompare(second.name),
+        ),
+    [places],
   )
-  const activePlaces = places.filter((place) => place.active_order_id || place.active_session_id).length
-  const waitingPayment = orders.filter((order) => order.status === 'waiting_payment').length
-  const shift = currentShiftQuery.data?.shift ?? null
-  const shiftSummary = currentShiftQuery.data?.summary
-  const isLoading =
-    workspaceQuery.isLoading ||
-    productsQuery.isLoading ||
-    categoriesQuery.isLoading ||
-    currentShiftQuery.isLoading
-  const firstError = workspaceQuery.error ?? productsQuery.error ?? categoriesQuery.error ?? currentShiftQuery.error
+  const selectedPlace = useMemo(
+    () => occupiedPlaces.find((place) => place.id === selectedPlaceId) ?? null,
+    [occupiedPlaces, selectedPlaceId],
+  )
+  const selectedOrder = useMemo(
+    () => orders.find((order) => order.id === selectedPlace?.active_order_id) ?? null,
+    [orders, selectedPlace?.active_order_id],
+  )
+  const orderItemsQuery = useEmployeeOrderItems(selectedOrder?.id ?? null, LIVE_REFRESH_INTERVAL)
+  const activeOrderItems = useMemo(
+    () =>
+      (orderItemsQuery.data ?? []).filter(
+        (item) => item.status !== 'removed' && item.status !== 'cancelled',
+      ),
+    [orderItemsQuery.data],
+  )
 
-  const sortedPlaces = [...places].sort((first, second) => (first.sort_order || 0) - (second.sort_order || 0) || first.name.localeCompare(second.name))
-  const sortedProducts = [...products].sort((first, second) => first.name.localeCompare(second.name, 'az-Latn'))
+  const completedPayments = (shiftDetailQuery.data?.payments ?? []).filter(
+    (payment) => payment.status === 'completed',
+  )
+  const cashRevenue = completedPayments.reduce(
+    (sum, payment) => sum + (payment.method === 'cash' ? Number(payment.amount) : 0),
+    0,
+  )
+  const cardRevenue = completedPayments.reduce(
+    (sum, payment) => sum + (payment.method === 'card_transfer' ? Number(payment.amount) : 0),
+    0,
+  )
+  const shiftRevenue = cashRevenue + cardRevenue
+  const openingCash = Number(activeShift?.opening_cash_amount ?? 0)
+  const expectedCash = openingCash + cashRevenue
+  const isLoading = workspaceQuery.isLoading || openShiftsQuery.isLoading
+  const firstError = workspaceQuery.error ?? openShiftsQuery.error ?? shiftDetailQuery.error
 
   return (
-    <section className="grid gap-3 sm:gap-5">
+    <section className="grid gap-4">
       <header className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-medium uppercase text-slate-500">{t("ui.mobilnyy_monitoring_8c73d15")}</p>
-            <h1 className="mt-1 text-2xl font-semibold text-slate-950">{t("ui.mesta_onlayn_e379342")}</h1>
-            <p className="mt-1 text-sm leading-5 text-slate-600">
-              {t("ui.prosmotr_smeny_mest_zakazov_i_tovarov_bez_rabochih_d_7fb3dd7")}
+            <h1 className="text-2xl font-semibold text-slate-950">{t("ui.mesta_onlayn_e379342")}</h1>
+            <p className="mt-1 text-sm text-slate-600">
+              {activeShift ? `${t("ui.otkryta_87c42ed")} · ${formatDateTime(activeShift.opened_at)}` : t("ui.smena_ne_otkryta_a04a370")}
             </p>
           </div>
           <Sofa aria-hidden="true" className="size-6 shrink-0 text-emerald-700" />
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-            <p className="text-[11px] font-medium uppercase text-slate-500">{t("ui.smena_d5ff8af")}</p>
-            <p className="mt-1 font-semibold text-slate-950">{shift ? t("ui.otkryta_87c42ed") : t("ui.zakryta_6d2717e")}</p>
-            <p className="mt-1 text-xs text-slate-600">{shift ? formatDateTime(shift.opened_at) : t("ui.smena_ne_otkryta_a04a370")}</p>
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+          <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3">
+            <p className="text-[11px] font-medium uppercase text-emerald-700">{t("ui.vyruchka_smeny_7c55385")}</p>
+            <p className="mt-1 text-xl font-semibold text-emerald-950">{formatAzn(shiftRevenue)}</p>
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-            <p className="text-[11px] font-medium uppercase text-slate-500">{t("ui.vyruchka_smeny_7c55385")}</p>
-            <p className="mt-1 font-semibold text-slate-950">
-              {formatAzn((shiftSummary?.cash_sales_total ?? 0) + (shiftSummary?.card_transfer_sales_total ?? 0))}
-            </p>
-            <p className="mt-1 text-xs text-slate-600">
-              {t("ui.zakazy_22ac845")}: {orders.length} · {t("ui.zanyato_ba8daf5")}: {activePlaces}
-            </p>
+            <p className="text-[11px] font-medium uppercase text-slate-500">{t("ui.nachalnaya_kassa_607e0b0")}</p>
+            <p className="mt-1 text-xl font-semibold text-slate-950">{formatAzn(openingCash)}</p>
+          </div>
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+            <p className="text-[11px] font-medium uppercase text-slate-500">{t("ui.ozhidaemaya_kassa_0adb6d8")}</p>
+            <p className="mt-1 text-xl font-semibold text-slate-950">{formatAzn(expectedCash)}</p>
+          </div>
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+            <p className="text-[11px] font-medium uppercase text-slate-500">{t("ui.zanyato_ba8daf5")}</p>
+            <p className="mt-1 text-xl font-semibold text-slate-950">{occupiedPlaces.length}</p>
           </div>
         </div>
       </header>
@@ -171,141 +188,204 @@ export function AdminLiveMonitorPage() {
       <section className="grid gap-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-slate-950">{t("ui.mesta_a661590")}</h2>
-          <span className="text-sm font-medium text-slate-500">
-            {activePlaces}/{places.length}
-          </span>
+          <span className="text-sm font-medium text-slate-500">{occupiedPlaces.length}</span>
         </div>
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {sortedPlaces.map((place) => {
-            const status = getPlaceStatus(place)
-            const sessionAmount = calculateCurrentSessionAmount(place, nowMs)
-            const occupancyStartedAt = place.active_session_started_at ?? place.active_order_opened_at
-            const total = (place.active_order_total ?? 0) + sessionAmount
+        {occupiedPlaces.length ? (
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {occupiedPlaces.map((place) => {
+              const status = getPlaceStatus(place)
+              const sessionAmount = calculateCurrentSessionAmount(place, nowMs)
+              const occupancyStartedAt = place.active_session_started_at ?? place.active_order_opened_at
+              const total = (place.active_order_total ?? 0) + sessionAmount
 
-            return (
-              <article className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm" key={place.id}>
-                <div className="flex items-start gap-3">
-                  <CatalogImage alt={place.name} className="size-11 rounded-full" imagePath={place.image_path} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="min-w-0 truncate text-base font-semibold text-slate-950">{place.name}</h3>
-                      <span className={getStatusClassName(status)}>{t(status)}</span>
+              return (
+                <button
+                  className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 text-left shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+                  key={place.id}
+                  onClick={() => setSelectedPlaceId(place.id)}
+                  type="button"
+                >
+                  <div className="flex items-start gap-3">
+                    <CatalogImage alt={place.name} className="size-11 rounded-full" imagePath={place.image_path} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="min-w-0 truncate text-base font-semibold text-slate-950">{place.name}</h3>
+                        <span className={getStatusClassName(status)}>{t(status)}</span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-600">
+                        {place.custom_type_name || t(placeTypeLabel[place.type])}
+                      </p>
                     </div>
-                    <p className="mt-1 text-xs text-slate-600">
-                      {place.custom_type_name || t(placeTypeLabel[place.type])}
-                    </p>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="rounded-md bg-slate-50 p-2">
-                    <p className="text-[11px] font-medium uppercase text-slate-500">{t("ui.sessiya_1c1e92b")}</p>
-                    <p className="mt-1 font-semibold text-slate-950">
-                      {place.active_session_id ? formatElapsed(place.active_session_started_at, nowMs, t) : t("ui.net_f82a821")}
-                    </p>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="rounded-md bg-slate-50 p-2">
+                      <p className="text-[11px] font-medium uppercase text-slate-500">{t("ui.vremya_c80d7e8")}</p>
+                      <p className="mt-1 font-semibold text-slate-950">
+                        {formatElapsed(occupancyStartedAt, nowMs, t)}
+                      </p>
+                    </div>
+                    <div className="rounded-md bg-slate-50 p-2">
+                      <p className="text-[11px] font-medium uppercase text-slate-500">{t("ui.summa_99d7408")}</p>
+                      <p className="mt-1 font-semibold text-slate-950">{formatAzn(total)}</p>
+                    </div>
                   </div>
-                  <div className="rounded-md bg-slate-50 p-2">
-                    <p className="text-[11px] font-medium uppercase text-slate-500">{t("ui.summa_99d7408")}</p>
-                    <p className="mt-1 font-semibold text-slate-950">{formatAzn(total)}</p>
-                  </div>
-                </div>
 
-                <div className="grid gap-1 text-xs text-slate-600">
-                  <span>
-                    {t("ui.zakaz_c7b64dd")}: {place.active_order_number ? `#${place.active_order_number}` : t("ui.net_f82a821")}
-                  </span>
-                  {occupancyStartedAt ? (
-                    <span className="inline-flex items-center gap-1">
-                      <Timer aria-hidden="true" className="size-3.5" />
-                      {t("ui.s_momenta_b9cd458")}: {formatDateTime(occupancyStartedAt)}
+                  <div className="flex items-center justify-between gap-3 text-xs text-slate-600">
+                    <span>
+                      {t("ui.zakaz_c7b64dd")}: {place.active_order_number ? `#${place.active_order_number}` : t("ui.net_f82a821")}
                     </span>
-                  ) : null}
-                </div>
-              </article>
-            )
-          })}
-        </div>
-      </section>
-
-      <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="inline-flex items-center gap-2 text-lg font-semibold text-slate-950">
-            <ReceiptText aria-hidden="true" className="size-5 text-emerald-700" />
-            {t("ui.otkrytye_zakazy_19fa1a2")}
-          </h2>
-          {waitingPayment ? (
-            <span className="rounded-md bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">
-              {t("ui.ozhidaet_oplatu_2b281ad")}: {waitingPayment}
-            </span>
-          ) : null}
-        </div>
-
-        {orders.length ? (
-          <div className="grid gap-2">
-            {orders.map((order) => (
-              <article className="rounded-md border border-slate-200 p-3" key={order.id}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-slate-950">#{order.order_number}</h3>
-                    <p className="mt-1 text-sm text-slate-600">
-                      {order.customer_label || t("ui.bez_imeni_cdf641f")}
-                    </p>
+                    <span className="font-medium text-emerald-700">{t("ui.detali_85a76a7")}</span>
                   </div>
-                  <p className="shrink-0 font-semibold text-slate-950">{formatAzn(order.total_amount)}</p>
-                </div>
-                <div className="mt-2 grid gap-1 text-xs text-slate-600">
-                  <span>{order.current_place_name_snapshot ?? t("ui.bez_mesta_da3a88d")}</span>
-                  <span>{t("ui.otkryt_3568fc6")}: {formatDateTime(order.opened_at)}</span>
-                  {order.comment ? <span>{t("ui.kommentariy_829038c")}: {order.comment}</span> : null}
-                </div>
-              </article>
-            ))}
+                </button>
+              )
+            })}
           </div>
-        ) : (
-          <div className="rounded-md border border-dashed border-slate-200 p-4 text-sm text-slate-500">
-            {t("ui.otkrytyh_zakazov_net_ab8e2c7")}
+        ) : !isLoading ? (
+          <div className="rounded-lg border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500">
+            {t("ui.net_f82a821")}
           </div>
-        )}
+        ) : null}
       </section>
 
-      <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-        <h2 className="inline-flex items-center gap-2 text-lg font-semibold text-slate-950">
-          <Package aria-hidden="true" className="size-5 text-emerald-700" />
-          {t("ui.tovary_5179979")}
-        </h2>
-
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {sortedProducts.map((product) => {
-            const productWithStock = product as typeof product & {
-              minimum_stock_quantity?: number | null
-              stock_quantity?: number | null
-              track_stock?: boolean | null
-            }
-            const stock = formatQuantity(productWithStock.stock_quantity)
-            const low =
-              productWithStock.track_stock &&
-              (productWithStock.stock_quantity ?? 0) <= (productWithStock.minimum_stock_quantity ?? 0)
-            return (
-              <article className="grid grid-cols-[3.5rem_1fr] gap-3 rounded-md border border-slate-200 p-2.5" key={product.id}>
-                <CatalogImage alt={product.name} className="size-14 object-contain" imagePath={product.image_path} />
+      {selectedPlace ? (
+        <Modal
+          align="end"
+          className="bg-slate-950/35"
+          onClose={() => setSelectedPlaceId(null)}
+          padding="none"
+          panelClassName="!h-full md:flex md:justify-end"
+        >
+          <aside className="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-white shadow-xl md:w-[620px] md:max-w-full">
+            <header className="flex items-start justify-between gap-3 border-b border-slate-200 p-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <CatalogImage alt={selectedPlace.name} className="size-12 rounded-full" imagePath={selectedPlace.image_path} />
                 <div className="min-w-0">
-                  <h3 className="truncate text-sm font-semibold text-slate-950">{product.name}</h3>
-                  <p className="mt-1 text-sm font-semibold text-slate-950">{formatAzn(product.sale_price)}</p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {categoryById.get(product.category_id ?? '') ?? t("ui.bez_kategorii_5aaa8a1")}
-                  </p>
-                  <p className={low ? 'mt-1 text-xs font-semibold text-amber-700' : 'mt-1 text-xs text-slate-600'}>
-                    {productWithStock.track_stock
-                      ? `${t("ui.ostalos_76a8eb1")}: ${stock ?? '-'} ${formatUnitName(product.unit_name, language)}`
-                      : t("ui.bez_ucheta_sklada_8157cd8")}
+                  <h2 className="truncate text-lg font-semibold text-slate-950">{selectedPlace.name}</h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {selectedOrder ? `#${selectedOrder.order_number} · ${t(getPlaceStatus(selectedPlace))}` : t(getPlaceStatus(selectedPlace))}
                   </p>
                 </div>
-              </article>
-            )
-          })}
-        </div>
-      </section>
+              </div>
+              <button
+                aria-label={t("ui.zakryt_4ae50d3")}
+                className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100"
+                onClick={() => setSelectedPlaceId(null)}
+                type="button"
+              >
+                <X aria-hidden="true" className="size-4" />
+              </button>
+            </header>
+
+            <div className="grid min-h-0 content-start gap-4 overflow-y-auto p-4">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-md bg-slate-50 p-3">
+                  <p className="text-[11px] font-medium uppercase text-slate-500">{t("ui.vremya_c80d7e8")}</p>
+                  <p className="mt-1 font-semibold text-slate-950">
+                    {formatElapsed(selectedPlace.active_session_started_at ?? selectedPlace.active_order_opened_at, nowMs, t)}
+                  </p>
+                </div>
+                <div className="rounded-md bg-slate-50 p-3">
+                  <p className="text-[11px] font-medium uppercase text-slate-500">{t("ui.summa_99d7408")}</p>
+                  <p className="mt-1 font-semibold text-slate-950">
+                    {formatAzn((selectedPlace.active_order_total ?? 0) + calculateCurrentSessionAmount(selectedPlace, nowMs))}
+                  </p>
+                </div>
+              </div>
+
+              {selectedPlace.active_session_id ? (
+                <section className="grid gap-2 rounded-lg border border-slate-200 p-3">
+                  <h3 className="font-semibold text-slate-950">{t("ui.sessiya_1c1e92b")}</h3>
+                  <dl className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <dt className="text-xs text-slate-500">{t("ui.otkryt_v_c50a347")}</dt>
+                      <dd className="mt-1 font-medium text-slate-950">{formatDateTime(selectedPlace.active_session_started_at)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-slate-500">{t("ui.tsena_za_chas_fe7e643")}</dt>
+                      <dd className="mt-1 font-medium text-slate-950">{formatAzn(selectedPlace.active_session_hourly_rate)}</dd>
+                    </div>
+                  </dl>
+                </section>
+              ) : null}
+
+              {selectedOrder ? (
+                <section className="grid gap-3 rounded-lg border border-slate-200 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-slate-950">
+                        {t("ui.zakaz_c7b64dd")} #{selectedOrder.order_number}
+                      </h3>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {selectedOrder.customer_label || t("ui.bez_imeni_cdf641f")}
+                      </p>
+                    </div>
+                    <p className="shrink-0 font-semibold text-slate-950">{formatAzn(selectedOrder.total_amount)}</p>
+                  </div>
+                  <dl className="grid gap-1 text-sm text-slate-600">
+                    <div className="flex items-center justify-between gap-3">
+                      <dt>{t("ui.otkryt_3568fc6")}</dt>
+                      <dd>{formatDateTime(selectedOrder.opened_at)}</dd>
+                    </div>
+                    {selectedOrder.comment ? (
+                      <div className="grid gap-1 border-t border-slate-100 pt-2">
+                        <dt className="text-xs font-medium uppercase text-slate-500">{t("ui.kommentariy_829038c")}</dt>
+                        <dd className="text-slate-700">{selectedOrder.comment}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                </section>
+              ) : null}
+
+              {selectedOrder ? (
+                <section className="grid gap-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-lg font-semibold text-slate-950">{t("ui.sostav_zakaza_35ccdc9")}</h3>
+                    <span className="text-sm font-medium text-slate-500">{activeOrderItems.length}</span>
+                  </div>
+
+                  {orderItemsQuery.isLoading ? (
+                    <div className="rounded-lg border border-slate-200 p-4 text-sm text-slate-500">
+                      {t("ui.zagruzka_dannyh_6811312")}
+                    </div>
+                  ) : null}
+
+                  {activeOrderItems.length ? (
+                    <div className="grid gap-2">
+                      {activeOrderItems.map((item) => (
+                        <article className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3 rounded-lg border border-slate-200 p-3" key={item.id}>
+                          <CatalogImage alt={item.name_snapshot} className="size-16 object-contain" imagePath={item.image_path_snapshot} />
+                          <div className="min-w-0">
+                            <div className="flex items-start justify-between gap-3">
+                              <h4 className="font-semibold text-slate-950">{item.name_snapshot}</h4>
+                              <span className="shrink-0 font-semibold text-slate-950">{formatAzn(item.total_price)}</span>
+                            </div>
+                            <p className="mt-1 text-sm text-slate-600">
+                              {item.quantity} × {formatAzn(item.unit_price)}
+                            </p>
+                            {item.description_snapshot ? (
+                              <p className="mt-1 text-sm text-slate-600">{item.description_snapshot}</p>
+                            ) : null}
+                            <p className="mt-2 inline-flex items-center gap-1 text-xs text-slate-500">
+                              <Timer aria-hidden="true" className="size-3.5" />
+                              {formatDateTime(item.added_at)}
+                            </p>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : !orderItemsQuery.isLoading ? (
+                    <div className="rounded-lg border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">
+                      {t("ui.net_f82a821")}
+                    </div>
+                  ) : null}
+                </section>
+              ) : null}
+            </div>
+          </aside>
+        </Modal>
+      ) : null}
     </section>
   )
 }

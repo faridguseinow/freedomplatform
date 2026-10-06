@@ -72,11 +72,14 @@ const toWorkspacePlace = (
   }
 }
 
-export function useEmployeeWorkspaceData(organizationId: string | null) {
+export function useEmployeeWorkspaceData(
+  organizationId: string | null,
+  refetchInterval: number | false = 45_000,
+) {
   return useQuery({
     enabled: Boolean(organizationId),
     queryKey: ['employee', 'workspace', organizationId],
-    refetchInterval: 45_000,
+    refetchInterval,
     queryFn: async () => {
       const [placesResult, ordersResult, sessionsResult, comboItemsResult] = await Promise.all([
         supabase
@@ -182,10 +185,14 @@ export function useEmployeeWorkspaceData(organizationId: string | null) {
   })
 }
 
-export function useEmployeeOrderItems(orderId: string | null) {
+export function useEmployeeOrderItems(
+  orderId: string | null,
+  refetchInterval: number | false = false,
+) {
   return useQuery({
     enabled: Boolean(orderId),
     queryKey: ['employee', 'order-items', orderId],
+    refetchInterval,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('employee_order_items')

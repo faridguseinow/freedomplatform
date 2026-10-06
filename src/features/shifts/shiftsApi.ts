@@ -100,10 +100,12 @@ export function useEmployeeShiftMutations(organizationId: string | null) {
 export function useAdminShifts(
   organizationId: string | null,
   status: ShiftStatus | 'all' = 'all',
+  refetchInterval: number | false = false,
 ) {
   return useQuery({
     enabled: Boolean(organizationId),
     queryKey: ['admin', 'shifts', organizationId, status],
+    refetchInterval,
     queryFn: async () => {
       let query = supabase
         .from('admin_shift_reports')
@@ -123,10 +125,14 @@ export function useAdminShifts(
   })
 }
 
-export function useAdminShiftDetail(shiftId: string | null) {
+export function useAdminShiftDetail(
+  shiftId: string | null,
+  refetchInterval: number | false = false,
+) {
   return useQuery({
     enabled: Boolean(shiftId),
     queryKey: ['admin', 'shift-detail', shiftId],
+    refetchInterval,
     queryFn: async () => {
       const [shiftResult, handoversResult, ordersResult, paymentsResult, sessionsResult] =
         await Promise.all([
