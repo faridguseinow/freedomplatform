@@ -226,6 +226,8 @@ function buildDetails(metadata: RawMetadata) {
   if (typeof metadata.items_count === 'number') details.push({ key: 'activity.detail.itemsCount', value: metadata.items_count })
   const remainingAmount = formatMoney(metadata.remaining)
   if (remainingAmount) details.push({ key: 'activity.detail.remainingAmount', value: remainingAmount })
+  const refundedAmount = formatMoney(metadata.refunded_amount)
+  if (refundedAmount) details.push({ key: 'activity.detail.refundedAmount', value: refundedAmount })
   if (typeof metadata.billable_minutes === 'number') details.push({ key: 'activity.detail.minutes', value: metadata.billable_minutes })
   if (typeof metadata.reason === 'string') details.push({ key: 'activity.detail.reason', value: metadata.reason })
   if (typeof metadata.comment === 'string') details.push({ key: 'activity.detail.comment', value: metadata.comment })

@@ -540,17 +540,20 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
         orderId,
         cashAmount,
         cardAmount,
+        tipAmount,
         comment,
       }: {
         orderId: string
         cashAmount: number
         cardAmount: number
+        tipAmount: number
         comment?: string | null
       }) => {
-        const { data, error } = await supabase.rpc('complete_order_split_payment', {
+        const { data, error } = await supabase.rpc('complete_order_split_payment_with_tip', {
           target_order_id: orderId,
           target_cash_amount: cashAmount,
           target_card_amount: cardAmount,
+          target_tip_amount: tipAmount,
           target_comment: comment ?? null,
         })
         if (error) throw new Error(error.message)

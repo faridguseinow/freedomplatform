@@ -328,6 +328,7 @@ export function EmployeeWorkspacePage() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [pickerTab, setPickerTab] = useState<PickerTab>('products')
   const [paymentChoiceOrderId, setPaymentChoiceOrderId] = useState<string | null>(null)
+  const [isSplitPaymentOpen, setIsSplitPaymentOpen] = useState(false)
   const [itemPaymentItemId, setItemPaymentItemId] = useState<string | null>(null)
   const [itemPaymentQuantity, setItemPaymentQuantity] = useState(1)
   const [orderCloseAction, setOrderCloseAction] = useState<OrderCloseAction | null>(null)
@@ -463,7 +464,9 @@ export function EmployeeWorkspacePage() {
     const order = orders.find((currentOrder) => currentOrder.id === orderId)
     const place = order?.place_id ? placesById.get(order.place_id) ?? null : null
     setSearch('')
+    setError(null)
     setPaymentChoiceOrderId(null)
+    setIsSplitPaymentOpen(false)
     setItemPaymentItemId(null)
     setTipAmount('')
     setCashSplitAmount('')
@@ -479,6 +482,7 @@ export function EmployeeWorkspacePage() {
   const closeOrder = () => {
     setSearch('')
     setPaymentChoiceOrderId(null)
+    setIsSplitPaymentOpen(false)
     setItemPaymentItemId(null)
     setOrderCloseAction(null)
     setIsTransferOpen(false)
@@ -732,6 +736,7 @@ export function EmployeeWorkspacePage() {
         orderId: selectedOrderId,
         cashAmount: cashSplitValue,
         cardAmount: cardSplitValue,
+        tipAmount: normalizedTipAmount,
         comment: orderComment.trim() || null,
       })
       closeOrder()
@@ -745,6 +750,7 @@ export function EmployeeWorkspacePage() {
         await orderMutations.waitPayment.mutateAsync(selectedOrder.id)
       }
       setItemPaymentItemId(null)
+      setIsSplitPaymentOpen(false)
       setPaymentChoiceOrderId(selectedOrder.id)
     })
   }
@@ -1176,8 +1182,7 @@ export function EmployeeWorkspacePage() {
                     normalizedTipAmount <= 0
                   const canCancelOrder =
                     (selectedOrder.status === 'open' || selectedOrder.status === 'waiting_payment') &&
-                    !hasActiveSession &&
-                    selectedOrder.paid_amount <= 0
+                    !hasActiveSession
                   const isClosingOrder = isOrderCloseActionPending
 
                   return (
@@ -1285,120 +1290,124 @@ export function EmployeeWorkspacePage() {
                           {t('payment.refused')} {selectedOrder.payment_refusal_comment ?? ''}
                         </div>
                       ) : (
-                        <div className="grid grid-cols-3 gap-1.5">
-                          {hasNormalPaymentAmount ? (
-                            <Button className="min-h-9 min-w-0 gap-1 px-2 py-1 text-xs leading-tight" disabled={isWorkspaceReadOnly || !canPreparePayment || isClosingOrder} onClick={openPaymentChoice} type="button">
-                              <Hourglass className="size-3.5 shrink-0" />
-                              <span className="min-w-0 truncate">
-                                {selectedOrder.status === 'waiting_payment' ? 'Принять оплату' : 'К оплате'}
-                              </span>
-                            </Button>
-                          ) : (
-                            <Button
-                              className="min-h-9 min-w-0 gap-1 px-2 py-1 text-xs leading-tight"
-                              disabled={isWorkspaceReadOnly || !canFinishEmptyOrder || isClosingOrder}
-                              onClick={finishEmptyOrder}
-                              type="button"
-                            >
-                              <CheckCircle2 className="size-3.5 shrink-0" />
-                              <span className="min-w-0 truncate">Завершить заказ</span>
-                            </Button>
-                          )}
-
-                          <Button
-                            className="min-h-9 min-w-0 gap-1 px-2 py-1 text-xs leading-tight"
-                            disabled={isWorkspaceReadOnly || !canCancelOrder || isClosingOrder}
-                            onClick={cancelOrder}
-                            type="button"
-                            variant="danger"
-                          >
-                            <X className="size-3.5 shrink-0" />
-                            <span className="min-w-0 truncate">Отменить заказ</span>
-                          </Button>
-                          {selectedOrder.status === 'open' ? (
-                            <Button
-                              className="min-h-9 min-w-0 gap-1 px-2 py-1 text-xs leading-tight"
-                              disabled={isWorkspaceReadOnly || orderMutations.transferOrder.isPending || isClosingOrder}
-                              onClick={() => setIsTransferOpen(true)}
-                              type="button"
-                              variant="secondary"
-                            >
-                              <ArrowRightLeft className="size-3.5 shrink-0" />
-                              <span className="min-w-0 truncate">{t('order.changePlace')}</span>
-                            </Button>
-                          ) : <span />}
-
-                          {paymentChoiceOpen ? (
-                            <>
+                        <div className="grid gap-2">
+                          <div className={cn('grid gap-1.5', selectedOrder.status === 'open' ? 'grid-cols-3' : 'grid-cols-2')}>
+                            {hasNormalPaymentAmount ? (
+                              <Button className="min-h-9 min-w-0 gap-1 px-2 py-1 text-xs leading-tight" disabled={isWorkspaceReadOnly || !canPreparePayment || isClosingOrder} onClick={openPaymentChoice} type="button">
+                                <Hourglass className="size-3.5 shrink-0" />
+                                <span className="min-w-0 truncate">
+                                  {selectedOrder.status === 'waiting_payment' ? 'Принять оплату' : 'К оплате'}
+                                </span>
+                              </Button>
+                            ) : (
                               <Button
-                                disabled={isWorkspaceReadOnly || isClosingOrder || !hasValidTipAmount}
-                                onClick={() => completePayment('cash')}
+                                className="min-h-9 min-w-0 gap-1 px-2 py-1 text-xs leading-tight"
+                                disabled={isWorkspaceReadOnly || !canFinishEmptyOrder || isClosingOrder}
+                                onClick={finishEmptyOrder}
                                 type="button"
                               >
-                                <Banknote className="size-4" /> Наличными
+                                <CheckCircle2 className="size-3.5 shrink-0" />
+                                <span className="min-w-0 truncate">Завершить заказ</span>
                               </Button>
+                            )}
+
+                            <Button
+                              className="min-h-9 min-w-0 gap-1 px-2 py-1 text-xs leading-tight"
+                              disabled={isWorkspaceReadOnly || !canCancelOrder || isClosingOrder}
+                              onClick={cancelOrder}
+                              type="button"
+                              variant="danger"
+                            >
+                              <X className="size-3.5 shrink-0" />
+                              <span className="min-w-0 truncate">Отменить заказ</span>
+                            </Button>
+                            {selectedOrder.status === 'open' ? (
                               <Button
-                                disabled={isWorkspaceReadOnly || isClosingOrder || !hasValidTipAmount}
-                                onClick={() => completePayment('card_transfer')}
+                                className="min-h-9 min-w-0 gap-1 px-2 py-1 text-xs leading-tight"
+                                disabled={isWorkspaceReadOnly || orderMutations.transferOrder.isPending || isClosingOrder}
+                                onClick={() => setIsTransferOpen(true)}
                                 type="button"
                                 variant="secondary"
                               >
-                                <CreditCard className="size-4" /> Картой
+                                <ArrowRightLeft className="size-3.5 shrink-0" />
+                                <span className="min-w-0 truncate">{t('order.changePlace')}</span>
                               </Button>
-                              <div className="col-span-4 grid gap-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
-                                <div className="flex items-center justify-between gap-3">
-                                  <span className="text-sm font-semibold text-slate-950">
-                                    {t('payment.splitPayment')}
-                                  </span>
-                                  <span className="text-sm font-medium text-slate-700">
-                                    {formatAzn(splitPaymentTargetTotal)}
-                                  </span>
-                                </div>
-                                <div className="grid gap-2 md:grid-cols-2">
-                                  <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                                    <span>Наличными</span>
-                                    <input
-                                      className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
-                                      inputMode="decimal"
-                                      min={0}
-                                      onChange={(event) => setCashSplitAmount(event.target.value)}
-                                      placeholder={t('payment.cashExample')}
-                                      type="number"
-                                      value={cashSplitAmount}
-                                    />
-                                  </label>
-                                  <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                                    <span>Картой</span>
-                                    <input
-                                      className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
-                                      inputMode="decimal"
-                                      min={0}
-                                      onChange={(event) => setCardSplitAmount(event.target.value)}
-                                      placeholder={t('payment.cardExample')}
-                                      type="number"
-                                      value={cardSplitAmount}
-                                    />
-                                  </label>
-                                </div>
-                                <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
-                                  <span>Итого: {formatAzn(splitPaymentTotal)}</span>
-                                  <span>
-                                    {isSplitPaymentValid
-                                      ? t('payment.amountMatches')
-                                      : t('payment.amountMustMatchTotal')}
-                                  </span>
-                                </div>
+                            ) : null}
+                          </div>
+
+                          {paymentChoiceOpen ? (
+                            <div className="grid gap-2 rounded-lg border border-emerald-200 bg-emerald-50/50 p-2.5">
+                              <div className="flex items-center justify-between gap-3 text-sm">
+                                <span className="font-semibold text-slate-950">{t('payment.remaining')}</span>
+                                <span className="font-semibold text-emerald-800">{formatAzn(splitPaymentTargetTotal)}</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
                                 <Button
-                                  disabled={isWorkspaceReadOnly || isClosingOrder || !isSplitPaymentValid || !hasValidTipAmount}
-                                  onClick={completeSplitPayment}
+                                  disabled={isWorkspaceReadOnly || isClosingOrder || !hasValidTipAmount}
+                                  onClick={() => completePayment('cash')}
                                   type="button"
                                 >
-                                  <Banknote className="size-4" /> {t('payment.acceptSplitPayment')}
+                                  <Banknote className="size-4" /> Наличными
+                                </Button>
+                                <Button
+                                  disabled={isWorkspaceReadOnly || isClosingOrder || !hasValidTipAmount}
+                                  onClick={() => completePayment('card_transfer')}
+                                  type="button"
+                                  variant="secondary"
+                                >
+                                  <CreditCard className="size-4" /> Картой
                                 </Button>
                               </div>
-                            </>
+                              <button
+                                className="text-left text-xs font-semibold text-slate-600 underline-offset-2 hover:text-slate-950 hover:underline"
+                                onClick={() => setIsSplitPaymentOpen((isOpen) => !isOpen)}
+                                type="button"
+                              >
+                                {t('payment.splitPayment')}
+                              </button>
+                              {isSplitPaymentOpen ? (
+                                <div className="grid gap-2 border-t border-emerald-200 pt-2">
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <label className="grid gap-1 text-xs font-medium text-slate-700">
+                                      <span>Наличными</span>
+                                      <input
+                                        className="min-h-9 rounded-md border border-slate-200 bg-white px-2.5 text-sm text-slate-950 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                                        inputMode="decimal"
+                                        min={0}
+                                        onChange={(event) => setCashSplitAmount(event.target.value)}
+                                        placeholder={t('payment.cashExample')}
+                                        type="number"
+                                        value={cashSplitAmount}
+                                      />
+                                    </label>
+                                    <label className="grid gap-1 text-xs font-medium text-slate-700">
+                                      <span>Картой</span>
+                                      <input
+                                        className="min-h-9 rounded-md border border-slate-200 bg-white px-2.5 text-sm text-slate-950 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                                        inputMode="decimal"
+                                        min={0}
+                                        onChange={(event) => setCardSplitAmount(event.target.value)}
+                                        placeholder={t('payment.cardExample')}
+                                        type="number"
+                                        value={cardSplitAmount}
+                                      />
+                                    </label>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
+                                    <span>Итого: {formatAzn(splitPaymentTotal)}</span>
+                                    <span>{isSplitPaymentValid ? t('payment.amountMatches') : t('payment.amountMustMatchTotal')}</span>
+                                  </div>
+                                  <Button
+                                    disabled={isWorkspaceReadOnly || isClosingOrder || !isSplitPaymentValid || !hasValidTipAmount}
+                                    onClick={completeSplitPayment}
+                                    type="button"
+                                  >
+                                    <Banknote className="size-4" /> {t('payment.acceptSplitPayment')}
+                                  </Button>
+                                </div>
+                              ) : null}
+                            </div>
                           ) : null}
-
                         </div>
                       )}
                     </div>
@@ -1640,7 +1649,13 @@ export function EmployeeWorkspacePage() {
                 </div>
               </section>
 
-              <section className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-2 overflow-hidden">
+              <section
+                aria-disabled={selectedOrder.status !== 'open'}
+                className={cn(
+                  'grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-2 overflow-hidden transition',
+                  selectedOrder.status !== 'open' && 'select-none grayscale opacity-50',
+                )}
+              >
                 {(() => {
                   const selectedPlace = placesById.get(selectedOrder.place_id ?? '') ?? null
                   const hasActiveSession = Boolean(selectedPlace?.active_session_id)
@@ -1660,7 +1675,7 @@ export function EmployeeWorkspacePage() {
                   const hasComboGiftTime = comboGiftMinutes > 0
                   const isSelectedTable = Boolean(selectedPlace && isTablePlace(selectedPlace))
                   const tableOpenedAt =
-                    isSelectedTable && selectedOrder.status !== 'paid'
+                    isSelectedTable
                       ? selectedPlace?.active_order_opened_at ?? selectedOrder.opened_at
                       : null
                   const canAddItems = selectedOrder.status === 'open'
@@ -1670,8 +1685,7 @@ export function EmployeeWorkspacePage() {
 
                   return (
                     <>
-                      {canAddItems ? (
-                        <div className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-2 overflow-hidden rounded-lg border border-slate-200 p-2">
+                      <div className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-2 overflow-hidden rounded-lg border border-slate-200 bg-slate-50/40 p-2">
                           <div className="grid grid-cols-3 gap-1.5">
                             {(['products', 'services', 'combos'] as const).map((tab) => (
                               <button
@@ -1681,6 +1695,7 @@ export function EmployeeWorkspacePage() {
                                     ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
                                     : 'border-slate-200 bg-white text-slate-600',
                                 )}
+                                disabled={!canAddItems}
                                 key={tab}
                                 onClick={() => setPickerTab(tab)}
                                 type="button"
@@ -1694,6 +1709,7 @@ export function EmployeeWorkspacePage() {
                             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                             <input
                               className="min-h-9 w-full rounded-md border border-slate-200 bg-white px-3 pl-10 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                              disabled={!canAddItems}
                               id="employee_catalog_search"
                               onChange={(event) => setSearch(event.target.value)}
                               placeholder="Поиск"
@@ -1721,7 +1737,7 @@ export function EmployeeWorkspacePage() {
 
                                   return (
                                     <CatalogAddButton
-                                      disabled={isWorkspaceReadOnly}
+                                      disabled={isWorkspaceReadOnly || !canAddItems}
                                       imagePath={product.image_path}
                                       isPressed={pressedCatalogItemKey === `products:${product.id}`}
                                       key={product.id}
@@ -1741,7 +1757,7 @@ export function EmployeeWorkspacePage() {
                             {pickerTab === 'services'
                                 ? filteredServices.map((service) => (
                                   <CatalogAddButton
-                                    disabled={isWorkspaceReadOnly}
+                                    disabled={isWorkspaceReadOnly || !canAddItems}
                                     imagePath={service.image_path}
                                     isPressed={pressedCatalogItemKey === `services:${service.id}`}
                                     key={service.id}
@@ -1754,7 +1770,7 @@ export function EmployeeWorkspacePage() {
                             {pickerTab === 'combos'
                                 ? filteredCombos.map((combo) => (
                                   <CatalogAddButton
-                                    disabled={isWorkspaceReadOnly}
+                                    disabled={isWorkspaceReadOnly || !canAddItems}
                                     details={getComboComponentLabels(combo.component_preview, t)}
                                     imagePath={combo.image_path}
                                     isPressed={pressedCatalogItemKey === `combos:${combo.id}`}
@@ -1767,7 +1783,6 @@ export function EmployeeWorkspacePage() {
                               : null}
                           </div>
                         </div>
-                      ) : null}
 
                       <div className="grid gap-2 rounded-lg border border-slate-200 p-2.5">
                         <div className="flex items-center justify-between gap-2">
@@ -1782,11 +1797,9 @@ export function EmployeeWorkspacePage() {
                                   : t('session.createOrderForTableOccupancy')
                                 : hasActiveSession
                                   ? 'Сначала остановите сессию, затем переводите заказ к оплате.'
-                                  : selectedOrder.status === 'waiting_payment'
-                                    ? 'Заказ готов к оплате.'
-                                    : !hasNormalPaymentAmount
-                                      ? 'Можно добавить позиции или завершить пустой заказ без оплаты.'
-                                      : 'Добавьте позиции или переведите заказ к оплате.'}
+                                  : !hasNormalPaymentAmount
+                                    ? 'Можно добавить позиции или завершить пустой заказ без оплаты.'
+                                    : 'Добавьте позиции или переведите заказ к оплате.'}
                             </p>
                           </div>
                           {hasActiveSession ? (
@@ -2145,7 +2158,12 @@ export function EmployeeWorkspacePage() {
                   <p className="text-sm text-slate-600">
                     {orderCloseAction === 'finish-empty'
                       ? t('dialog.finishEmptyOrderDescription', { number: selectedOrder.order_number })
-                      : t('dialog.cancelOrderDescription', { number: selectedOrder.order_number })}
+                      : selectedOrder.paid_amount > 0
+                        ? t('dialog.cancelPrepaidOrderDescription', {
+                            number: selectedOrder.order_number,
+                            amount: formatAzn(selectedOrder.paid_amount),
+                          })
+                        : t('dialog.cancelOrderDescription', { number: selectedOrder.order_number })}
                   </p>
                 </div>
 
