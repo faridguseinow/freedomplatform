@@ -1,154 +1,198 @@
-import { getCurrentLocale } from '../../../lib/i18n/translator'
+import { useState } from 'react'
 import { Activity, Loader2 } from 'lucide-react'
 import { EmptyState } from '../../../components/common/EmptyState'
 import { useAuth } from '../../../hooks/useAuth'
+import { formatNumericDateTime } from '../../../lib/i18n/dateTime'
+import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import { cn } from '../../../lib/utils/cn'
-import type { ActivityEvent } from '../activity/activityApi'
+import type { ActivityArea, ActivityCategory, ActivityEvent } from '../activity/activityApi'
 import { useAdminActivityEvents } from '../activity/activityApi'
 
-const formatDateTime = (value: string) =>
-  new Intl.DateTimeFormat(getCurrentLocale(), {
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    month: '2-digit',
-    year: '2-digit',
-  }).format(new Date(value))
+const categoryOrder: Array<ActivityCategory | 'all'> = [
+  'all',
+  'places',
+  'orders',
+  'sessions',
+  'payments',
+  'shifts',
+  'finance',
+  'admin',
+  'other',
+]
 
-const sourceLabel = {
-  operations: 'Операции',
-  finance: 'Финансы',
-} as const
+const categoryLabels: Record<ActivityCategory | 'all', string> = {
+  all: 'activity.category.all',
+  places: 'activity.category.places',
+  orders: 'activity.category.orders',
+  sessions: 'activity.category.sessions',
+  payments: 'activity.category.payments',
+  shifts: 'activity.category.shifts',
+  finance: 'activity.category.finance',
+  admin: 'activity.category.admin',
+  other: 'activity.category.other',
+}
 
-const sourceTone = {
-  operations: 'bg-emerald-50 text-emerald-800',
-  finance: 'bg-cyan-50 text-cyan-800',
-} as const
-
-const shortId = (value: string) => value.slice(0, 8)
+const categoryTone: Record<ActivityCategory, string> = {
+  places: 'bg-violet-50 text-violet-800 ring-violet-200',
+  orders: 'bg-blue-50 text-blue-800 ring-blue-200',
+  sessions: 'bg-amber-50 text-amber-800 ring-amber-200',
+  payments: 'bg-emerald-50 text-emerald-800 ring-emerald-200',
+  shifts: 'bg-orange-50 text-orange-800 ring-orange-200',
+  finance: 'bg-cyan-50 text-cyan-800 ring-cyan-200',
+  admin: 'bg-slate-100 text-slate-700 ring-slate-200',
+  other: 'bg-slate-100 text-slate-700 ring-slate-200',
+}
 
 export function AdminActivityPage() {
   const { currentOrganization, organizationId } = useAuth()
   const { t } = useI18n()
   const activityQuery = useAdminActivityEvents(organizationId)
   const events = activityQuery.data ?? []
+  const [category, setCategory] = useState<ActivityCategory | 'all'>('all')
+  const [area, setArea] = useState<ActivityArea | 'all'>('all')
+  const [actor, setActor] = useState('all')
+
+  const categoryCounts = new Map<ActivityCategory, number>()
+  for (const event of events) categoryCounts.set(event.category, (categoryCounts.get(event.category) ?? 0) + 1)
+
+  const availableCategories = categoryOrder.filter((item) => item === 'all' || categoryCounts.has(item))
+  const actors = [...new Map(events.map((event) => [event.actorUserId ?? `system:${event.actorName}`, event.actorName])).entries()]
+    .sort((left, right) => left[1].localeCompare(right[1], getCurrentLocale()))
+  const filteredEvents = events.filter((event) =>
+    (category === 'all' || event.category === category) &&
+    (area === 'all' || event.area === area) &&
+    (actor === 'all' || (event.actorUserId ?? `system:${event.actorName}`) === actor),
+  )
   const detailsLabel = (event: ActivityEvent) =>
-    event.details.length
-      ? event.details.map((detail) => t(detail.key, {
-          value: detail.translateValue ? t(String(detail.value)) : detail.value,
-        })).join(' · ')
-      : '-'
-  const objectIdLabel = (event: ActivityEvent) => event.entityId ? shortId(event.entityId) : '-'
+    event.details.map((detail) => t(detail.key, {
+      from: detail.from,
+      to: detail.to,
+      value: detail.translateValue && detail.value !== undefined ? t(String(detail.value)) : detail.value,
+    })).join(' · ')
 
   if (!currentOrganization) {
     return (
       <EmptyState
-        description={t("ui.aktivnaya_organizatsiya_ne_vybrana_ili_dostup_byl_pr_4d9ff46")}
+        description={t('ui.aktivnaya_organizatsiya_ne_vybrana_ili_dostup_byl_pr_4d9ff46')}
         icon={Activity}
-        title={t("ui.zhurnal_deystviy_nedostupen_4357bdb")}
+        title={t('ui.zhurnal_deystviy_nedostupen_4357bdb')}
       />
     )
   }
 
   return (
-    <section className="grid gap-5">
-      <header className="grid gap-2">
+    <section className="grid gap-4">
+      <header className="grid gap-1">
         <h2 className="text-2xl font-semibold tracking-normal text-slate-950 sm:text-3xl">
-          {t("ui.zhurnal_deystviy_8fd2786")}
+          {t('activity.title')}
         </h2>
-        <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
-          {t(
-            "ui.ponyatnaya_lenta_vazhnyh_deystviy_kto_zahodil_v_klyu_ea888c6",
-          )}
+        <p className="max-w-3xl text-sm leading-6 text-slate-600">
+          {t('activity.description')}
         </p>
       </header>
 
-      <article className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-        {t(
-          "ui.zdes_ne_zapisyvaetsya_kazhdyy_klik_logiruyutsya_znac_9f9e4fb",
-        )}
-      </article>
+      {events.length ? (
+        <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm sm:grid-cols-3">
+          <label className="grid gap-1.5 text-xs font-semibold text-slate-600">
+            {t('activity.operationFilter')}
+            <select
+              className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-600"
+              onChange={(event) => setCategory(event.target.value as ActivityCategory | 'all')}
+              value={category}
+            >
+              {availableCategories.map((item) => (
+                <option key={item} value={item}>
+                  {t(categoryLabels[item])} ({item === 'all' ? events.length : categoryCounts.get(item as ActivityCategory)})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1.5 text-xs font-semibold text-slate-600">
+            {t('activity.areaLabel')}
+            <select
+              className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-600"
+              onChange={(event) => setArea(event.target.value as ActivityArea | 'all')}
+              value={area}
+            >
+              {(['all', 'admin', 'workspace'] as const).map((item) => (
+                <option key={item} value={item}>{t(`activity.area.${item}`)}</option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1.5 text-xs font-semibold text-slate-600">
+              {t('activity.authorFilter')}
+              <select
+                className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-600"
+                onChange={(event) => setActor(event.target.value)}
+                value={actor}
+              >
+                <option value="all">{t('activity.authorAll')}</option>
+                {actors.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+              </select>
+          </label>
+          <p className="text-xs text-slate-500 sm:col-span-3">
+            {t('activity.resultCount', { count: filteredEvents.length })}
+          </p>
+        </div>
+      ) : null}
 
       {activityQuery.isLoading ? (
         <div className="inline-flex min-h-28 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600">
-          <Loader2 className="size-4 animate-spin text-emerald-700" /> {t("ui.zagruzka_zhurnala_2e726fc")}
+          <Loader2 className="size-4 animate-spin text-emerald-700" /> {t('ui.zagruzka_zhurnala_2e726fc')}
         </div>
       ) : null}
 
       {!activityQuery.isLoading && !events.length ? (
         <EmptyState
-          description={t(
-            "ui.kogda_administrator_nachnet_otkryvat_razdely_ili_vyp_97c8d1c",
-          )}
+          description={t('activity.emptyDescription')}
           icon={Activity}
-          title={t("ui.deystviy_poka_net_0ce75fe")}
+          title={t('ui.deystviy_poka_net_0ce75fe')}
         />
       ) : null}
 
-      <div className="hidden overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm xl:block">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50">
+      {!activityQuery.isLoading && events.length && !filteredEvents.length ? (
+        <p className="rounded-lg border border-slate-200 bg-white p-5 text-sm text-slate-600">
+          {t('activity.filterEmpty')}
+        </p>
+      ) : null}
+
+      {filteredEvents.length ? (
+        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+          <table className="min-w-[860px] w-full table-fixed text-left text-sm">
+            <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.vremya_c80d7e8")}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.istochnik_8290a3d")}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.kto_0c65a41")}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.deystvie_4fe9c06")}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.obekt_1f85d20")}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{t("ui.detali_85a76a7")}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">ID</th>
+                <th className="w-40 px-4 py-3">{t('activity.column.time')}</th>
+                <th className="w-44 px-4 py-3">{t('activity.column.author')}</th>
+                <th className="w-44 px-4 py-3">{t('activity.column.area')}</th>
+                <th className="w-56 px-4 py-3">{t('activity.column.action')}</th>
+                <th className="px-4 py-3">{t('activity.column.details')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {events.map((event) => (
-                <tr className="align-top hover:bg-slate-50/80" key={event.id}>
-                  <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-700">{formatDateTime(event.createdAt)}</td>
-                  <td className="px-4 py-3">
-                    <span className={cn('inline-flex rounded-md px-2 py-1 text-xs font-semibold', sourceTone[event.source])}>
-                      {t(sourceLabel[event.source])}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="max-w-40 font-semibold text-slate-950">{event.actorName}</div>
-                    {event.actorUserId ? <div className="mt-1 text-xs text-slate-500">{shortId(event.actorUserId)}</div> : null}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="max-w-52 font-semibold text-slate-950">{t(event.actionLabel)}</div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="max-w-44 font-medium text-slate-900">{t(event.entityType)}</div>
-                    {event.entityId ? <div className="mt-1 text-xs text-slate-500">ID: {shortId(event.entityId)}</div> : null}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="max-w-80 text-slate-700">{detailsLabel(event)}</div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <code className="text-xs text-slate-500">{objectIdLabel(event)}</code>
-                  </td>
-                </tr>
-              ))}
+              {filteredEvents.map((event) => {
+                const details = detailsLabel(event)
+                return (
+                  <tr className="align-top hover:bg-slate-50/80" key={event.id}>
+                    <td className="whitespace-nowrap px-4 py-3 text-xs font-medium text-slate-600">
+                      <time dateTime={event.createdAt}>{formatNumericDateTime(event.createdAt)}</time>
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-slate-950">{event.actorName}</td>
+                    <td className="px-4 py-3 text-slate-700">{t(`activity.area.${event.area}`)}</td>
+                    <td className="px-4 py-3">
+                      <div className="font-semibold text-slate-950">{t(event.actionLabel)}</div>
+                      <span className={cn('mt-1 inline-flex rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset', categoryTone[event.category])}>
+                        {t(categoryLabels[event.category])}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 leading-5 text-slate-600">{details || '—'}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
-      </div>
-
-      <div className="grid gap-2 xl:hidden">
-        {events.map((event) => (
-          <article
-            className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
-            key={event.id}
-          >
-            <div className="min-w-0">
-              <h3 className="truncate font-semibold text-slate-950">{t(event.actionLabel)}</h3>
-              <p className="mt-1 truncate text-xs text-slate-500">{formatDateTime(event.createdAt)} · {event.actorName}</p>
-            </div>
-            <span className={cn('shrink-0 rounded-md px-2 py-1 text-xs font-semibold', sourceTone[event.source])}>
-              {t(sourceLabel[event.source])}
-            </span>
-          </article>
-        ))}
-      </div>
+      ) : null}
     </section>
   )
 }

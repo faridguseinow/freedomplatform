@@ -526,7 +526,10 @@ export type OrderItemRow = {
 export type EmployeeOrderItemRow = Omit<
   OrderItemRow,
   'unit_cost_snapshot' | 'total_cost_snapshot' | 'removed_by'
->
+> & {
+  paid_quantity: number
+  paid_amount: number
+}
 
 export type OrderComboComponentRow = {
   id: string
@@ -1789,6 +1792,14 @@ export type Database = {
       record_order_prepayment: {
         Args: {
           target_order_id: string
+          target_method: PaymentMethod
+        }
+        Returns: OrderRow
+      }
+      pay_order_items: {
+        Args: {
+          target_order_id: string
+          target_items: Array<{ order_item_id: string; quantity: number }>
           target_method: PaymentMethod
         }
         Returns: OrderRow

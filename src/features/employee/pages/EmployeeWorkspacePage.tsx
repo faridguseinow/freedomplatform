@@ -1,4 +1,5 @@
 import { getCurrentLocale } from '../../../lib/i18n/translator'
+import { formatNumericDateTime } from '../../../lib/i18n/dateTime'
 import {
   Banknote,
   ArrowRightLeft,
@@ -15,6 +16,7 @@ import {
   Search,
   Square,
   Timer,
+  Trash2,
   X,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -41,6 +43,7 @@ import {
   orderStatusLabel,
   useEmployeeOrderItems,
   useEmployeeOrderMutations,
+  useEmployeeOrderSessions,
   useEmployeeWorkspaceData,
 } from '../../orders/employeeOrdersApi'
 import { useCurrentEmployeeShift } from '../../shifts/shiftsApi'
@@ -325,7 +328,8 @@ export function EmployeeWorkspacePage() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [pickerTab, setPickerTab] = useState<PickerTab>('products')
   const [paymentChoiceOrderId, setPaymentChoiceOrderId] = useState<string | null>(null)
-  const [prepaymentChoiceOrderId, setPrepaymentChoiceOrderId] = useState<string | null>(null)
+  const [itemPaymentItemId, setItemPaymentItemId] = useState<string | null>(null)
+  const [itemPaymentQuantity, setItemPaymentQuantity] = useState(1)
   const [orderCloseAction, setOrderCloseAction] = useState<OrderCloseAction | null>(null)
   const [isTransferOpen, setIsTransferOpen] = useState(false)
   const [transferTargetPlaceId, setTransferTargetPlaceId] = useState('')
@@ -345,6 +349,7 @@ export function EmployeeWorkspacePage() {
   const [error, setError] = useState<string | null>(null)
   const autoCompletingSessionsRef = useRef(new Set<string>())
   const orderItemsQuery = useEmployeeOrderItems(selectedOrderId)
+  const orderSessionsQuery = useEmployeeOrderSessions(selectedOrderId)
 
   const runAction = useCallback(async (action: () => Promise<unknown>) => {
     setError(null)
@@ -376,7 +381,6 @@ export function EmployeeWorkspacePage() {
     [orders, selectedOrderId],
   )
   const paymentChoiceOpen = Boolean(selectedOrderId && selectedOrderId === paymentChoiceOrderId)
-  const prepaymentChoiceOpen = Boolean(selectedOrderId && selectedOrderId === prepaymentChoiceOrderId)
   const tipValue = parseMoneyInput(tipAmount)
   const hasValidTipAmount =
     tipAmount.trim().length === 0 ||
@@ -396,6 +400,10 @@ export function EmployeeWorkspacePage() {
     splitPaymentTotal > 0 &&
     Math.abs(splitPaymentTotal - splitPaymentTargetTotal) < 0.01
   const orderItems = orderItemsQuery.data ?? []
+  const orderSessionsById = useMemo(
+    () => new Map((orderSessionsQuery.data ?? []).map((session) => [session.id, session])),
+    [orderSessionsQuery.data],
+  )
   const activeOrderItemsCount = orderItems.filter((item) => item.status === 'active').length
   const placesById = useMemo(() => new Map(places.map((place) => [place.id, place])), [places])
   const comboGiftMinutesByOrderId = useMemo(() => {
@@ -456,7 +464,7 @@ export function EmployeeWorkspacePage() {
     const place = order?.place_id ? placesById.get(order.place_id) ?? null : null
     setSearch('')
     setPaymentChoiceOrderId(null)
-    setPrepaymentChoiceOrderId(null)
+    setItemPaymentItemId(null)
     setTipAmount('')
     setCashSplitAmount('')
     setCardSplitAmount('')
@@ -471,7 +479,7 @@ export function EmployeeWorkspacePage() {
   const closeOrder = () => {
     setSearch('')
     setPaymentChoiceOrderId(null)
-    setPrepaymentChoiceOrderId(null)
+    setItemPaymentItemId(null)
     setOrderCloseAction(null)
     setIsTransferOpen(false)
     setTransferTargetPlaceId('')
@@ -612,6 +620,10 @@ export function EmployeeWorkspacePage() {
 
   const changeItemQuantity = (item: EmployeeOrderItemRow, quantity: number) => {
     if (!selectedOrderId || quantity <= 0 || item.item_type === 'timed_session') return
+    if (quantity < Number(item.paid_quantity ?? 0)) {
+      setError(t('payment.quantityBelowPaid'))
+      return
+    }
 
     void runAction(() =>
       orderMutations.requestAdjustment.mutateAsync({
@@ -625,6 +637,10 @@ export function EmployeeWorkspacePage() {
   }
 
   const requestRemove = (item: EmployeeOrderItemRow) => {
+    if (Number(item.paid_quantity ?? 0) > 0) {
+      setError(t('payment.paidItemCannotBeRemoved'))
+      return
+    }
     setRemoveRequestItem(item)
     setRemoveRequestReason('')
   }
@@ -655,6 +671,10 @@ export function EmployeeWorkspacePage() {
     if (!quantityText) return
     const quantity = Number(quantityText)
     if (!Number.isFinite(quantity) || quantity <= 0) return
+    if (quantity < Number(item.paid_quantity ?? 0)) {
+      setError(t('payment.quantityBelowPaid'))
+      return
+    }
     const reason = window.prompt(t('Причина изменения количества'))
     if (!reason) return
     void runAction(() =>
@@ -724,22 +744,34 @@ export function EmployeeWorkspacePage() {
       if (selectedOrder.status === 'open') {
         await orderMutations.waitPayment.mutateAsync(selectedOrder.id)
       }
-      setPrepaymentChoiceOrderId(null)
+      setItemPaymentItemId(null)
       setPaymentChoiceOrderId(selectedOrder.id)
     })
   }
 
-  const openPrepaymentChoice = () => {
-    if (!selectedOrderId || !selectedOrder || selectedOrder.status !== 'open') return
+  const openItemPayment = (item: EmployeeOrderItemRow) => {
+    const unpaidQuantity = Math.max(0, Number(item.quantity) - Number(item.paid_quantity ?? 0))
+    if (!selectedOrderId || selectedOrder?.status !== 'open' || unpaidQuantity <= 0) return
     setPaymentChoiceOrderId(null)
-    setPrepaymentChoiceOrderId(selectedOrder.id)
+    setItemPaymentQuantity(Math.min(1, unpaidQuantity))
+    setItemPaymentItemId(item.id)
   }
 
-  const recordPrepayment = (method: PaymentMethod) => {
-    if (!selectedOrderId) return
+  const payItem = (item: EmployeeOrderItemRow, method: PaymentMethod) => {
+    const unpaidQuantity = Math.max(0, Number(item.quantity) - Number(item.paid_quantity ?? 0))
+    if (
+      !selectedOrderId ||
+      !Number.isFinite(itemPaymentQuantity) ||
+      itemPaymentQuantity <= 0 ||
+      itemPaymentQuantity > unpaidQuantity
+    ) return
     void runAction(async () => {
-      await orderMutations.prepayOrder.mutateAsync({ orderId: selectedOrderId, method })
-      setPrepaymentChoiceOrderId(null)
+      await orderMutations.payItems.mutateAsync({
+        orderId: selectedOrderId,
+        items: [{ order_item_id: item.id, quantity: itemPaymentQuantity }],
+        method,
+      })
+      setItemPaymentItemId(null)
     })
   }
 
@@ -1146,8 +1178,6 @@ export function EmployeeWorkspacePage() {
                     (selectedOrder.status === 'open' || selectedOrder.status === 'waiting_payment') &&
                     !hasActiveSession &&
                     selectedOrder.paid_amount <= 0
-                  const canPrepayOrder =
-                    selectedOrder.status === 'open' && selectedOrder.unpaid_amount > 0
                   const isClosingOrder = isOrderCloseActionPending
 
                   return (
@@ -1255,7 +1285,7 @@ export function EmployeeWorkspacePage() {
                           {t('payment.refused')} {selectedOrder.payment_refusal_comment ?? ''}
                         </div>
                       ) : (
-                        <div className="grid grid-cols-4 gap-1.5">
+                        <div className="grid grid-cols-3 gap-1.5">
                           {hasNormalPaymentAmount ? (
                             <Button className="min-h-9 min-w-0 gap-1 px-2 py-1 text-xs leading-tight" disabled={isWorkspaceReadOnly || !canPreparePayment || isClosingOrder} onClick={openPaymentChoice} type="button">
                               <Hourglass className="size-3.5 shrink-0" />
@@ -1274,17 +1304,6 @@ export function EmployeeWorkspacePage() {
                               <span className="min-w-0 truncate">Завершить заказ</span>
                             </Button>
                           )}
-
-                          <Button
-                            className="min-h-9 min-w-0 gap-1 px-2 py-1 text-xs leading-tight"
-                            disabled={isWorkspaceReadOnly || !canPrepayOrder || isClosingOrder}
-                            onClick={openPrepaymentChoice}
-                            type="button"
-                            variant="secondary"
-                          >
-                            <CheckCircle2 className="size-3.5 shrink-0" />
-                            <span className="min-w-0 truncate">{t('payment.prepaidAction')}</span>
-                          </Button>
 
                           <Button
                             className="min-h-9 min-w-0 gap-1 px-2 py-1 text-xs leading-tight"
@@ -1308,36 +1327,6 @@ export function EmployeeWorkspacePage() {
                               <span className="min-w-0 truncate">{t('order.changePlace')}</span>
                             </Button>
                           ) : <span />}
-
-                          {prepaymentChoiceOpen ? (
-                            <div className="col-span-4 grid gap-2 rounded-lg border border-emerald-200 bg-emerald-50/60 p-3">
-                              <div className="flex items-center justify-between gap-3">
-                                <span className="text-sm font-semibold text-slate-950">
-                                  {t('payment.prepayment')}
-                                </span>
-                                <span className="text-sm font-semibold text-emerald-800">
-                                  {formatAzn(selectedOrder.unpaid_amount)}
-                                </span>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <Button
-                                  disabled={isWorkspaceReadOnly || isClosingOrder}
-                                  onClick={() => recordPrepayment('cash')}
-                                  type="button"
-                                >
-                                  <Banknote className="size-4" /> {t('adminOrderDetail.payment.cash')}
-                                </Button>
-                                <Button
-                                  disabled={isWorkspaceReadOnly || isClosingOrder}
-                                  onClick={() => recordPrepayment('card_transfer')}
-                                  type="button"
-                                  variant="secondary"
-                                >
-                                  <CreditCard className="size-4" /> {t('adminOrderDetail.payment.card')}
-                                </Button>
-                              </div>
-                            </div>
-                          ) : null}
 
                           {paymentChoiceOpen ? (
                             <>
@@ -1432,6 +1421,16 @@ export function EmployeeWorkspacePage() {
                     ) : null}
                     {orderItems.map((item) => {
                       const isRemoved = item.status === 'removed' || item.status === 'cancelled'
+                      const paidQuantity = Number(item.paid_quantity ?? 0)
+                      const unpaidQuantity = Math.max(0, Number(item.quantity) - paidQuantity)
+                      const isFullyPaid = unpaidQuantity <= 0.0005
+                      const isPartiallyPaid = paidQuantity > 0 && !isFullyPaid
+                      const isItemPaymentOpen = itemPaymentItemId === item.id
+                      const session = item.timed_session_id
+                        ? orderSessionsById.get(item.timed_session_id) ?? null
+                        : null
+                      const sessionPlace = session ? placesById.get(session.place_id) ?? null : null
+                      const itemImagePath = item.image_path_snapshot ?? sessionPlace?.image_path ?? null
                       const canEditQuantity =
                         item.status === 'active' &&
                         selectedOrder.status === 'open' &&
@@ -1460,11 +1459,25 @@ export function EmployeeWorkspacePage() {
                           className="grid grid-cols-[80px_1fr] gap-5 border-b border-slate-200 p-3 last:border-b-0"
                           key={item.id}
                         >
-                          <CatalogImage alt={item.name_snapshot} className="size-20" imagePath={item.image_path_snapshot} />
+                          <CatalogImage alt={item.name_snapshot} className="size-20" imagePath={itemImagePath} />
                           <div className="grid min-w-0 gap-2">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
-                                <div className="truncate font-medium text-slate-950">{item.name_snapshot}</div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <div className="truncate font-medium text-slate-950">{item.name_snapshot}</div>
+                                  {isFullyPaid ? (
+                                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+                                      {t('payment.paid')}
+                                    </span>
+                                  ) : isPartiallyPaid ? (
+                                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+                                      {t('payment.paidQuantity', {
+                                        paid: formatQuantity(paidQuantity),
+                                        total: formatQuantity(item.quantity),
+                                      })}
+                                    </span>
+                                  ) : null}
+                                </div>
                                 <div className="text-sm text-slate-600">
                                   {item.quantity} × {formatAzn(item.unit_price)}
                                 </div>
@@ -1476,41 +1489,142 @@ export function EmployeeWorkspacePage() {
                                 </time>
                               </div>
                             </div>
+                            {session ? (
+                              <dl className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-md bg-slate-50 px-3 py-2 text-xs sm:grid-cols-4">
+                                <div>
+                                  <dt className="text-slate-500">{t('sessionSummary.started')}</dt>
+                                  <dd className="font-medium text-slate-800">{formatNumericDateTime(session.started_at)}</dd>
+                                </div>
+                                <div>
+                                  <dt className="text-slate-500">{t('sessionSummary.ended')}</dt>
+                                  <dd className="font-medium text-slate-800">
+                                    {session.ended_at ? formatNumericDateTime(session.ended_at) : '—'}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt className="text-slate-500">{t('sessionSummary.played')}</dt>
+                                  <dd className="font-medium text-slate-800">
+                                    {t('common.durationMinutes', { minutes: session.actual_minutes ?? 0 })}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt className="text-slate-500">{t('sessionSummary.billable')}</dt>
+                                  <dd className="font-medium text-slate-800">
+                                    {t('common.durationMinutes', { minutes: session.billable_minutes ?? 0 })}
+                                  </dd>
+                                </div>
+                              </dl>
+                            ) : null}
                             {item.status === 'active' && selectedOrder.status === 'open' ? (
-                              <div className="flex flex-wrap items-center gap-2">
-                                {canEditQuantity ? (
-                                  <div className="inline-grid grid-cols-[32px_44px_32px] overflow-hidden rounded-md border border-slate-200 bg-white">
-                                    <button
-                                      aria-label="Уменьшить на 1"
-                                      className="inline-flex min-h-8 items-center justify-center text-slate-700 transition hover:bg-slate-50 disabled:text-slate-300"
-                                      disabled={isWorkspaceReadOnly || item.quantity <= 1 || orderMutations.requestAdjustment.isPending}
-                                      onClick={() => changeItemQuantity(item, item.quantity - 1)}
+                              <div className="grid gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {canEditQuantity ? (
+                                    <div className="inline-grid grid-cols-[32px_44px_32px] overflow-hidden rounded-md border border-slate-200 bg-white">
+                                      <button
+                                        aria-label="Уменьшить на 1"
+                                        className="inline-flex min-h-8 items-center justify-center text-slate-700 transition hover:bg-slate-50 disabled:text-slate-300"
+                                        disabled={
+                                          isWorkspaceReadOnly ||
+                                          item.quantity <= 1 ||
+                                          item.quantity - 1 < paidQuantity ||
+                                          orderMutations.requestAdjustment.isPending
+                                        }
+                                        onClick={() => changeItemQuantity(item, item.quantity - 1)}
+                                        type="button"
+                                      >
+                                        -
+                                      </button>
+                                      <span className="inline-flex min-h-8 items-center justify-center border-x border-slate-200 text-sm font-semibold text-slate-950">
+                                        {item.quantity}
+                                      </span>
+                                      <button
+                                        aria-label="Увеличить на 1"
+                                        className="inline-flex min-h-8 items-center justify-center text-emerald-800 transition hover:bg-emerald-50 disabled:text-slate-300"
+                                        disabled={isWorkspaceReadOnly || orderMutations.requestAdjustment.isPending}
+                                        onClick={() => changeItemQuantity(item, item.quantity + 1)}
+                                        type="button"
+                                      >
+                                        <Plus className="size-4" />
+                                      </button>
+                                    </div>
+                                  ) : null}
+                                  {canEditQuantity ? (
+                                    <Button className="min-h-8 px-3 py-1 text-xs" disabled={isWorkspaceReadOnly} onClick={() => requestQuantity(item)} type="button" variant="secondary">
+                                      Кол-во
+                                    </Button>
+                                  ) : null}
+                                  {!isFullyPaid && item.unit_price > 0 ? (
+                                    <Button
+                                      className="min-h-8 gap-1 px-2.5 py-1 text-xs"
+                                      disabled={isWorkspaceReadOnly || orderMutations.payItems.isPending}
+                                      onClick={() => openItemPayment(item)}
                                       type="button"
+                                      variant="primary"
                                     >
-                                      -
-                                    </button>
-                                    <span className="inline-flex min-h-8 items-center justify-center border-x border-slate-200 text-sm font-semibold text-slate-950">
-                                      {item.quantity}
-                                    </span>
-                                    <button
-                                      aria-label="Увеличить на 1"
-                                      className="inline-flex min-h-8 items-center justify-center text-emerald-800 transition hover:bg-emerald-50 disabled:text-slate-300"
-                                      disabled={isWorkspaceReadOnly || orderMutations.requestAdjustment.isPending}
-                                      onClick={() => changeItemQuantity(item, item.quantity + 1)}
+                                      <Banknote className="size-3.5" /> {t('payment.payItem')}
+                                    </Button>
+                                  ) : null}
+                                  <Button
+                                    aria-label={t('Удалить')}
+                                    className="size-8 min-h-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700 disabled:text-slate-300"
+                                    disabled={isWorkspaceReadOnly || paidQuantity > 0}
+                                    onClick={() => requestRemove(item)}
+                                    title={paidQuantity > 0 ? t('payment.paidItemCannotBeRemoved') : t('Удалить')}
+                                    type="button"
+                                    variant="danger"
+                                  >
+                                    <Trash2 className="size-4" />
+                                  </Button>
+                                </div>
+                                {isItemPaymentOpen ? (
+                                  <div className="flex flex-wrap items-end gap-2 rounded-md border border-emerald-200 bg-emerald-50/70 p-2">
+                                    <label className="grid gap-1 text-xs font-medium text-slate-700">
+                                      {t('payment.quantity')}
+                                      <input
+                                        className="h-8 w-20 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-950 outline-none focus:border-emerald-700"
+                                        max={unpaidQuantity}
+                                        min={1}
+                                        onChange={(event) => setItemPaymentQuantity(Number(event.target.value))}
+                                        step={1}
+                                        type="number"
+                                        value={itemPaymentQuantity}
+                                      />
+                                    </label>
+                                    <div className="grid gap-0.5 text-xs text-slate-600">
+                                      <span>{t('payment.unpaidQuantity', { count: formatQuantity(unpaidQuantity) })}</span>
+                                      <strong className="text-sm text-slate-950">
+                                        {formatAzn(item.unit_price * itemPaymentQuantity)}
+                                      </strong>
+                                    </div>
+                                    <Button
+                                      className="min-h-8 gap-1 px-2.5 py-1 text-xs"
+                                      disabled={orderMutations.payItems.isPending}
+                                      onClick={() => payItem(item, 'cash')}
                                       type="button"
+                                      variant="secondary"
                                     >
-                                      <Plus className="size-4" />
-                                    </button>
+                                      <Banknote className="size-3.5" /> {t('payment.cash')}
+                                    </Button>
+                                    <Button
+                                      className="min-h-8 gap-1 px-2.5 py-1 text-xs"
+                                      disabled={orderMutations.payItems.isPending}
+                                      onClick={() => payItem(item, 'card_transfer')}
+                                      type="button"
+                                      variant="secondary"
+                                    >
+                                      <CreditCard className="size-3.5" /> {t('payment.cardTransfer')}
+                                    </Button>
+                                    <Button
+                                      aria-label={t('common.close')}
+                                      className="size-8 min-h-8 p-0"
+                                      onClick={() => setItemPaymentItemId(null)}
+                                      type="button"
+                                      variant="ghost"
+                                    >
+                                      <X className="size-4" />
+                                    </Button>
                                   </div>
                                 ) : null}
-                                {canEditQuantity ? (
-                                  <Button className="min-h-8 px-3 py-1 text-xs" disabled={isWorkspaceReadOnly} onClick={() => requestQuantity(item)} type="button" variant="secondary">
-                                    Кол-во
-                                  </Button>
-                                ) : null}
-                                <Button className="min-h-8 px-3 py-1 text-xs" disabled={isWorkspaceReadOnly} onClick={() => requestRemove(item)} type="button" variant="danger">
-                                  Удалить
-                                </Button>
                               </div>
                             ) : null}
                           </div>

@@ -13,15 +13,32 @@ export type ActivityEvent = {
   actorName: string
   action: string
   actionLabel: string
+  area: ActivityArea
+  category: ActivityCategory
   entityType: string
   entityId: string | null
+  relatedOrderId: string | null
   details: ActivityDetail[]
   createdAt: string
 }
 
+export type ActivityArea = 'admin' | 'workspace'
+
+export type ActivityCategory =
+  | 'admin'
+  | 'finance'
+  | 'orders'
+  | 'payments'
+  | 'places'
+  | 'sessions'
+  | 'shifts'
+  | 'other'
+
 export type ActivityDetail = {
   key: string
-  value: string | number
+  value?: string | number
+  from?: string | number
+  to?: string | number
   translateValue?: boolean
 }
 
@@ -57,13 +74,23 @@ const actionLabels: Record<string, string> = {
   'order.created': 'создал заказ',
   'order.item_added': 'добавил позицию в заказ',
   'order.moved': 'переместил заказ',
+  'order.cancelled': 'activity.action.orderCancelled',
+  'order.completed_empty': 'activity.action.emptyOrderCompleted',
+  'order.transferred': 'activity.action.orderTransferred',
+  'order.merged': 'activity.action.ordersMerged',
+  'order.merged_into': 'activity.action.ordersMerged',
+  'order.customer_label_updated': 'activity.action.customerNameUpdated',
   'adjustment.applied': 'изменил заказ',
   'adjustment.requested': 'создал запрос на исправление',
   'adjustment.approved': 'одобрил исправление',
   'adjustment.rejected': 'отклонил исправление',
   'session.started': 'запустил сессию',
   'session.completed': 'завершил сессию',
-  'payment.completed': 'принял оплату',
+  'session.paused': 'activity.action.sessionPaused',
+  'session.resumed': 'activity.action.sessionResumed',
+  'session.plan_extended': 'activity.action.sessionPlanExtended',
+  'payment.completed': 'activity.action.orderCompleted',
+  'payment.items_paid': 'activity.action.itemsPaid',
   'payment.prepaid': 'принял предоплату',
   'payment.tip_recorded': 'записал чаевые',
   'payment.refused': 'оформил отказ от оплаты',
@@ -73,9 +100,11 @@ const actionLabels: Record<string, string> = {
   'shift.cash_overage': 'зафиксировал излишек',
   'shift.force_closed': 'принудительно закрыл смену',
   'shift.handover_created': 'создал передачу смены',
+  'shift.permanently_deleted': 'activity.action.shiftDeleted',
   'operational_day.completed': 'закрыл операционный день',
   'finance.order_income_synced': 'синхронизировал доход по заказу',
   'finance.purchase_synced': 'синхронизировал закупку',
+  'finance.purchase_cancelled': 'activity.action.purchaseCancelled',
   'finance.manual_income_created': 'создал ручной доход',
   'finance.expense_created': 'создал расход',
   'finance.expense_updated': 'изменил расход',
@@ -85,6 +114,7 @@ const actionLabels: Record<string, string> = {
   'finance.period_submitted': 'отправил финансовый период на проверку',
   'finance.period_updated': 'изменил финансовый период',
   'finance.period_cancelled': 'удалил финансовый период',
+  'finance.period_deleted': 'activity.action.periodDeleted',
   'finance.period_approved': 'одобрил финансовый период',
   'finance.period_rejected': 'отклонил финансовый период',
   'finance.period_clarification_requested': 'запросил уточнение по периоду',
@@ -94,7 +124,13 @@ const actionLabels: Record<string, string> = {
   'finance.platform_period_payment_recorded': 'сообщил об оплате платформы',
   'finance.platform_share_payment_confirmed': 'подтвердил оплату платформы',
   'finance.platform_share_payment_rejected': 'отклонил оплату платформы',
+  'finance.expense_converted_to_platform_payment': 'activity.action.expenseConverted',
   'catalog.product_deleted': 'удалил товар',
+  'place.created': 'activity.action.placeCreated',
+  'place.updated': 'activity.action.placeUpdated',
+  'place.status_updated': 'activity.action.placeStatusUpdated',
+  'place.session_settings_updated': 'activity.action.placeSessionSettingsUpdated',
+  'place.vip_equipment_updated': 'activity.action.placeEquipmentUpdated',
   'maintenance.test_orders_reset': 'очистил тестовые заказы',
 }
 
@@ -112,7 +148,30 @@ const entityLabels: Record<string, string> = {
   organization_platform_share_rate: 'настройка оплаты платформы',
   platform_share_payment: 'платёж платформе',
   product: 'товар',
+  place: 'activity.entity.place',
   organization: 'организация',
+}
+
+function getActivityCategory(action: string, source: ActivityEvent['source']): ActivityCategory {
+  if (source === 'finance' || action.startsWith('finance.')) return 'finance'
+  if (action.startsWith('place.')) return 'places'
+  if (action.startsWith('order.') || action.startsWith('adjustment.')) return 'orders'
+  if (action.startsWith('payment.')) return 'payments'
+  if (action.startsWith('session.')) return 'sessions'
+  if (action.startsWith('shift.') || action.startsWith('operational_day.')) return 'shifts'
+  if (action.startsWith('admin.')) return 'admin'
+  return 'other'
+}
+
+function getActivityArea(action: string, source: ActivityEvent['source']): ActivityArea {
+  if (source === 'finance') return 'admin'
+  if (
+    action.startsWith('order.') ||
+    action.startsWith('payment.') ||
+    action.startsWith('session.') ||
+    action.startsWith('shift.')
+  ) return 'workspace'
+  return 'admin'
 }
 
 function asRecord(value: unknown): RawMetadata {
@@ -144,7 +203,19 @@ function buildDetails(metadata: RawMetadata) {
     card_transfer: 'Перевод на карту',
   }
 
+  const before = asRecord(metadata.before)
+  const after = asRecord(metadata.after)
+  const pushChange = (key: string, beforeValue: unknown, afterValue: unknown) => {
+    if (beforeValue === afterValue) return
+    const from = beforeValue === null ? '—' : beforeValue
+    const to = afterValue === null ? '—' : afterValue
+    if ((typeof from !== 'string' && typeof from !== 'number') ||
+      (typeof to !== 'string' && typeof to !== 'number')) return
+    details.push({ key, from, to })
+  }
+
   if (section) details.push({ key: 'activity.detail.section', value: section, translateValue: true })
+  if (typeof metadata.place_name === 'string') details.push({ key: 'activity.detail.place', value: metadata.place_name })
   if (typeof metadata.order_number === 'number') details.push({ key: 'activity.detail.order', value: metadata.order_number })
   if (typeof metadata.type === 'string') details.push({ key: 'activity.detail.type', value: metadata.type })
   if (typeof metadata.method === 'string') details.push({ key: 'activity.detail.paymentMethod', value: paymentMethodLabels[metadata.method] ?? metadata.method, translateValue: true })
@@ -152,6 +223,9 @@ function buildDetails(metadata: RawMetadata) {
   if (tipAmount) details.push({ key: 'activity.detail.tip', value: tipAmount })
   if (totalAmount) details.push({ key: 'activity.detail.orderAmount', value: totalAmount })
   if (typeof metadata.quantity === 'number') details.push({ key: 'activity.detail.quantity', value: metadata.quantity })
+  if (typeof metadata.items_count === 'number') details.push({ key: 'activity.detail.itemsCount', value: metadata.items_count })
+  const remainingAmount = formatMoney(metadata.remaining)
+  if (remainingAmount) details.push({ key: 'activity.detail.remainingAmount', value: remainingAmount })
   if (typeof metadata.billable_minutes === 'number') details.push({ key: 'activity.detail.minutes', value: metadata.billable_minutes })
   if (typeof metadata.reason === 'string') details.push({ key: 'activity.detail.reason', value: metadata.reason })
   if (typeof metadata.comment === 'string') details.push({ key: 'activity.detail.comment', value: metadata.comment })
@@ -161,6 +235,15 @@ function buildDetails(metadata: RawMetadata) {
   if (typeof metadata.payments_deleted === 'number') details.push({ key: 'activity.detail.deletedPayments', value: metadata.payments_deleted })
   if (typeof metadata.shifts_deleted === 'number') details.push({ key: 'activity.detail.deletedShifts', value: metadata.shifts_deleted })
   if (typeof metadata.affected_products === 'number') details.push({ key: 'activity.detail.recalculatedProducts', value: metadata.affected_products })
+  if (typeof before.has_timer === 'boolean' && typeof after.has_timer === 'boolean' && before.has_timer !== after.has_timer) {
+    details.push({ key: after.has_timer ? 'activity.detail.timerEnabled' : 'activity.detail.timerDisabled' })
+  }
+  pushChange('activity.detail.hourlyRateChanged', before.hourly_rate, after.hourly_rate)
+  pushChange('activity.detail.minimumChanged', before.minimum_minutes, after.minimum_minutes)
+  pushChange('activity.detail.billingStepChanged', before.billing_step_minutes, after.billing_step_minutes)
+  if (typeof metadata.before_status === 'string' && typeof metadata.after_status === 'string') {
+    details.push({ key: 'activity.detail.statusChanged', from: metadata.before_status, to: metadata.after_status })
+  }
 
   return details
 }
@@ -204,6 +287,9 @@ function toActivityEvent(
   const metadata = asRecord(log.metadata)
   const actionLabel = actionLabels[log.action] ?? log.action
   const entityLabel = entityLabels[log.entity_type] ?? log.entity_type
+  const relatedOrderId = typeof metadata.order_id === 'string'
+    ? metadata.order_id
+    : log.entity_type === 'order' ? log.entity_id : null
   return {
     id: `audit-${log.id}`,
     source: 'operations',
@@ -212,8 +298,11 @@ function toActivityEvent(
     actorName: getProfileName(log.actor_user_id ? profiles.get(log.actor_user_id) : undefined, log.actor_user_id),
     action: log.action,
     actionLabel,
+    area: getActivityArea(log.action, 'operations'),
+    category: getActivityCategory(log.action, 'operations'),
     entityType: entityLabel,
     entityId: log.entity_id,
+    relatedOrderId,
     details: buildDetails(metadata),
     createdAt: log.created_at,
   }
@@ -234,11 +323,50 @@ function toFinanceActivityEvent(
     actorName,
     action: log.action,
     actionLabel,
+    area: getActivityArea(log.action, 'finance'),
+    category: getActivityCategory(log.action, 'finance'),
     entityType: entityLabels[log.entity_type] ?? log.entity_type,
     entityId: log.entity_id,
+    relatedOrderId: null,
     details: buildFinanceDetails(log),
     createdAt: log.created_at,
   }
+}
+
+function compactActivityEvents(events: ActivityEvent[]) {
+  const compacted = events.map((event) => ({ ...event, details: [...event.details] }))
+  const completedPayments = compacted.filter((event) => event.action === 'payment.completed' && event.relatedOrderId)
+  const findCompletedPayment = (event: ActivityEvent) => completedPayments.find((payment) =>
+    payment.relatedOrderId === event.relatedOrderId &&
+    Math.abs(new Date(payment.createdAt).getTime() - new Date(event.createdAt).getTime()) <= 5 * 60_000,
+  )
+  const hiddenIds = new Set<string>()
+
+  for (const event of compacted) {
+    if (event.action === 'admin.section_viewed' || event.action === 'finance.order_income_synced') {
+      hiddenIds.add(event.id)
+      continue
+    }
+
+    if (event.action === 'payment.tip_recorded' || event.action === 'session.completed') {
+      const payment = findCompletedPayment(event)
+      if (!payment) continue
+      for (const detail of event.details) {
+        if (!payment.details.some((candidate) => candidate.key === detail.key)) payment.details.push(detail)
+      }
+      hiddenIds.add(event.id)
+    }
+  }
+
+  const seenMoves = new Set<string>()
+  return compacted.filter((event) => {
+    if (hiddenIds.has(event.id)) return false
+    if (event.action !== 'order.moved' && event.action !== 'order.transferred') return true
+    const key = `${event.actorUserId ?? 'system'}:${event.relatedOrderId ?? event.entityId}:${event.createdAt.slice(0, 19)}`
+    if (seenMoves.has(key)) return false
+    seenMoves.add(key)
+    return true
+  })
 }
 
 export async function logAdminSectionView({
@@ -277,13 +405,13 @@ export function useAdminActivityEvents(organizationId: string | null) {
           .select(auditSelect)
           .eq('organization_id', organizationId!)
           .order('created_at', { ascending: false })
-          .limit(150),
+          .limit(500),
         supabase
           .from('finance_audit_logs')
           .select(financeAuditSelect)
           .eq('organization_id', organizationId!)
           .order('created_at', { ascending: false })
-          .limit(150),
+          .limit(500),
       ])
 
       if (auditResult.error) throw new Error(auditResult.error.message)
@@ -313,9 +441,11 @@ export function useAdminActivityEvents(organizationId: string | null) {
         }
       }
 
-      return [...auditLogs.map((log) => toActivityEvent(log, profiles)), ...financeLogs.map((log) => toFinanceActivityEvent(log, profiles))]
-        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
-        .slice(0, 200)
+      return compactActivityEvents([
+        ...auditLogs.map((log) => toActivityEvent(log, profiles)),
+        ...financeLogs.map((log) => toFinanceActivityEvent(log, profiles)),
+      ].sort((left, right) => right.createdAt.localeCompare(left.createdAt)))
+        .slice(0, 750)
     },
   })
 }

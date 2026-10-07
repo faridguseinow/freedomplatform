@@ -8,6 +8,7 @@ import type {
   OrganizationRow,
 } from '../../../lib/supabase/database.types'
 import { useI18n } from '../../../lib/i18n/I18nContext'
+import { formatNumericMonthDay, formatNumericMonthYear } from '../../../lib/i18n/dateTime'
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { getPlatformRoutePath } from '../../../lib/routing/appHost'
 import { getCurrentFinancialCycle } from '../../finance/financialCycle'
@@ -79,19 +80,11 @@ function daysInclusive(start: string, end: string) {
 }
 
 function shortDate(value: string) {
-  return new Intl.DateTimeFormat(getCurrentLocale(), {
-    day: '2-digit',
-    month: 'short',
-    timeZone: 'UTC',
-  }).format(parseDate(value))
+  return formatNumericMonthDay(parseDate(value), 'UTC')
 }
 
 function monthName(value: string) {
-  return new Intl.DateTimeFormat(getCurrentLocale(), {
-    month: 'long',
-    timeZone: 'UTC',
-    year: 'numeric',
-  }).format(parseDate(value))
+  return formatNumericMonthYear(parseDate(value), 'UTC')
 }
 
 function createDateRange(start: string, count: number) {

@@ -1,6 +1,5 @@
 import { AppLayout } from './AppLayout'
 import { adminNavItems } from '../router/routes'
-import { AdminActivityTracker } from '../../features/organization/activity/AdminActivityTracker'
 import { useAuth } from '../../hooks/useAuth'
 import { getTenantRoutePath } from '../../lib/routing/appHost'
 
@@ -14,7 +13,6 @@ export function AdminLayout() {
 
   return (
     <>
-      <AdminActivityTracker />
       <AppLayout hideHeader navItems={navItems} productArea="Организация" />
     </>
   )

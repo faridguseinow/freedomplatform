@@ -6,13 +6,14 @@ import type {
   EmployeeOrderRow,
   EmployeeWorkspacePlaceRow,
   PaymentMethod,
+  TimedSessionRow,
 } from '../../lib/supabase/database.types'
 import { readCachedWorkspacePlaces, toEmptyEmployeeWorkspacePlace } from '../places/workspacePlacesCache'
 
 export const employeeOrderSelect =
   'id,organization_id,order_number,place_id,current_place_name_snapshot,status,customer_label,comment,subtotal,total_amount,paid_amount,unpaid_amount,opened_by,opened_at,closed_at,payment_refusal_comment,created_at,updated_at'
 export const employeeOrderItemSelect =
-  'id,organization_id,order_id,item_type,status,product_id,service_id,combo_id,timed_session_id,name_snapshot,description_snapshot,image_path_snapshot,quantity,unit_price,total_price,metadata,added_by,added_at,removed_at,removal_reason,created_at,updated_at'
+  'id,organization_id,order_id,item_type,status,product_id,service_id,combo_id,timed_session_id,name_snapshot,description_snapshot,image_path_snapshot,quantity,unit_price,total_price,metadata,added_by,added_at,removed_at,removal_reason,created_at,updated_at,paid_quantity,paid_amount'
 const employeeWorkspacePlaceBaseSelect =
   'id,organization_id,category_id,name,type,custom_type_name,description,image_path,has_timer,hourly_rate,minimum_minutes,billing_step_minutes,capacity,sort_order,workspace_x,workspace_y,workspace_w,workspace_h,status'
 
@@ -206,12 +207,30 @@ export function useEmployeeOrderItems(
   })
 }
 
+export function useEmployeeOrderSessions(orderId: string | null) {
+  return useQuery({
+    enabled: Boolean(orderId),
+    queryKey: ['employee', 'order-sessions', orderId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('employee_timed_sessions')
+        .select('*')
+        .eq('order_id', orderId!)
+        .order('started_at', { ascending: true })
+
+      if (error) throw new Error(error.message)
+      return data as TimedSessionRow[]
+    },
+  })
+}
+
 export function useEmployeeOrderMutations(organizationId: string | null) {
   const queryClient = useQueryClient()
   const invalidate = async (orderId?: string | null) => {
     await queryClient.invalidateQueries({ queryKey: ['employee', 'workspace', organizationId] })
     if (orderId) {
       await queryClient.invalidateQueries({ queryKey: ['employee', 'order-items', orderId] })
+      await queryClient.invalidateQueries({ queryKey: ['employee', 'order-sessions', orderId] })
     }
     await queryClient.invalidateQueries({ queryKey: ['admin', 'orders', organizationId] })
   }
@@ -446,6 +465,26 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
       mutationFn: async ({ orderId, method }: { orderId: string; method: PaymentMethod }) => {
         const { data, error } = await supabase.rpc('record_order_prepayment', {
           target_order_id: orderId,
+          target_method: method,
+        })
+        if (error) throw new Error(error.message)
+        return data
+      },
+      onSuccess: (order) => invalidate(order.id),
+    }),
+    payItems: useMutation({
+      mutationFn: async ({
+        orderId,
+        items,
+        method,
+      }: {
+        orderId: string
+        items: Array<{ order_item_id: string; quantity: number }>
+        method: PaymentMethod
+      }) => {
+        const { data, error } = await supabase.rpc('pay_order_items', {
+          target_order_id: orderId,
+          target_items: items,
           target_method: method,
         })
         if (error) throw new Error(error.message)
