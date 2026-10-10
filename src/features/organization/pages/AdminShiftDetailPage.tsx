@@ -10,6 +10,7 @@ import { useI18n } from '../../../lib/i18n/I18nContext'
 import type { OrderRow, PaymentMethod, PaymentStatus, TimedSessionStatus } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
 import { orderStatusLabel } from '../../orders/employeeOrdersApi'
+import { formatOrderDisplayNumber } from '../../orders/orderDisplay'
 import { shiftStatusLabel, useAdminShiftDetail, useAdminShiftMutations } from '../../shifts/shiftsApi'
 
 const formatMoney = (value: number | null | undefined) =>
@@ -661,7 +662,9 @@ export function AdminShiftDetailPage() {
               <tbody className="divide-y divide-slate-100">
                 {sortedOrders.map((order) => (
                   <tr key={order.id}>
-                    <td className="py-2 pr-3 font-semibold text-slate-950">#{order.order_number}</td>
+                    <td className="py-2 pr-3 font-semibold text-slate-950">
+                      {formatOrderDisplayNumber(order.order_number, order.customer_label)}
+                    </td>
                     <td className="py-2 pr-3 text-slate-600">{order.current_place_name_snapshot ?? t("ui.bez_mesta_da3a88d")}</td>
                     <td className="py-2 pr-3"><span className={statusTone(order.status)}>{t(orderStatusLabel[order.status] ?? order.status)}</span></td>
                     <td className="py-2 pr-3 text-slate-600">{formatDateTime(order.opened_at)}</td>

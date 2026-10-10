@@ -25,6 +25,7 @@ import type {
 } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
 import { orderStatusLabel } from '../../orders/employeeOrdersApi'
+import { formatOrderDisplayNumber } from '../../orders/orderDisplay'
 import { useAdminOrderDetail } from '../../orders/ordersApi'
 
 const formatMoney = (value: number | null | undefined) =>
@@ -113,7 +114,9 @@ export function AdminOrderDetailPage() {
       <header className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
           <div className="grid gap-1">
-            <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">{t('adminOrderDetail.orderNumber', { number: order.order_number })}</h2>
+            <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">
+              {formatOrderDisplayNumber(order.order_number, order.customer_label)}
+            </h2>
             <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
               <span className="inline-flex items-center gap-1.5"><MapPin className="size-4" />{order.current_place_name_snapshot ?? t('adminOrderDetail.noPlace')}</span>
               <span className={statusTone(order.status)}>{t(orderStatusLabel[order.status] ?? order.status)}</span>

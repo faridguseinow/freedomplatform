@@ -8,6 +8,7 @@ import type { OrderStatus } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
 import { getTenantRoutePath } from '../../../lib/routing/appHost'
 import { orderStatusLabel } from '../../orders/employeeOrdersApi'
+import { formatOrderDisplayNumber } from '../../orders/orderDisplay'
 import type { AdminOrderRow } from '../../orders/ordersApi'
 import { useAdminOrders } from '../../orders/ordersApi'
 
@@ -140,11 +141,12 @@ export function AdminOrdersPage() {
             <tbody className="divide-y divide-slate-100">
               {visibleOrders.map((order) => (
                 <tr className="align-top hover:bg-slate-50/80" key={order.id}>
-                  <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-950">#{order.order_number}</td>
+                  <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-950">
+                    {formatOrderDisplayNumber(order.order_number, order.customer_label)}
+                  </td>
                   <td className="whitespace-nowrap px-4 py-3">{statusBadge(order.status)}</td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-slate-900">{orderPlace(order)}</div>
-                    {order.customer_label ? <div className="mt-1 text-xs text-slate-500">{order.customer_label}</div> : null}
                     {orderNote(order) ? <div className="mt-1 max-w-44 text-xs text-slate-500">{orderNote(order)}</div> : null}
                   </td>
                   <td className="px-4 py-3">
@@ -178,7 +180,9 @@ export function AdminOrdersPage() {
             key={order.id}
           >
             <div className="min-w-0">
-              <h3 className="truncate font-semibold text-slate-950">#{order.order_number} · {orderPlace(order)}</h3>
+              <h3 className="truncate font-semibold text-slate-950">
+                {formatOrderDisplayNumber(order.order_number, order.customer_label)} · {orderPlace(order)}
+              </h3>
               <p className="mt-1 truncate text-xs text-slate-500">
                 {formatDateTime(order.opened_at)} · {t(orderStatusLabel[order.status] ?? order.status)}
               </p>

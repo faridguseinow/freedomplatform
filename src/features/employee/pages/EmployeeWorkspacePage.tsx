@@ -12,7 +12,6 @@ import {
   Pause,
   Play,
   Plus,
-  ReceiptText,
   Search,
   Square,
   Timer,
@@ -46,6 +45,7 @@ import {
   useEmployeeOrderSessions,
   useEmployeeWorkspaceData,
 } from '../../orders/employeeOrdersApi'
+import { formatOrderDisplayNumber } from '../../orders/orderDisplay'
 import { useCurrentEmployeeShift } from '../../shifts/shiftsApi'
 import {
   buildWorkspaceLayout,
@@ -229,27 +229,23 @@ const placeStatus = (place: EmployeeWorkspacePlaceRow) => {
 
 const getStatusIndicatorClassName = (status: ReturnType<typeof placeStatus>) =>
   cn(
-    'size-3.5 shrink-0 rounded-full ring-4',
+    'size-2.5 shrink-0 rounded-full ring-2',
     status === 'Свободно' && 'bg-emerald-500 ring-emerald-100',
     status === 'Занято' && 'bg-red-500 ring-red-100',
     status === 'Ожидает оплаты' && 'bg-orange-500 ring-orange-100',
     status === 'Недоступно' && 'bg-slate-400 ring-slate-100',
   )
 
-const getSlotClassName = (place: EmployeeWorkspacePlaceRow, shape: string, hasSessionLimitAlert = false) =>
+const getSlotClassName = (place: EmployeeWorkspacePlaceRow, hasSessionLimitAlert = false) =>
   cn(
-    'group relative grid min-h-24 content-between overflow-hidden rounded-lg border p-3 text-left shadow-sm transition',
-    'focus-within:ring-2 focus-within:ring-emerald-700 hover:-translate-y-0.5 hover:shadow-md',
+    'group relative grid min-h-0 content-between overflow-hidden rounded-lg border p-2 text-left shadow-sm transition',
+    'focus-within:ring-2 focus-within:ring-emerald-700 hover:brightness-[0.98]',
     place.active_order_id || place.active_session_id
       ? 'workspace-slot-occupied border-red-200 bg-red-50/70'
       : 'border-slate-200 bg-white hover:border-emerald-200',
     place.active_order_status === 'waiting_payment' && 'workspace-slot-waiting border-orange-200 bg-orange-50',
     hasSessionLimitAlert && 'workspace-slot-alert border-red-400 bg-red-100 ring-2 ring-red-200',
     place.status !== 'active' && 'border-slate-200 bg-slate-100 opacity-70',
-    shape === 'compact' && 'min-h-24',
-    shape === 'room' && 'min-h-36',
-    shape === 'wide' && 'min-h-36',
-    shape === 'table' && 'min-h-32',
   )
 
 type CatalogAddButtonProps = {
@@ -406,6 +402,7 @@ export function EmployeeWorkspacePage() {
     [orderSessionsQuery.data],
   )
   const activeOrderItemsCount = orderItems.filter((item) => item.status === 'active').length
+  const ordersById = useMemo(() => new Map(orders.map((order) => [order.id, order])), [orders])
   const placesById = useMemo(() => new Map(places.map((place) => [place.id, place])), [places])
   const comboGiftMinutesByOrderId = useMemo(() => {
     const combosById = new Map((combosQuery.data ?? []).map((combo) => [combo.id, combo]))
@@ -538,22 +535,6 @@ export function EmployeeWorkspacePage() {
       }
       const order = await orderMutations.createOrder.mutateAsync({ placeId: place.id })
       selectOrder(order.id)
-    })
-
-  const startSession = (place: EmployeeWorkspacePlaceRow, plannedMinutes?: number | null) =>
-    runAction(async () => {
-      if (!currentShiftQuery.data?.shift) {
-        if (role === 'organization_admin') {
-          setError('Смена не открыта. Откройте смену, чтобы начать работу с заказами.')
-          return
-        }
-        throw new Error('Смена не открыта. Откройте смену, чтобы начать работу с заказами.')
-      }
-      const session = await orderMutations.startSession.mutateAsync({
-        placeId: place.id,
-        ...(plannedMinutes !== undefined ? { plannedMinutes } : {}),
-      })
-      selectOrder(session.order_id)
     })
 
   const startSessionForOrder = (place: EmployeeWorkspacePlaceRow, orderId: string, plannedMinutes?: number | null) =>
@@ -843,7 +824,7 @@ export function EmployeeWorkspacePage() {
 
       // Reload selectedOrder reference
       const orderRef = orders.find((o) => o.id === orderId) ?? selectedOrder
-      if (!orderRef || orderRef.place_id) return
+      if (!orderRef) return
 
       const currentLabel = orderRef.customer_label?.trim() ?? ''
       if (nextLabel === currentLabel) return
@@ -897,11 +878,12 @@ export function EmployeeWorkspacePage() {
         </div>
       ) : null}
 
-      <section className="min-h-0 flex-1 overflow-auto rounded-lg bg-slate-100 p-2 shadow-sm ring-1 ring-slate-200 sm:p-3">
+      <section className="h-[640px] shrink-0 overflow-hidden rounded-lg bg-slate-100 p-3 shadow-sm ring-1 ring-slate-200">
         <div
-          className="grid min-h-full auto-rows-[minmax(88px,auto)] gap-2 xl:gap-3"
+          className="grid w-full min-w-0 content-start auto-rows-[200px] gap-2"
           style={{
             gridTemplateColumns: `repeat(${WORKSPACE_COLUMNS}, minmax(0, 1fr))`,
+            gridTemplateRows: 'repeat(3, 200px)',
           }}
         >
           {placeLayout.map((slot) => {
@@ -924,12 +906,14 @@ export function EmployeeWorkspacePage() {
             const sessionLimitInfo = getSessionLimitInfo(place, nowMs)
             const vipEquipmentSummary = isVipEquipmentPlace(place) ? formatVipEquipmentSummary(place) : null
             const canOpenPlace = !isWorkspaceReadOnly || hasActiveOrder
+            const customerLabel = place.active_order_id
+              ? ordersById.get(place.active_order_id)?.customer_label?.trim() ?? ''
+              : ''
 
             return (
               <article
                 className={getSlotClassName(
                   place,
-                  slot.shape,
                   Boolean(sessionLimitInfo?.isWarning || sessionLimitInfo?.isExpired),
                 )}
                 key={slot.key}
@@ -949,8 +933,8 @@ export function EmployeeWorkspacePage() {
                 <div className="grid gap-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2">
-                      <CatalogImage alt={place.name} className="size-10 rounded-full" imagePath={place.image_path} />
-                      <h3 className="min-w-0 break-words text-base font-semibold leading-tight text-slate-950">
+                      <CatalogImage alt={place.name} className="size-9 rounded-full" imagePath={place.image_path} />
+                      <h3 className="line-clamp-2 min-w-0 break-words text-sm font-semibold leading-tight text-slate-950">
                         {place.name}
                       </h3>
                     </div>
@@ -1003,67 +987,21 @@ export function EmployeeWorkspacePage() {
                   </div>
                 </div>
 
-                <div className="mt-3 grid gap-1.5">
-                  {isWorkspaceReadOnly ? (
-                    hasActiveOrder ? (
-                      <button
-                        className="inline-flex min-h-8 items-center justify-center gap-1 rounded-md bg-white px-2 text-xs font-semibold text-slate-800 ring-1 ring-slate-200 hover:bg-slate-50"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          selectOrder(place.active_order_id!)
-                        }}
-                        type="button"
-                      >
-                        <ReceiptText className="size-3.5" /> Открыть заказ
-                      </button>
-                    ) : (
-                      <span className="inline-flex min-h-8 items-center justify-center rounded-md bg-slate-100 px-2 text-xs font-medium text-slate-500">
-                        {t('Режим просмотра')}
-                      </span>
-                    )
-                  ) : !isTable ? (
-                    <>
-                      {hasActiveSession ? (
-                        <button
-                          className="inline-flex min-h-8 items-center justify-center gap-1 rounded-md bg-white px-2 text-xs font-semibold text-red-800 ring-1 ring-red-200 hover:bg-red-50"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            void runAction(() =>
-                              orderMutations.completeSession.mutateAsync(place.active_session_id!),
-                            )
-                          }}
-                          type="button"
-                        >
-                          <Square className="size-3.5" /> Закрыть сессию
-                        </button>
-                      ) : (
-                        <button
-                          className="inline-flex min-h-8 items-center justify-center gap-1 rounded-md bg-emerald-700 px-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:bg-slate-300"
-                          disabled={!place.has_timer}
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            void (hasActiveOrder ? startSessionForOrder(place, place.active_order_id!) : startSession(place))
-                          }}
-                          type="button"
-                        >
-                          <Play className="size-3.5" /> Начать сессию
-                        </button>
-                      )}
-                    </>
-                  ) : (
-                    <button
-                      className="inline-flex min-h-8 items-center justify-center gap-1 rounded-md bg-white px-2 text-xs font-semibold text-slate-800 ring-1 ring-slate-200 hover:bg-slate-50"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        void openPlaceOrder(place)
-                      }}
-                      type="button"
-                    >
-                      <ReceiptText className="size-3.5" />
-                      {hasActiveOrder ? 'Открыть заказ' : 'Создать заказ'}
-                    </button>
-                  )}
-                </div>
+                {customerLabel ? (
+                  <div
+                    className={cn(
+                      '-mx-2 -mb-2 mt-2 flex min-h-8 items-center justify-center border-t-2 px-2 pt-1 text-center text-sm font-semibold text-slate-800',
+                      place.active_order_status === 'waiting_payment'
+                        ? 'border-orange-400/50'
+                        : hasActiveOrder || hasActiveSession
+                          ? 'border-red-400/50'
+                          : 'border-slate-300/50',
+                    )}
+                    title={customerLabel}
+                  >
+                    <span className="min-w-0 truncate">{customerLabel}</span>
+                  </div>
+                ) : null}
               </article>
             )
           })}
@@ -1081,7 +1019,7 @@ export function EmployeeWorkspacePage() {
         </section>
       ) : null}
 
-      <section className="grid max-h-44 gap-2 overflow-hidden border-t border-slate-200 pt-2">
+      <section className="grid min-h-40 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-2 overflow-hidden border-t border-slate-200 pt-3">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h3 className="text-base font-semibold text-slate-950">Заказы без места</h3>
@@ -1095,7 +1033,7 @@ export function EmployeeWorkspacePage() {
         </div>
 
         {ordersWithoutPlace.length ? (
-          <div className="grid max-h-28 gap-2 overflow-y-auto pr-1 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid min-h-0 gap-2 overflow-y-auto pr-1 md:grid-cols-2 xl:grid-cols-3">
             {ordersWithoutPlace.map((order) => (
               <button
                 className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-left shadow-sm hover:border-emerald-200 hover:bg-emerald-50/40"
@@ -1105,7 +1043,7 @@ export function EmployeeWorkspacePage() {
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="min-w-0 font-semibold text-slate-950">
-                    #{order.order_number}{order.customer_label ? ` · ${order.customer_label}` : ''}
+                    {formatOrderDisplayNumber(order.order_number, order.customer_label)}
                   </span>
                   <span className="text-sm text-slate-600">{orderStatusLabel[order.status]}</span>
                 </div>
@@ -1116,7 +1054,7 @@ export function EmployeeWorkspacePage() {
             ))}
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-3 text-sm text-slate-500">
+          <div className="grid min-h-20 place-items-center rounded-lg border border-dashed border-slate-300 bg-white px-3 py-3 text-sm text-slate-500">
             Заказов без места нет.
           </div>
         )}
@@ -1135,6 +1073,20 @@ export function EmployeeWorkspacePage() {
               <div className="grid min-w-0 flex-1 gap-2">
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <h3 className="shrink-0 text-lg font-semibold text-slate-950">Заказ #{selectedOrder.order_number}</h3>
+                  <label className="min-w-36 max-w-56 flex-1">
+                    <span className="sr-only">{t('Имя клиента')}</span>
+                    <input
+                      className="min-h-8 w-full rounded-md border border-slate-200 bg-white px-2.5 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                      onBlur={saveOrderCustomerLabel}
+                      onChange={(event) => setOrderCustomerLabel(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') event.currentTarget.blur()
+                      }}
+                      placeholder={t('Имя клиента')}
+                      readOnly={isWorkspaceReadOnly}
+                      value={orderCustomerLabel}
+                    />
+                  </label>
                   {isVipEquipmentPlace(selectedOrderPlace) ? (
                     <input
                       className="min-h-8 min-w-40 flex-1 rounded-md border border-slate-200 bg-white px-2.5 text-sm text-slate-950 outline-none transition-colors focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
@@ -1149,7 +1101,6 @@ export function EmployeeWorkspacePage() {
                   ) : null}
                 </div>
                 <p className="text-sm text-slate-600">
-                  {selectedOrder.customer_label ? `${selectedOrder.customer_label} · ` : ''}
                   {selectedOrder.current_place_name_snapshot ?? 'Без места'} · {orderStatusLabel[selectedOrder.status]}
                 </p>
               </div>
@@ -1168,7 +1119,6 @@ export function EmployeeWorkspacePage() {
                 {(() => {
                   const selectedPlace = placesById.get(selectedOrder.place_id ?? '') ?? null
                   const hasActiveSession = Boolean(selectedPlace?.active_session_id)
-                  const isOrderWithoutPlace = !selectedOrder.place_id
                   const hasNormalPaymentAmount = selectedOrderTotalWithTip > 0
                   const canPreparePayment =
                     (selectedOrder.status === 'open' || selectedOrder.status === 'waiting_payment') &&
@@ -1200,37 +1150,6 @@ export function EmployeeWorkspacePage() {
                           <span className="text-slate-600">
                             {t('payment.remaining')}: {formatAzn(selectedOrder.unpaid_amount)}
                           </span>
-                        </div>
-                      ) : null}
-
-                      {isOrderWithoutPlace ? (
-                        <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
-                          <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                            <span className="sr-only">Имя клиента</span>
-                            <input
-                              className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
-                              onBlur={saveOrderCustomerLabel}
-                              onChange={(event) => setOrderCustomerLabel(event.target.value)}
-                              onKeyDown={(event) => {
-                                if (event.key === 'Enter') {
-                                  event.currentTarget.blur()
-                                }
-                              }}
-                              placeholder="Имя клиента"
-                              readOnly={isWorkspaceReadOnly}
-                              value={orderCustomerLabel}
-                            />
-                          </label>
-                          <Button
-                            className="min-h-10"
-                            disabled={isWorkspaceReadOnly || orderMutations.updateCustomerLabel.isPending}
-                            onClick={saveOrderCustomerLabel}
-                            onMouseDown={(event) => event.preventDefault()}
-                            type="button"
-                            variant="secondary"
-                          >
-                            Сохранить
-                          </Button>
                         </div>
                       ) : null}
 
