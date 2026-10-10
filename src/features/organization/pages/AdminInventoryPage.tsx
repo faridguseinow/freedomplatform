@@ -60,17 +60,6 @@ const documentSchema = z.object({
     }
   })
 
-  const productIds = value.items
-    .filter((item) => item.product_mode === 'existing')
-    .map((item) => item.product_id)
-  if (new Set(productIds).size !== productIds.length) {
-    context.addIssue({
-      code: 'custom',
-      message: 'Один товар нельзя добавлять в закупку несколько раз.',
-      path: ['items'],
-    })
-  }
-
   const newProductNames = value.items
     .filter((item) => item.product_mode === 'new')
     .map((item) => item.new_product_name?.trim().toLocaleLowerCase() ?? '')
@@ -106,6 +95,11 @@ const emptyPurchase: DocumentFormValues = {
 
 const formatNumber = (value: number | null | undefined) =>
   new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 3 }).format(value ?? 0)
+
+const getCurrentPurchaseCost = (product: {
+  average_purchase_cost: number
+  purchase_price: number | null
+}) => product.average_purchase_cost > 0 ? product.average_purchase_cost : product.purchase_price ?? 0
 
 export function AdminInventoryPage() {
   const { organizationId, user } = useAuth()
@@ -283,7 +277,7 @@ export function AdminInventoryPage() {
     setPageError(null)
     setSuccessMessage(null)
     setQuickAdjustPendingId(product.id)
-    const unitCost = product.purchase_price ?? product.average_purchase_cost ?? 0
+    const unitCost = getCurrentPurchaseCost(product)
     const isIncrease = direction === 'in'
 
     try {
@@ -565,7 +559,7 @@ export function AdminInventoryPage() {
                   </div>
                   <dl className="grid gap-3 text-sm sm:grid-cols-3">
                     <div><dt className="text-xs uppercase tracking-wide text-slate-500">{t('Осталось')}</dt><dd className="mt-1 text-lg font-semibold text-slate-950">{formatNumber(product.stock_quantity)} {formatUnitName(product.unit_name, language)}</dd></div>
-                    <div><dt className="text-xs uppercase tracking-wide text-slate-500">{t('Цена закупки')}</dt><dd className="mt-1 font-semibold text-slate-900">{formatNumber(product.purchase_price)} AZN</dd></div>
+                    <div><dt className="text-xs uppercase tracking-wide text-slate-500">{t('inventory.averagePurchaseCost')}</dt><dd className="mt-1 font-semibold text-slate-900">{formatNumber(getCurrentPurchaseCost(product))} AZN</dd></div>
                     <div><dt className="text-xs uppercase tracking-wide text-slate-500">{t('Цена продажи')}</dt><dd className="mt-1 font-semibold text-slate-900">{formatNumber(product.sale_price)} AZN</dd></div>
                   </dl>
                 </div>
@@ -707,7 +701,7 @@ export function AdminInventoryPage() {
                         <span>{t('Выберите товар')}</span>
                         <select className="min-h-11 w-full min-w-0 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register(`items.${index}.product_id`, { onChange: (event) => {
                           const product = products.find((item) => item.id === event.target.value)
-                          setValue(`items.${index}.unit_cost`, product?.purchase_price ?? product?.average_purchase_cost ?? 0, { shouldValidate: true })
+                          setValue(`items.${index}.unit_cost`, product ? getCurrentPurchaseCost(product) : 0, { shouldValidate: true })
                           setValue(`items.${index}.sale_price`, product?.sale_price ?? 0, { shouldValidate: true })
                         } })}><option value="">Выберите</option>{products.filter((item) => item.track_stock).map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select>
                       </label>
@@ -730,6 +724,9 @@ export function AdminInventoryPage() {
               ))}
               <Button onClick={() => append({ product_mode: 'existing', product_id: '', new_product_name: '', quantity: 1, unit_cost: 0, sale_price: 0, comment: '' })} type="button" variant="secondary"><Plus className="size-4" />Добавить позицию</Button>
             </div>
+            {documentMode === 'purchase' ? (
+              <p className="text-xs text-slate-500">{t('inventory.duplicatePurchaseHint')}</p>
+            ) : null}
             {errors.items?.message ? <p className="text-sm text-red-700">{t(errors.items.message)}</p> : null}
             <div className="rounded-md bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800">Итого: {formatNumber(documentTotal)} AZN</div>
             {formError ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{formError}</div> : null}

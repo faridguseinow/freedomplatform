@@ -33,6 +33,16 @@ export function formatNumericDateTime(value: DateValue, timeZone?: string) {
   return `${parts.day}.${parts.month}.${parts.year}, ${parts.hour}:${parts.minute}`
 }
 
+export function formatNumericTime(value: DateValue, timeZone?: string) {
+  const parts = getParts(value, {
+    hour: '2-digit',
+    hour12: false,
+    minute: '2-digit',
+    timeZone,
+  })
+  return `${parts.hour}:${parts.minute}`
+}
+
 export function formatNumericMonthDay(value: DateValue, timeZone?: string) {
   const parts = getParts(value, { day: '2-digit', month: '2-digit', timeZone })
   return `${parts.day}.${parts.month}`

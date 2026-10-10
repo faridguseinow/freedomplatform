@@ -108,6 +108,8 @@
   "inventoryHistory.emptyTitle": "Tarixçə boşdur",
   "inventoryHistory.emptyDescription": "Bu məhsul üzrə hələ anbar hərəkəti yoxdur.",
   "inventory.unitItem": "ədəd",
+  "inventory.averagePurchaseCost": "Orta alış qiyməti",
+  "inventory.duplicatePurchaseHint": "Eyni məhsulu fərqli alış qiymətləri ilə bir neçə dəfə əlavə etmək olar. Orta alış qiyməti hər partiyanın miqdarı nəzərə alınaraq avtomatik yenidən hesablanacaq.",
   "shifts.shiftsForDay": "gün üzrə növbə: {{count}}",
   "shifts.dayTotal": "Gün üzrə cəmi",
   "shifts.totalRevenue": "Ümumi gəlir",

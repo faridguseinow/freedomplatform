@@ -1,5 +1,5 @@
 import { getCurrentLocale } from '../../../lib/i18n/translator'
-import { formatNumericDateTime } from '../../../lib/i18n/dateTime'
+import { formatNumericTime } from '../../../lib/i18n/dateTime'
 import {
   Banknote,
   ArrowRightLeft,
@@ -1502,12 +1502,12 @@ export function EmployeeWorkspacePage() {
                               <dl className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-md bg-slate-50 px-3 py-2 text-xs sm:grid-cols-4">
                                 <div>
                                   <dt className="text-slate-500">{t('sessionSummary.started')}</dt>
-                                  <dd className="font-medium text-slate-800">{formatNumericDateTime(session.started_at)}</dd>
+                                  <dd className="font-medium text-slate-800">{formatNumericTime(session.started_at)}</dd>
                                 </div>
                                 <div>
                                   <dt className="text-slate-500">{t('sessionSummary.ended')}</dt>
                                   <dd className="font-medium text-slate-800">
-                                    {session.ended_at ? formatNumericDateTime(session.ended_at) : '—'}
+                                    {session.ended_at ? formatNumericTime(session.ended_at) : '—'}
                                   </dd>
                                 </div>
                                 <div>

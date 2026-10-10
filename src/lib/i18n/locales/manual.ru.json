@@ -108,6 +108,8 @@
   "inventoryHistory.emptyTitle": "История пуста",
   "inventoryHistory.emptyDescription": "По товару пока нет складских движений.",
   "inventory.unitItem": "шт.",
+  "inventory.averagePurchaseCost": "Средняя закупочная цена",
+  "inventory.duplicatePurchaseHint": "Один товар можно добавить несколько раз по разным закупочным ценам. Средняя закупочная цена пересчитается автоматически с учётом количества каждой партии.",
   "shifts.shiftsForDay": "смен за день: {{count}}",
   "shifts.dayTotal": "Итого за день",
   "shifts.totalRevenue": "Общая выручка",
