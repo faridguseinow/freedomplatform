@@ -409,5 +409,7 @@
   "theme.regionalDescription": "Yeni təşkilatlar üçün dil, görünüş, saat qurşağı və regional dəyərlər.",
   "finance.periodNotReady": "Növbəti təqvim ayı hələ tamamlanmayıb. Hesabat ay bitdikdən sonrakı gün göndərilə biləcək.",
   "finance.calendarCycleDescription": "Dövr ayın ilk günü başlayır və təqvim ayının son günü bitir.",
-  "finance.calendarPeriodRule": "Maliyyə dövrləri boşluq və üst-üstə düşmə olmadan tam təqvim ayları üzrə bağlanır."
+  "finance.calendarPeriodRule": "Maliyyə dövrləri boşluq və üst-üstə düşmə olmadan tam təqvim ayları üzrə bağlanır.",
+  "session.limit30Minutes": "30 dəqiqə",
+  "order.noOtherUnplacedOrders": "Başqa yersiz sifariş yoxdur."
 }

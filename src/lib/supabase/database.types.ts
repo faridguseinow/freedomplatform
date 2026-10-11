@@ -1765,6 +1765,13 @@ export type Database = {
         }
         Returns: OrderRow
       }
+      merge_open_order_into_unplaced_order: {
+        Args: {
+          source_order_id: string
+          destination_order_id: string
+        }
+        Returns: OrderRow
+      }
       request_order_adjustment: {
         Args: {
           target_order_id: string

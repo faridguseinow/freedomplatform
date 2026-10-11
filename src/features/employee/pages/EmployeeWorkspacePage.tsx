@@ -64,10 +64,7 @@ const formatMoney = (value: number | null | undefined) =>
   new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
 
 const formatAzn = (value: number | null | undefined) => `${formatMoney(value)} AZN`
-const formatOrderItemAddedAt = (value: string) => new Date(value).toLocaleString(getCurrentLocale(), {
-  dateStyle: 'short',
-  timeStyle: 'short',
-})
+const formatOrderItemAddedAt = (value: string) => formatNumericTime(value)
 const parseMoneyInput = (value: string) => Number(value.replace(',', '.'))
 
 const formatElapsed = (startedAt: string | null, nowMs: number) => {
@@ -102,7 +99,7 @@ const formatQuantity = (value: number | null | undefined) => {
 }
 
 const formatDurationMinutes = (minutes: number | null | undefined, hourLabel: string, minuteLabel: string) => {
-  if (!minutes || minutes <= 0) return ''
+  if (minutes === null || minutes === undefined || minutes < 0) return ''
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60
   if (hours && rest) return `${hours} ${hourLabel} ${rest} ${minuteLabel}`
@@ -330,6 +327,7 @@ export function EmployeeWorkspacePage() {
   const [orderCloseAction, setOrderCloseAction] = useState<OrderCloseAction | null>(null)
   const [isTransferOpen, setIsTransferOpen] = useState(false)
   const [transferTargetPlaceId, setTransferTargetPlaceId] = useState('')
+  const [transferTargetOrderId, setTransferTargetOrderId] = useState('')
   const [cancelReason, setCancelReason] = useState('')
   const [removeRequestItem, setRemoveRequestItem] = useState<EmployeeOrderItemRow | null>(null)
   const [removeRequestReason, setRemoveRequestReason] = useState('')
@@ -422,6 +420,9 @@ export function EmployeeWorkspacePage() {
     place.status === 'active' && place.id !== selectedOrder?.place_id,
   )
   const ordersWithoutPlace = orders.filter((order) => !order.place_id && order.status !== 'paid')
+  const transferTargetOrders = ordersWithoutPlace.filter(
+    (order) => order.id !== selectedOrder?.id && order.status === 'open',
+  )
 
   useEffect(() => {
     if (isWorkspaceReadOnly) return
@@ -484,6 +485,7 @@ export function EmployeeWorkspacePage() {
     setOrderCloseAction(null)
     setIsTransferOpen(false)
     setTransferTargetPlaceId('')
+    setTransferTargetOrderId('')
     setCancelReason('')
     setTipAmount('')
     setCashSplitAmount('')
@@ -563,14 +565,20 @@ export function EmployeeWorkspacePage() {
   }
 
   const transferOrder = () => {
-    if (!selectedOrder || !transferTargetPlaceId) return
+    if (!selectedOrder || (!transferTargetPlaceId && !transferTargetOrderId)) return
     void runAction(async () => {
-      const destinationOrder = await orderMutations.transferOrder.mutateAsync({
-        orderId: selectedOrder.id,
-        placeId: transferTargetPlaceId,
-      })
+      const destinationOrder = transferTargetOrderId
+        ? await orderMutations.mergeOrderIntoOrder.mutateAsync({
+            orderId: selectedOrder.id,
+            destinationOrderId: transferTargetOrderId,
+          })
+        : await orderMutations.transferOrder.mutateAsync({
+            orderId: selectedOrder.id,
+            placeId: transferTargetPlaceId,
+          })
       setIsTransferOpen(false)
       setTransferTargetPlaceId('')
+      setTransferTargetOrderId('')
       selectOrder(destinationOrder.id)
     })
   }
@@ -1033,21 +1041,21 @@ export function EmployeeWorkspacePage() {
         </div>
 
         {ordersWithoutPlace.length ? (
-          <div className="grid min-h-0 gap-2 overflow-y-auto pr-1 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid min-h-0 content-start grid-cols-[repeat(auto-fill,minmax(220px,1fr))] auto-rows-[72px] gap-2 overflow-y-auto pr-1">
             {ordersWithoutPlace.map((order) => (
               <button
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-left shadow-sm hover:border-emerald-200 hover:bg-emerald-50/40"
+                className="flex h-[72px] min-w-0 flex-col justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-left shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50/40"
                 key={order.id}
                 onClick={() => selectOrder(order.id)}
                 type="button"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="min-w-0 font-semibold text-slate-950">
+                <div className="flex min-w-0 items-center justify-between gap-2">
+                  <span className="min-w-0 truncate text-sm font-semibold text-slate-950">
                     {formatOrderDisplayNumber(order.order_number, order.customer_label)}
                   </span>
-                  <span className="text-sm text-slate-600">{orderStatusLabel[order.status]}</span>
+                  <span className="shrink-0 text-xs text-slate-500">{orderStatusLabel[order.status]}</span>
                 </div>
-                <div className="mt-2 text-sm text-slate-600">
+                <div className="text-xs font-medium text-slate-600">
                   Итого: {formatAzn(order.total_amount)}
                 </div>
               </button>
@@ -1136,7 +1144,7 @@ export function EmployeeWorkspacePage() {
                   const isClosingOrder = isOrderCloseActionPending
 
                   return (
-                    <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50/60 p-2.5">
+                    <div className="grid gap-2 rounded-lg border border-red-300 bg-slate-50/60 p-2.5">
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-sm font-semibold text-slate-950">Сумма заказа</span>
                         <span className="text-xl font-semibold text-slate-950">{formatAzn(selectedOrderTotalWithTip)}</span>
@@ -1432,13 +1440,21 @@ export function EmployeeWorkspacePage() {
                                 <div>
                                   <dt className="text-slate-500">{t('sessionSummary.played')}</dt>
                                   <dd className="font-medium text-slate-800">
-                                    {t('common.durationMinutes', { minutes: session.actual_minutes ?? 0 })}
+                                    {formatDurationMinutes(
+                                      session.actual_minutes ?? 0,
+                                      t('ui.ch_285cc40'),
+                                      t('ui.min_d6035dc'),
+                                    )}
                                   </dd>
                                 </div>
                                 <div>
                                   <dt className="text-slate-500">{t('sessionSummary.billable')}</dt>
                                   <dd className="font-medium text-slate-800">
-                                    {t('common.durationMinutes', { minutes: session.billable_minutes ?? 0 })}
+                                    {formatDurationMinutes(
+                                      session.billable_minutes ?? 0,
+                                      t('ui.ch_285cc40'),
+                                      t('ui.min_d6035dc'),
+                                    )}
                                   </dd>
                                 </div>
                               </dl>
@@ -1604,7 +1620,7 @@ export function EmployeeWorkspacePage() {
 
                   return (
                     <>
-                      <div className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-2 overflow-hidden rounded-lg border border-slate-200 bg-slate-50/40 p-2">
+                      <div className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-2 overflow-hidden rounded-lg border border-blue-300 bg-slate-50/40 p-2">
                           <div className="grid grid-cols-3 gap-1.5">
                             {(['products', 'services', 'combos'] as const).map((tab) => (
                               <button
@@ -1703,7 +1719,7 @@ export function EmployeeWorkspacePage() {
                           </div>
                         </div>
 
-                      <div className="grid gap-2 rounded-lg border border-slate-200 p-2.5">
+                      <div className="grid gap-2 rounded-lg border border-amber-300 p-2.5">
                         <div className="flex items-center justify-between gap-2">
                           <div>
                             <h4 className="text-sm font-semibold text-slate-950">
@@ -1800,9 +1816,9 @@ export function EmployeeWorkspacePage() {
                                 <div className="grid grid-cols-4 gap-1.5">
                                   {[
                                     { label: 'Без лимита', value: null },
+                                    { label: t('session.limit30Minutes'), value: 30 },
                                     { label: '1 час', value: 60 },
                                     { label: '2 часа', value: 120 },
-                                    { label: '3 часа', value: 180 },
                                   ].map((option) => (
                                     <button
                                       className={cn(
@@ -1921,14 +1937,18 @@ export function EmployeeWorkspacePage() {
               onClose={() => {
                 setIsTransferOpen(false)
                 setTransferTargetPlaceId('')
+                setTransferTargetOrderId('')
               }}
             >
-              <section className="grid w-full max-w-lg gap-4 rounded-xl bg-white p-5 shadow-xl">
+              <section className="grid w-full max-w-lg gap-4 rounded-xl border border-slate-200 bg-white p-5 text-slate-950 shadow-xl">
                 <div className="grid gap-1">
                   <h4 className="text-lg font-semibold text-slate-950">{t('order.changePlace')}</h4>
                 </div>
 
                 <div className="grid max-h-96 gap-2 overflow-y-auto pr-1">
+                  <h5 className="sticky top-0 z-10 bg-white py-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Места
+                  </h5>
                   {transferTargets.map((place) => {
                     const isWaitingForPayment = place.active_order_status === 'waiting_payment'
                     const hasOrphanSession = Boolean(place.active_session_id && !place.active_order_id)
@@ -1942,15 +1962,18 @@ export function EmployeeWorkspacePage() {
                         className={cn(
                           'grid min-h-16 gap-2 rounded-lg border p-3 text-left transition-colors',
                           isOccupied
-                            ? 'border-red-200 bg-red-50/70 text-red-950'
-                            : 'border-emerald-200 bg-emerald-50/70 text-emerald-950',
+                            ? 'border-red-800 bg-red-950/35 text-red-100'
+                            : 'border-emerald-800 bg-emerald-950/30 text-emerald-100',
                           !isDisabled && (isOccupied ? 'hover:border-red-400' : 'hover:border-emerald-400'),
-                          isSelected && 'ring-2 ring-emerald-600 ring-offset-1',
+                          isSelected && 'ring-2 ring-emerald-500 ring-offset-1 ring-offset-[var(--theme-surface)]',
                           isDisabled && 'cursor-not-allowed opacity-55',
                         )}
                         disabled={isDisabled}
                         key={place.id}
-                        onClick={() => setTransferTargetPlaceId(place.id)}
+                        onClick={() => {
+                          setTransferTargetPlaceId(place.id)
+                          setTransferTargetOrderId('')
+                        }}
                         type="button"
                       >
                         <span className="flex min-w-0 items-center justify-between gap-3">
@@ -1969,14 +1992,14 @@ export function EmployeeWorkspacePage() {
                           </span>
                         </span>
                         {place.active_order_id ? (
-                          <span className="flex items-center justify-between gap-3 text-xs text-slate-600">
+                          <span className="flex items-center justify-between gap-3 text-xs text-slate-300">
                             <span>#{place.active_order_number} · {place.active_order_item_count} поз.</span>
-                            <span className="font-semibold text-slate-800">
+                            <span className="font-semibold text-slate-100">
                               {formatAzn((place.active_order_total ?? 0) + sessionAmount)}
                             </span>
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-500">
+                          <span className="text-xs text-slate-400">
                             {place.has_timer ? t('order.sessionStartsAutomatically') : t('order.withoutTimer')}
                           </span>
                         )}
@@ -1984,8 +2007,44 @@ export function EmployeeWorkspacePage() {
                     )
                   })}
                   {!transferTargets.length ? (
-                    <div className="rounded-lg border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+                    <div className="rounded-lg border border-dashed border-slate-700 p-4 text-sm text-slate-400">
                       {t('order.noFreePlaces')}
+                    </div>
+                  ) : null}
+
+                  <h5 className="sticky top-0 z-10 mt-2 bg-white py-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Заказы без места
+                  </h5>
+                  {transferTargetOrders.map((order) => {
+                    const isSelected = transferTargetOrderId === order.id
+                    return (
+                      <button
+                        className={cn(
+                          'grid min-h-16 gap-2 rounded-lg border border-blue-800 bg-blue-950/30 p-3 text-left text-blue-100 transition-colors hover:border-blue-400',
+                          isSelected && 'ring-2 ring-blue-500 ring-offset-1 ring-offset-[var(--theme-surface)]',
+                        )}
+                        key={order.id}
+                        onClick={() => {
+                          setTransferTargetOrderId(order.id)
+                          setTransferTargetPlaceId('')
+                        }}
+                        type="button"
+                      >
+                        <span className="flex min-w-0 items-center justify-between gap-3">
+                          <span className="truncate font-semibold">
+                            {formatOrderDisplayNumber(order.order_number, order.customer_label)}
+                          </span>
+                          <span className="shrink-0 rounded-full bg-blue-900 px-2 py-0.5 text-xs text-blue-200">
+                            Без места
+                          </span>
+                        </span>
+                        <span className="text-xs text-slate-300">Итого: {formatAzn(order.total_amount)}</span>
+                      </button>
+                    )
+                  })}
+                  {!transferTargetOrders.length ? (
+                    <div className="rounded-lg border border-dashed border-slate-700 p-4 text-sm text-slate-400">
+                      {t('order.noOtherUnplacedOrders')}
                     </div>
                   ) : null}
                 </div>
@@ -1996,6 +2055,7 @@ export function EmployeeWorkspacePage() {
                     onClick={() => {
                       setIsTransferOpen(false)
                       setTransferTargetPlaceId('')
+                      setTransferTargetOrderId('')
                     }}
                     type="button"
                     variant="secondary"
@@ -2003,11 +2063,17 @@ export function EmployeeWorkspacePage() {
                     {t('ui.nazad_f6dab07')}
                   </Button>
                   <Button
-                    disabled={!transferTargetPlaceId || orderMutations.transferOrder.isPending}
+                    disabled={
+                      (!transferTargetPlaceId && !transferTargetOrderId) ||
+                      orderMutations.transferOrder.isPending ||
+                      orderMutations.mergeOrderIntoOrder.isPending
+                    }
                     onClick={transferOrder}
                     type="button"
                   >
-                    {orderMutations.transferOrder.isPending ? <Loader2 className="size-4 animate-spin" /> : <ArrowRightLeft className="size-4" />}
+                    {orderMutations.transferOrder.isPending || orderMutations.mergeOrderIntoOrder.isPending
+                      ? <Loader2 className="size-4 animate-spin" />
+                      : <ArrowRightLeft className="size-4" />}
                     {t('order.move')}
                   </Button>
                 </div>

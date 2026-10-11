@@ -431,6 +431,26 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
         if (order.id !== orderId) await invalidate(order.id)
       },
     }),
+    mergeOrderIntoOrder: useMutation({
+      mutationFn: async ({
+        orderId,
+        destinationOrderId,
+      }: {
+        orderId: string
+        destinationOrderId: string
+      }) => {
+        const { data, error } = await supabase.rpc('merge_open_order_into_unplaced_order', {
+          source_order_id: orderId,
+          destination_order_id: destinationOrderId,
+        })
+        if (error) throw new Error(error.message)
+        return data
+      },
+      onSuccess: async (order, { orderId }) => {
+        await invalidate(orderId)
+        if (order.id !== orderId) await invalidate(order.id)
+      },
+    }),
     pauseSession: useMutation({
       mutationFn: async (sessionId: string) => {
         const { data, error } = await supabase.rpc('pause_timed_session', {
