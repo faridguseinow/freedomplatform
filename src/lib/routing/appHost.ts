@@ -146,6 +146,15 @@ export function getOrganizationUrl(slug: string, path = '/', options: UrlOptions
   }`
 }
 
+export function getOrganizationProductionUrl(slug: string, path = '/'): string {
+  const normalizedSlug = slug.trim().toLowerCase()
+  const normalizedPath = normalizePath(path)
+
+  return `https://${normalizedSlug}.${normalizeBaseDomain(PLATFORM_BASE_DOMAIN)}${
+    normalizedPath === '/' ? '' : normalizedPath
+  }`
+}
+
 export function getPlatformAdminUrl(path = '/', options: UrlOptions = {}): string {
   const normalizedPath = normalizePath(path)
   const location = getBrowserLocation()

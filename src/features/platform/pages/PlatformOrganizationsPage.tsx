@@ -12,6 +12,7 @@ import {
   Plus,
   Save,
   ShieldCheck,
+  Trash2,
   Users,
   X,
 } from 'lucide-react'
@@ -30,7 +31,9 @@ import type { OrganizationRow } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import { uploadOrganizationLogo } from '../../organization/catalog/imageUpload'
+import { loadPlatformPreferences } from '../platformPreferences'
 import {
+  getOrganizationProductionUrl,
   getOrganizationUrl,
   getPlatformRoutePath,
   isValidOrganizationSlug,
@@ -144,6 +147,9 @@ export function PlatformOrganizationsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingOrganization, setEditingOrganization] = useState<OrganizationRow | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
+  const [deletingOrganization, setDeletingOrganization] = useState<OrganizationRow | null>(null)
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const organizationsQuery = useQuery({
     queryKey: ['platform', 'organizations'],
@@ -177,6 +183,34 @@ export function PlatformOrganizationsPage() {
         acc[item.organization_id] = (acc[item.organization_id] ?? 0) + 1
         return acc
       }, {})
+    },
+  })
+
+  const shiftActivityQuery = useQuery({
+    queryKey: ['platform', 'organization-shift-activity'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('employee_shifts')
+        .select('organization_id,status,updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(500)
+
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      return data.reduce<Record<string, { hasOpenShift: boolean; lastActivityAt: string }>>(
+        (acc, shift) => {
+          const current = acc[shift.organization_id]
+          acc[shift.organization_id] = {
+            hasOpenShift:
+              current?.hasOpenShift || shift.status === 'open' || shift.status === 'closing',
+            lastActivityAt: current?.lastActivityAt ?? shift.updated_at,
+          }
+          return acc
+        },
+        {},
+      )
     },
   })
 
@@ -215,6 +249,7 @@ export function PlatformOrganizationsPage() {
   }, [editingOrganization, setValue, watchedName, watchedSlug])
 
   const openCreateModal = () => {
+    const preferences = loadPlatformPreferences()
     setEditingOrganization(null)
     setFormError(null)
     reset({
@@ -223,9 +258,9 @@ export function PlatformOrganizationsPage() {
       description: '',
       logo_path: '',
       logo_file: undefined,
-      default_locale: 'ru',
-      timezone: 'Asia/Baku',
-      currency_code: 'AZN',
+      default_locale: preferences.defaultLocale,
+      timezone: preferences.defaultTimezone,
+      currency_code: preferences.defaultCurrency,
       admin_user_id: '',
     })
     setIsModalOpen(true)
@@ -339,6 +374,53 @@ export function PlatformOrganizationsPage() {
     },
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: async (organization: OrganizationRow) => {
+      const { data, error } = await supabase.rpc('delete_archived_organization', {
+        target_confirmation: deleteConfirmation,
+        target_organization_id: organization.id,
+      })
+
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      return data
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['platform'] })
+      setDeletingOrganization(null)
+      setDeleteConfirmation('')
+      setDeleteError(null)
+    },
+  })
+
+  const openDeleteModal = (organization: OrganizationRow) => {
+    setDeletingOrganization(organization)
+    setDeleteConfirmation('')
+    setDeleteError(null)
+  }
+
+  const closeDeleteModal = () => {
+    if (deleteMutation.isPending) return
+    setDeletingOrganization(null)
+    setDeleteConfirmation('')
+    setDeleteError(null)
+  }
+
+  const permanentlyDeleteOrganization = async () => {
+    if (!deletingOrganization || deleteConfirmation !== deletingOrganization.name) return
+
+    setDeleteError(null)
+    try {
+      await deleteMutation.mutateAsync(deletingOrganization)
+    } catch (error) {
+      setDeleteError(
+        error instanceof Error ? error.message : t('platformOrganizations.deleteError'),
+      )
+    }
+  }
+
   const onSubmit = handleSubmit(async (rawValues) => {
     setFormError(null)
     const values = organizationSchema.parse(rawValues)
@@ -378,7 +460,28 @@ export function PlatformOrganizationsPage() {
     }
   })
 
-  const organizations = useMemo(() => organizationsQuery.data ?? [], [organizationsQuery.data])
+  const organizations = useMemo(() => {
+    const statusPriority: Record<OrganizationRow['status'], number> = {
+      active: 0,
+      suspended: 1,
+      archived: 2,
+    }
+
+    return [...(organizationsQuery.data ?? [])].sort((left, right) => {
+      const statusDifference = statusPriority[left.status] - statusPriority[right.status]
+      if (statusDifference !== 0) return statusDifference
+
+      const leftActivity = shiftActivityQuery.data?.[left.id]
+      const rightActivity = shiftActivityQuery.data?.[right.id]
+      if (leftActivity?.hasOpenShift !== rightActivity?.hasOpenShift) {
+        return leftActivity?.hasOpenShift ? -1 : 1
+      }
+
+      const leftTimestamp = leftActivity?.lastActivityAt ?? left.updated_at
+      const rightTimestamp = rightActivity?.lastActivityAt ?? right.updated_at
+      return new Date(rightTimestamp).getTime() - new Date(leftTimestamp).getTime()
+    })
+  }, [organizationsQuery.data, shiftActivityQuery.data])
   const activeCount = useMemo(
     () => organizations.filter((item) => item.status === 'active').length,
     [organizations],
@@ -464,11 +567,13 @@ export function PlatformOrganizationsPage() {
                     </p>
                     <a
                       className="mt-1 inline-flex max-w-full items-center gap-1 truncate text-xs font-medium text-emerald-700 hover:text-emerald-800"
-                      href={getOrganizationUrl(organization.slug)}
+                      href={getOrganizationProductionUrl(organization.slug)}
                       rel="noreferrer"
                       target="_blank"
                     >
-                      <span className="truncate">{getOrganizationUrl(organization.slug)}</span>
+                      <span className="truncate">
+                        {getOrganizationProductionUrl(organization.slug)}
+                      </span>
                       <ExternalLink aria-hidden="true" className="size-3 shrink-0" />
                     </a>
                   </div>
@@ -511,15 +616,27 @@ export function PlatformOrganizationsPage() {
                     <Edit3 aria-hidden="true" className="size-4" />
                     Редактировать
                   </Button>
-                  <Button
-                    disabled={organization.status === 'archived' || archiveMutation.isPending}
-                    onClick={() => archiveMutation.mutate(organization)}
-                    type="button"
-                    variant="danger"
-                  >
-                    <Archive aria-hidden="true" className="size-4" />
-                    Архивировать
-                  </Button>
+                  {organization.status === 'archived' ? (
+                    <Button
+                      disabled={deleteMutation.isPending}
+                      onClick={() => openDeleteModal(organization)}
+                      type="button"
+                      variant="danger"
+                    >
+                      <Trash2 aria-hidden="true" className="size-4" />
+                      Удалить навсегда
+                    </Button>
+                  ) : (
+                    <Button
+                      disabled={archiveMutation.isPending}
+                      onClick={() => archiveMutation.mutate(organization)}
+                      type="button"
+                      variant="danger"
+                    >
+                      <Archive aria-hidden="true" className="size-4" />
+                      Архивировать
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -673,6 +790,67 @@ export function PlatformOrganizationsPage() {
               </Button>
             </div>
           </form>
+        </Modal>
+      ) : null}
+
+      {deletingOrganization ? (
+        <Modal onClose={closeDeleteModal}>
+          <section className="grid w-full max-w-lg gap-4 rounded-lg border border-red-200 bg-white p-5 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-950">
+                  {t('platformOrganizations.deleteTitle')}
+                </h3>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  {t('platformOrganizations.deleteDescription')}
+                </p>
+              </div>
+              <button
+                aria-label="Закрыть"
+                className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                onClick={closeDeleteModal}
+                type="button"
+              >
+                <X aria-hidden="true" className="size-4" />
+              </button>
+            </div>
+
+            <Input
+              id="delete-organization-confirmation"
+              label={t('platformOrganizations.deleteConfirmation', {
+                name: deletingOrganization.name,
+              })}
+              onChange={(event) => setDeleteConfirmation(event.target.value)}
+              value={deleteConfirmation}
+            />
+
+            {deleteError ? (
+              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                {deleteError}
+              </p>
+            ) : null}
+
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button onClick={closeDeleteModal} type="button" variant="secondary">
+                Отмена
+              </Button>
+              <Button
+                disabled={
+                  deleteMutation.isPending || deleteConfirmation !== deletingOrganization.name
+                }
+                onClick={permanentlyDeleteOrganization}
+                type="button"
+                variant="danger"
+              >
+                {deleteMutation.isPending ? (
+                  <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+                ) : (
+                  <Trash2 aria-hidden="true" className="size-4" />
+                )}
+                {t('platformOrganizations.deleteAction')}
+              </Button>
+            </div>
+          </section>
         </Modal>
       ) : null}
     </section>

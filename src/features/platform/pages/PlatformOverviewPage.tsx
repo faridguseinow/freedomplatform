@@ -216,7 +216,7 @@ function RevenueChart({ points }: { points: ChartPoint[] }) {
 
 function Metric({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
-    <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 p-3">
+    <div className="min-w-0 p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
       <p className="mt-2 truncate text-xl font-semibold text-slate-950">{value}</p>
       {note ? <p className="mt-1 truncate text-xs text-slate-500">{note}</p> : null}
@@ -274,14 +274,15 @@ function OrganizationAnalytics({
         </Link>
       </header>
 
-      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
-          {t('platformOverview.todayInProgress')}
-        </p>
-        <p className="mt-2 text-3xl font-semibold text-emerald-950">{money(todayRevenue)}</p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+      <div className="grid overflow-hidden rounded-lg border border-slate-200 bg-slate-50 divide-y divide-slate-200 lg:grid-cols-4 lg:divide-x lg:divide-y-0">
+        <div className="min-w-0 bg-emerald-50 p-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
+            {t('platformOverview.todayInProgress')}
+          </p>
+          <p className="mt-2 truncate text-xl font-semibold text-emerald-950">
+            {money(todayRevenue)}
+          </p>
+        </div>
         <Metric label={t('platformOverview.currentPeriod')} value={money(periodRevenue)} />
         <Metric
           label={t('platformOverview.forecast')}

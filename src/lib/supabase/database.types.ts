@@ -1451,6 +1451,13 @@ export type Database = {
         }
         Returns: OrganizationRow
       }
+      delete_archived_organization: {
+        Args: {
+          target_organization_id: string
+          target_confirmation: string
+        }
+        Returns: Record<string, unknown>
+      }
       claim_demo_access: {
         Args: {
           target_role: Extract<AppRole, 'organization_admin' | 'employee'>

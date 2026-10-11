@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  getOrganizationProductionUrl,
   getOrganizationUrl,
   getPlatformAdminUrl,
   getPlatformRoutePath,
@@ -47,6 +48,10 @@ test('validates organization slugs including reserved values', () => {
 })
 
 test('builds production organization and admin URLs', () => {
+  assert.equal(
+    getOrganizationProductionUrl('TheLiga'),
+    'https://theliga.freedomplatform.cc',
+  )
   assert.equal(
     getOrganizationUrl('theliga', '/admin/orders', { hostname: 'admin.freedomplatform.cc' }),
     'https://theliga.freedomplatform.cc/admin/orders',
