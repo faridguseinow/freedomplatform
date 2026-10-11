@@ -59,6 +59,7 @@ type OrderCloseAction = 'finish-empty' | 'cancel'
 
 const BILLING_GRACE_MINUTES = 10
 const SESSION_LIMIT_WARNING_MINUTES = 10
+const SESSION_LIMIT_ALARM_REPEAT_MS = 5_000
 
 const formatMoney = (value: number | null | undefined) =>
   new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
@@ -343,6 +344,10 @@ export function EmployeeWorkspacePage() {
   const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
   const autoCompletingSessionsRef = useRef(new Set<string>())
+  const alertedSessionIdsRef = useRef(new Set<string>())
+  const sessionAlarmAudioContextRef = useRef<AudioContext | null>(null)
+  const sessionAlarmOscillatorsRef = useRef(new Set<OscillatorNode>())
+  const [sessionLimitAlerts, setSessionLimitAlerts] = useState<Record<string, string>>({})
   const orderItemsQuery = useEmployeeOrderItems(selectedOrderId)
   const orderSessionsQuery = useEmployeeOrderSessions(selectedOrderId)
 
@@ -362,6 +367,37 @@ export function EmployeeWorkspacePage() {
   useEffect(() => {
     const intervalId = window.setInterval(() => setNowMs(Date.now()), 1000)
     return () => window.clearInterval(intervalId)
+  }, [])
+
+  useEffect(() => {
+    const alarmOscillators = sessionAlarmOscillatorsRef.current
+    const unlockAudio = () => {
+      if (!sessionAlarmAudioContextRef.current) {
+        sessionAlarmAudioContextRef.current = new AudioContext()
+      }
+      if (sessionAlarmAudioContextRef.current.state === 'suspended') {
+        void sessionAlarmAudioContextRef.current.resume()
+      }
+      window.removeEventListener('pointerdown', unlockAudio, true)
+      window.removeEventListener('keydown', unlockAudio, true)
+    }
+
+    window.addEventListener('pointerdown', unlockAudio, true)
+    window.addEventListener('keydown', unlockAudio, true)
+    return () => {
+      window.removeEventListener('pointerdown', unlockAudio, true)
+      window.removeEventListener('keydown', unlockAudio, true)
+      for (const oscillator of alarmOscillators) {
+        try {
+          oscillator.stop()
+        } catch {
+          // The oscillator may already have stopped naturally.
+        }
+      }
+      alarmOscillators.clear()
+      void sessionAlarmAudioContextRef.current?.close()
+      sessionAlarmAudioContextRef.current = null
+    }
   }, [])
 
   const places = useMemo(() => workspaceQuery.data?.places ?? [], [workspaceQuery.data?.places])
@@ -424,8 +460,70 @@ export function EmployeeWorkspacePage() {
     (order) => order.id !== selectedOrder?.id && order.status === 'open',
   )
 
+  const sessionLimitAlertPlaceIds = useMemo(
+    () => new Set(Object.values(sessionLimitAlerts)),
+    [sessionLimitAlerts],
+  )
+  const sessionLimitAlertCount = Object.keys(sessionLimitAlerts).length
+
+  const acknowledgeSessionLimitAlert = useCallback((placeId: string) => {
+    setSessionLimitAlerts((current) => {
+      const next = Object.fromEntries(
+        Object.entries(current).filter(([, alertedPlaceId]) => alertedPlaceId !== placeId),
+      )
+      return Object.keys(next).length === Object.keys(current).length ? current : next
+    })
+  }, [])
+
+  const playSessionLimitAlarm = useCallback(() => {
+    const audioContext = sessionAlarmAudioContextRef.current
+    if (!audioContext || audioContext.state !== 'running') return
+
+    const startedAt = audioContext.currentTime
+    for (const [index, frequency] of [880, 988, 880].entries()) {
+      const oscillator = audioContext.createOscillator()
+      const gain = audioContext.createGain()
+      const beepStart = startedAt + index * 0.22
+      const beepEnd = beepStart + 0.15
+
+      oscillator.type = 'sine'
+      oscillator.frequency.setValueAtTime(frequency, beepStart)
+      gain.gain.setValueAtTime(0.0001, beepStart)
+      gain.gain.exponentialRampToValueAtTime(0.18, beepStart + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.0001, beepEnd)
+      oscillator.connect(gain)
+      gain.connect(audioContext.destination)
+      oscillator.addEventListener('ended', () => {
+        sessionAlarmOscillatorsRef.current.delete(oscillator)
+        oscillator.disconnect()
+        gain.disconnect()
+      })
+      sessionAlarmOscillatorsRef.current.add(oscillator)
+      oscillator.start(beepStart)
+      oscillator.stop(beepEnd)
+    }
+  }, [])
+
   useEffect(() => {
-    if (isWorkspaceReadOnly) return
+    if (!sessionLimitAlertCount) return
+
+    const alarmOscillators = sessionAlarmOscillatorsRef.current
+    playSessionLimitAlarm()
+    const intervalId = window.setInterval(playSessionLimitAlarm, SESSION_LIMIT_ALARM_REPEAT_MS)
+    return () => {
+      window.clearInterval(intervalId)
+      for (const oscillator of alarmOscillators) {
+        try {
+          oscillator.stop()
+        } catch {
+          // The oscillator may already have stopped naturally.
+        }
+      }
+      alarmOscillators.clear()
+    }
+  }, [playSessionLimitAlarm, sessionLimitAlertCount])
+
+  useEffect(() => {
     const expiredSessions = places.filter((place) => {
       const limitInfo = getSessionLimitInfo(place, nowMs)
       return place.active_session_id && !place.active_session_paused_at && limitInfo?.isExpired
@@ -433,9 +531,20 @@ export function EmployeeWorkspacePage() {
 
     for (const place of expiredSessions) {
       const sessionId = place.active_session_id!
+      if (!alertedSessionIdsRef.current.has(sessionId)) {
+        alertedSessionIdsRef.current.add(sessionId)
+        window.queueMicrotask(() => {
+          setSessionLimitAlerts((current) =>
+            current[sessionId] ? current : { ...current, [sessionId]: place.id },
+          )
+        })
+      }
+      if (isWorkspaceReadOnly) continue
       if (autoCompletingSessionsRef.current.has(sessionId)) continue
       autoCompletingSessionsRef.current.add(sessionId)
-      void runAction(() => orderMutations.completeSession.mutateAsync(sessionId))
+      window.queueMicrotask(() => {
+        void runAction(() => orderMutations.completeSession.mutateAsync(sessionId))
+      })
     }
   }, [isWorkspaceReadOnly, nowMs, orderMutations.completeSession, places, runAction])
 
@@ -912,6 +1021,7 @@ export function EmployeeWorkspacePage() {
             const sessionAmount = calculateCurrentSessionAmount(place, nowMs, comboGiftMinutes)
             const sessionGraceNotice = getSessionGraceNotice(place, nowMs)
             const sessionLimitInfo = getSessionLimitInfo(place, nowMs)
+            const hasSessionLimitAlert = sessionLimitAlertPlaceIds.has(place.id)
             const vipEquipmentSummary = isVipEquipmentPlace(place) ? formatVipEquipmentSummary(place) : null
             const canOpenPlace = !isWorkspaceReadOnly || hasActiveOrder
             const customerLabel = place.active_order_id
@@ -922,15 +1032,19 @@ export function EmployeeWorkspacePage() {
               <article
                 className={getSlotClassName(
                   place,
-                  Boolean(sessionLimitInfo?.isWarning || sessionLimitInfo?.isExpired),
+                  Boolean(
+                    hasSessionLimitAlert || sessionLimitInfo?.isWarning || sessionLimitInfo?.isExpired,
+                  ),
                 )}
                 key={slot.key}
                 onClick={() => {
+                  acknowledgeSessionLimitAlert(place.id)
                   if (canOpenPlace) openPlaceOrder(place)
                 }}
                 onKeyDown={(event) => {
                   if (canOpenPlace && (event.key === 'Enter' || event.key === ' ')) {
                     event.preventDefault()
+                    acknowledgeSessionLimitAlert(place.id)
                     openPlaceOrder(place)
                   }
                 }}
@@ -978,7 +1092,11 @@ export function EmployeeWorkspacePage() {
                     {sessionGraceNotice ? (
                       <span className="font-medium text-orange-700">{sessionGraceNotice}</span>
                     ) : null}
-                    {sessionLimitInfo ? (
+                    {hasSessionLimitAlert ? (
+                      <span className="font-semibold text-red-800">
+                        {t('session.limitEndedAcknowledge')}
+                      </span>
+                    ) : sessionLimitInfo ? (
                       <span
                         className={cn(
                           'font-semibold',

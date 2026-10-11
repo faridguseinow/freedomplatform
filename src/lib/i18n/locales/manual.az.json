@@ -21,6 +21,7 @@
   "combo.includedMinutes": "Hədiyyə vaxtı: {{minutes}} dəq.",
   "session.giftTimeRemaining": "Hədiyyə vaxtı: {{time}}",
   "session.elapsed": "Keçib: {{time}}",
+  "session.limitEndedAcknowledge": "Limit bitib — siqnalı söndürmək üçün kartı basın.",
   "dialog.archiveOrganization": "«{{name}}» təşkilatı arxivləşdirilsin? İstifadəçilərin iş girişi bloklanacaq.",
   "platformOrganizations.deleteAction": "Həmişəlik sil",
   "platformOrganizations.deleteConfirmation": "Təsdiqləmək üçün «{{name}}» daxil edin",

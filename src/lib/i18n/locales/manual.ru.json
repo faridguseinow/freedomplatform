@@ -21,6 +21,7 @@
   "combo.includedMinutes": "Подарочное время: {{minutes}} мин.",
   "session.giftTimeRemaining": "Подарочное время: {{time}}",
   "session.elapsed": "Прошло: {{time}}",
+  "session.limitEndedAcknowledge": "Лимит завершён — нажмите карточку, чтобы выключить сигнал.",
   "dialog.archiveOrganization": "Архивировать организацию «{{name}}»? Рабочий доступ пользователей будет заблокирован.",
   "platformOrganizations.deleteAction": "Удалить навсегда",
   "platformOrganizations.deleteConfirmation": "Для подтверждения введите «{{name}}»",
