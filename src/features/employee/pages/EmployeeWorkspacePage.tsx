@@ -480,16 +480,16 @@ export function EmployeeWorkspacePage() {
     if (!audioContext || audioContext.state !== 'running') return
 
     const startedAt = audioContext.currentTime
-    for (const [index, frequency] of [880, 988, 880].entries()) {
+    for (const [index, frequency] of [1_600, 2_400, 1_600, 2_400, 1_600].entries()) {
       const oscillator = audioContext.createOscillator()
       const gain = audioContext.createGain()
-      const beepStart = startedAt + index * 0.22
-      const beepEnd = beepStart + 0.15
+      const beepStart = startedAt + index * 0.16
+      const beepEnd = beepStart + 0.11
 
-      oscillator.type = 'sine'
+      oscillator.type = 'square'
       oscillator.frequency.setValueAtTime(frequency, beepStart)
       gain.gain.setValueAtTime(0.0001, beepStart)
-      gain.gain.exponentialRampToValueAtTime(0.18, beepStart + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.55, beepStart + 0.005)
       gain.gain.exponentialRampToValueAtTime(0.0001, beepEnd)
       oscillator.connect(gain)
       gain.connect(audioContext.destination)
