@@ -113,7 +113,7 @@ function ShiftMetric({ description, icon: Icon, label, tone = 'default', value }
 }
 
 export function EmployeeShiftPage() {
-  const { currentOrganization, organizationId, profile } = useAuth()
+  const { currentOrganization, organizationId, profile, user } = useAuth()
   const { t } = useI18n()
   const currentShiftQuery = useCurrentEmployeeShift(organizationId)
   const templatesQuery = useShiftTemplates(organizationId, true)
@@ -124,6 +124,8 @@ export function EmployeeShiftPage() {
   const [actualCash, setActualCash] = useState(0)
   const [comment, setComment] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const isDemoAccount =
+    currentOrganization?.slug === 'demo' && user?.app_metadata.demo_account === true
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setNowMs(Date.now()), 30_000)
@@ -173,6 +175,24 @@ export function EmployeeShiftPage() {
   }
 
   if (!shift) {
+    if (isDemoAccount) {
+      return (
+        <section className="grid min-h-64 place-items-center rounded-lg border border-emerald-200 bg-emerald-50 px-5 text-center shadow-sm">
+          <div className="grid max-w-lg justify-items-center gap-3">
+            <span className="grid size-12 place-items-center rounded-full bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-100">
+              <Loader2 aria-hidden="true" className="size-6 animate-spin" />
+            </span>
+            <div>
+              <h2 className="text-xl font-semibold text-emerald-950">{t('demo.shift.preparingTitle')}</h2>
+              <p className="mt-1 text-sm leading-6 text-emerald-900/75">
+                {t('demo.shift.preparingDescription')}
+              </p>
+            </div>
+          </div>
+        </section>
+      )
+    }
+
     return (
       <section className="grid content-start gap-3">
         {error ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
@@ -344,17 +364,29 @@ export function EmployeeShiftPage() {
             />
           </div>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700 shadow-sm">
-            <h3 className="font-semibold text-slate-950">{t("ui.instruktsiya_zakrytiya_smeny_9c23dca")}</h3>
-            <ol className="mt-2 grid list-decimal gap-1 pl-5">
-              <li>{t("ui.pereschitayte_realnye_nalichnye_v_kasse_9518776")}</li>
-              <li>{t("ui.vvedite_etu_summu_v_pole_fakticheskaya_nalichnost_a7d1a85")}</li>
-              <li>{t("ui.sravnite_fakticheskuyu_summu_s_ozhidaemoy_kassoy_4ba42ca")}</li>
-              <li>{t("ui.esli_summy_sovpadayut_smenu_mozhno_zakryt_bez_kommen_10dcacd")}</li>
-              <li>{t("ui.esli_est_rashozhdenie_obyazatelno_napishite_korotkiy_57254e5")}</li>
-              <li>{t("ui.nazhmite_zavershit_smenu_otkrytye_zakazy_i_aktivnye__bf5d6f4")}</li>
-            </ol>
-          </section>
+          {isDemoAccount ? (
+            <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-950 shadow-sm">
+              <div className="flex items-start gap-3">
+                <Info aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-emerald-700" />
+                <div>
+                  <h3 className="font-semibold">{t('demo.shift.readyTitle')}</h3>
+                  <p className="mt-1 text-emerald-900/80">{t('demo.shift.readyDescription')}</p>
+                </div>
+              </div>
+            </section>
+          ) : (
+            <section className="rounded-lg border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700 shadow-sm">
+              <h3 className="font-semibold text-slate-950">{t("ui.instruktsiya_zakrytiya_smeny_9c23dca")}</h3>
+              <ol className="mt-2 grid list-decimal gap-1 pl-5">
+                <li>{t("ui.pereschitayte_realnye_nalichnye_v_kasse_9518776")}</li>
+                <li>{t("ui.vvedite_etu_summu_v_pole_fakticheskaya_nalichnost_a7d1a85")}</li>
+                <li>{t("ui.sravnite_fakticheskuyu_summu_s_ozhidaemoy_kassoy_4ba42ca")}</li>
+                <li>{t("ui.esli_summy_sovpadayut_smenu_mozhno_zakryt_bez_kommen_10dcacd")}</li>
+                <li>{t("ui.esli_est_rashozhdenie_obyazatelno_napishite_korotkiy_57254e5")}</li>
+                <li>{t("ui.nazhmite_zavershit_smenu_otkrytye_zakazy_i_aktivnye__bf5d6f4")}</li>
+              </ol>
+            </section>
+          )}
 
           {shift.status !== 'open' ? (
             <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
@@ -364,7 +396,22 @@ export function EmployeeShiftPage() {
           ) : null}
         </div>
 
-        <form
+        {isDemoAccount ? (
+          <aside className="grid content-start gap-4 self-start rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-base font-semibold text-slate-950">
+              <Clock3 aria-hidden="true" className="size-5 text-emerald-700" />
+              {t('demo.shift.howItWorksTitle')}
+            </div>
+            <div className="grid gap-3 text-sm leading-6 text-slate-700">
+              <p>{t('demo.shift.realProjectDescription')}</p>
+              <p>{t('demo.shift.demoDescription')}</p>
+            </div>
+            <div className="rounded-md bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
+              {t('demo.shift.resetDescription')}
+            </div>
+          </aside>
+        ) : (
+          <form
           className="grid content-start gap-3 self-start rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
           onSubmit={(event) => {
             event.preventDefault()
@@ -432,7 +479,8 @@ export function EmployeeShiftPage() {
           <div className="text-xs leading-5 text-slate-500">
             Открытые заказы и активные сессии уйдут в передачу следующей смене.
           </div>
-        </form>
+          </form>
+        )}
       </section>
     </section>
   )

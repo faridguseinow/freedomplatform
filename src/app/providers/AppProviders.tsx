@@ -1,5 +1,6 @@
 import type { PropsWithChildren } from 'react'
 import { AuthProvider } from '../../features/auth/AuthProvider'
+import { DemoExperience } from '../../features/demo/DemoExperience'
 import { I18nProvider } from '../../lib/i18n/I18nProvider'
 import { PwaManager } from '../../lib/pwa/PwaManager'
 import { QueryProvider } from '../../lib/query/QueryProvider'
@@ -12,6 +13,7 @@ export function AppProviders({ children }: PropsWithChildren) {
         <QueryProvider>
           <AuthProvider>
             <PwaManager />
+            <DemoExperience />
             {children}
           </AuthProvider>
         </QueryProvider>

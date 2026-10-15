@@ -4,6 +4,7 @@ import { cn } from '../../lib/utils/cn'
 type ModalProps = {
   children: ReactNode
   onClose: () => void
+  ariaLabel?: string
   align?: 'center' | 'end'
   padding?: 'default' | 'none'
   className?: string
@@ -16,6 +17,7 @@ let bodyOverflowBeforeModal = ''
 export function Modal({
   children,
   onClose,
+  ariaLabel,
   align = 'center',
   padding = 'default',
   className,
@@ -67,6 +69,7 @@ export function Modal({
       role="presentation"
     >
       <div
+        aria-label={ariaLabel}
         aria-modal="true"
         className={cn('modal-panel h-svh w-full md:h-auto', align === 'center' ? 'flex justify-center' : null, panelClassName)}
         onPointerDown={closeFromBackdrop}
