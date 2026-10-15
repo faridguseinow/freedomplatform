@@ -452,7 +452,7 @@
   "demo.welcome.adminStepTwo": "Əməkdaşları, anbarı, hesabatları, maliyyəni və təşkilat ayarlarını nəzərdən keçirin.",
   "demo.welcome.adminStepThree": "Sistemdən çıxın və qurduğunuz iş yerini yoxlamaq üçün əməkdaş kimi daxil olun.",
   "demo.welcome.tryAnything": "Düymələri sərbəst basmaq və test məlumatlarını dəyişmək olar.",
-  "demo.welcome.autoReset": "60 dəqiqə fəaliyyətsizlikdən sonra açıq sifarişlər, taymerlər və növbə avtomatik sıfırlanır.",
+  "demo.welcome.autoReset": "60 dəqiqə fəaliyyətsizlikdən sonra açıq sifarişlər, taymerlər və növbə sıfırlanır, cari giriş isə tamamlanır.",
   "demo.welcome.switchRole": "Əməkdaş və administrator rolları arasında keçid üçün hesabdan çıxın.",
   "demo.welcome.start": "Tanışlığa başla",
   "demo.shift.preparingTitle": "Demo növbəsi hazırlanır",

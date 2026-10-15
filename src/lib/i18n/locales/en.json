@@ -44,7 +44,7 @@
   "demo.welcome.adminStepTwo": "Explore employees, inventory, reports, finances, and organization settings.",
   "demo.welcome.adminStepThree": "Sign out and enter as an employee to test the workspace you configured.",
   "demo.welcome.tryAnything": "Feel free to use every control and change test data.",
-  "demo.welcome.autoReset": "After 60 minutes of inactivity, open orders, timers, and the shift reset automatically.",
+  "demo.welcome.autoReset": "After 60 minutes of inactivity, open orders, timers, and the shift reset, and the current sign-in ends.",
   "demo.welcome.switchRole": "Sign out to switch between the employee and administrator roles.",
   "demo.welcome.start": "Start exploring",
   "demo.shift.preparingTitle": "Preparing the demo shift",

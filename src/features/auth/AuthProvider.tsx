@@ -562,6 +562,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
       if (!isCancelled && !error && data?.reset) {
         await queryClient.invalidateQueries()
+        await supabase.auth.signOut({ scope: 'local' })
       }
     }
 
