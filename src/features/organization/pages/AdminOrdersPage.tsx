@@ -33,6 +33,7 @@ const statusClass: Record<OrderStatus, string> = {
   paid: 'bg-emerald-50 text-emerald-800',
   unpaid: 'bg-red-50 text-red-700',
   payment_refused: 'bg-red-50 text-red-700',
+  moved: 'bg-blue-50 text-blue-700',
   cancelled: 'bg-slate-100 text-slate-600',
 }
 
@@ -97,7 +98,7 @@ export function AdminOrdersPage() {
           </span>
         </label>
         <div className="flex flex-wrap items-end gap-2">
-          {(['all', 'open', 'waiting_payment', 'paid', 'payment_refused', 'cancelled'] as const).map((item) => (
+          {(['all', 'open', 'waiting_payment', 'paid', 'payment_refused', 'moved', 'cancelled'] as const).map((item) => (
             <button
               className={cn(
                 'min-h-10 rounded-md border px-3 text-sm font-medium',
@@ -147,6 +148,14 @@ export function AdminOrdersPage() {
                   <td className="whitespace-nowrap px-4 py-3">{statusBadge(order.status)}</td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-slate-900">{orderPlace(order)}</div>
+                    {order.status === 'moved' ? (
+                      <div className="mt-1 max-w-56 text-xs font-medium text-blue-700">
+                        {t('orders.movedTo', {
+                          number: order.moved_to_order_number_snapshot ?? '—',
+                          place: order.moved_to_place_name_snapshot ?? t('adminOrderDetail.noPlace'),
+                        })}
+                      </div>
+                    ) : null}
                     {orderNote(order) ? <div className="mt-1 max-w-44 text-xs text-slate-500">{orderNote(order)}</div> : null}
                   </td>
                   <td className="px-4 py-3">
@@ -186,6 +195,14 @@ export function AdminOrdersPage() {
               <p className="mt-1 truncate text-xs text-slate-500">
                 {formatDateTime(order.opened_at)} · {t(orderStatusLabel[order.status] ?? order.status)}
               </p>
+              {order.status === 'moved' ? (
+                <p className="mt-1 truncate text-xs font-medium text-blue-700">
+                  {t('orders.movedTo', {
+                    number: order.moved_to_order_number_snapshot ?? '—',
+                    place: order.moved_to_place_name_snapshot ?? t('adminOrderDetail.noPlace'),
+                  })}
+                </p>
+              ) : null}
             </div>
             <p className="whitespace-nowrap text-sm font-semibold text-slate-950">{formatMoney(order.total_amount)}</p>
             <Link

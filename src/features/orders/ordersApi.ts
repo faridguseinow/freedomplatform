@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase/client'
 import type { OrderItemRow, OrderRow, OrderStatus } from '../../lib/supabase/database.types'
 
 export const adminOrderSelect =
-  'id,organization_id,order_number,place_id,current_place_name_snapshot,status,customer_label,comment,subtotal,total_amount,paid_amount,unpaid_amount,opened_by,closed_by,opened_at,closed_at,payment_refusal_comment,created_at,updated_at'
+  'id,organization_id,order_number,place_id,current_place_name_snapshot,status,customer_label,comment,subtotal,total_amount,paid_amount,unpaid_amount,opened_by,closed_by,opened_at,closed_at,payment_refusal_comment,moved_to_order_id,moved_to_order_number_snapshot,moved_to_place_name_snapshot,moved_at,created_at,updated_at'
 export const adminOrderItemSelect =
   'id,organization_id,order_id,item_type,status,product_id,service_id,combo_id,timed_session_id,name_snapshot,description_snapshot,image_path_snapshot,quantity,unit_price,total_price,unit_cost_snapshot,total_cost_snapshot,metadata,added_by,added_at,removed_by,removed_at,removal_reason,created_at,updated_at'
 

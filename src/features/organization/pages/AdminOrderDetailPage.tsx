@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  ArrowRight,
   Banknote,
   CalendarDays,
   Clock3,
@@ -77,6 +78,7 @@ const statusTone = (status: string) => cn(
   'inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-semibold',
   ['active', 'completed', 'consumed', 'paid'].includes(status) && 'bg-emerald-50 text-emerald-700',
   ['pending', 'removal_requested', 'waiting_payment'].includes(status) && 'bg-amber-50 text-amber-700',
+  status === 'moved' && 'bg-blue-50 text-blue-700',
   ['removed', 'cancelled', 'refunded'].includes(status) && 'bg-red-50 text-red-700',
   status === 'released' && 'bg-slate-100 text-slate-600',
 )
@@ -137,6 +139,28 @@ export function AdminOrderDetailPage() {
           ].map(([label, value]) => <div className="rounded-lg border border-slate-200 bg-slate-50 p-3" key={label}><div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div><div className="mt-1 text-lg font-semibold text-slate-950">{value}</div></div>)}
         </div>
       </header>
+
+      {order.status === 'moved' ? (
+        <section className="flex flex-col justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 sm:flex-row sm:items-center">
+          <div>
+            <h3 className="font-semibold text-blue-950">{t('orders.moved')}</h3>
+            <p className="mt-1 text-sm text-blue-800">
+              {t('orders.movedTo', {
+                number: order.moved_to_order_number_snapshot ?? '—',
+                place: order.moved_to_place_name_snapshot ?? t('adminOrderDetail.noPlace'),
+              })}
+            </p>
+          </div>
+          {order.moved_to_order_id ? (
+            <Link
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-blue-300 bg-white px-3 text-sm font-semibold text-blue-800 hover:bg-blue-100"
+              to={`../${order.moved_to_order_id}`}
+            >
+              {t('orders.openDestination')} <ArrowRight className="size-4" />
+            </Link>
+          ) : null}
+        </section>
+      ) : null}
 
       {order.comment ? <section className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-4"><h3 className="text-sm font-semibold text-slate-950">{t('adminOrderDetail.comment')}</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{order.comment}</p></section> : null}
 

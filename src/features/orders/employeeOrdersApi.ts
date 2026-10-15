@@ -649,5 +649,6 @@ export const orderStatusLabel: Record<string, string> = {
   paid: 'Оплачен',
   unpaid: 'Не оплачен',
   payment_refused: 'Отказ от оплаты',
+  moved: 'order.status.moved',
   cancelled: 'Отменен',
 }

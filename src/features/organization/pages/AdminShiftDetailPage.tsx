@@ -363,6 +363,7 @@ const statusTone = (status: string) =>
     (status === 'paid' || status === 'completed' || status === 'closed') && 'bg-emerald-50 text-emerald-800',
     (status === 'open' || status === 'active') && 'bg-cyan-50 text-cyan-800',
     (status === 'waiting_payment' || status === 'pending' || status === 'closing') && 'bg-amber-50 text-amber-800',
+    status === 'moved' && 'bg-blue-50 text-blue-700',
     (status === 'cancelled' || status === 'payment_refused' || status === 'force_closed') && 'bg-red-50 text-red-700',
   )
 
@@ -412,6 +413,7 @@ export function AdminShiftDetailPage() {
   const employeeName = shift.employee_full_name ?? shift.employee_email ?? t("ui.bez_imeni_cdf641f")
   const paidOrders = orders.filter((order) => order.status === 'paid')
   const cancelledOrders = orders.filter((order) => order.status === 'cancelled')
+  const movedOrders = orders.filter((order) => order.status === 'moved')
   const openOrders = orders.filter((order) => order.status === 'open' || order.status === 'waiting_payment')
   const sortedOrders = sortOrders(orders as OrderRow[], orderSort)
   const completedPayments = payments.filter((payment) => payment.status === 'completed')
@@ -624,7 +626,7 @@ export function AdminShiftDetailPage() {
               {t("ui.zakazy_22ac845")}
             </h3>
             <span className="text-sm font-medium text-slate-500">
-              {orders.length} · {t("ui.otkrytye_75bcc80")}: {openOrders.length} · {t("ui.otmeneno_5ebee19")}: {cancelledOrders.length}
+              {orders.length} · {t("ui.otkrytye_75bcc80")}: {openOrders.length} · {t('orders.moved')}: {movedOrders.length} · {t("ui.otmeneno_5ebee19")}: {cancelledOrders.length}
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-2">

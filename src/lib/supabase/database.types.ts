@@ -49,6 +49,7 @@ export type OrderStatus =
   | 'paid'
   | 'unpaid'
   | 'payment_refused'
+  | 'moved'
   | 'cancelled'
 
 export type OrderItemType = 'product' | 'service' | 'combo' | 'timed_session' | 'manual_item'
@@ -489,6 +490,10 @@ export type OrderRow = {
   opened_at: string
   closed_at: string | null
   payment_refusal_comment: string | null
+  moved_to_order_id: string | null
+  moved_to_order_number_snapshot: number | null
+  moved_to_place_name_snapshot: string | null
+  moved_at: string | null
   opened_shift_id: string | null
   closed_shift_id: string | null
   created_at: string
