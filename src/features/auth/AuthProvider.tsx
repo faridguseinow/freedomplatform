@@ -7,6 +7,7 @@ import {
   useState,
   type PropsWithChildren,
 } from 'react'
+import { queryClient } from '../../lib/query/client'
 import { supabase } from '../../lib/supabase/client'
 import type {
   AppRole,
@@ -342,7 +343,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return
       }
 
-      await applySession(data.session)
+      if (
+        appHost.mode === 'tenant' &&
+        appHost.slug === 'demo' &&
+        data.session?.user.is_anonymous
+      ) {
+        await supabase.auth.signOut({ scope: 'local' })
+        await applySession(null)
+      } else {
+        await applySession(data.session)
+      }
 
       if (isMounted) {
         setIsLoading(false)
@@ -500,28 +510,26 @@ export function AuthProvider({ children }: PropsWithChildren) {
       demoSignInRef.current = true
 
       try {
-        const { data, error } = await supabase.auth.signInAnonymously({
-          options: {
-            data: {
-              full_name:
-                demoRole === USER_ROLES.organizationAdmin
-                  ? 'Demo administrator'
-                  : 'Demo employee',
-            },
-          },
+        const { data: loginData, error: loginError } = await supabase.functions.invoke<{
+          token_hash?: string
+          error?: string
+        }>('demo-login', {
+          body: { action: 'login', role: demoRole },
         })
 
-        if (error || !data.user) {
-          throw new Error(error?.message || 'Не удалось открыть демо-режим.')
+        if (loginError || !loginData?.token_hash) {
+          throw new Error(
+            loginData?.error || loginError?.message || 'Не удалось открыть демо-режим.',
+          )
         }
 
-        const { error: claimError } = await supabase.rpc('claim_demo_access', {
-          target_role: demoRole,
+        const { data, error } = await supabase.auth.verifyOtp({
+          token_hash: loginData.token_hash,
+          type: 'magiclink',
         })
 
-        if (claimError) {
-          await supabase.auth.signOut({ scope: 'local' })
-          throw new Error(claimError.message || 'Не удалось настроить демо-доступ.')
+        if (error || !data.user || !data.session) {
+          throw new Error(error?.message || 'Не удалось настроить демо-доступ.')
         }
 
         setSession(data.session)
@@ -537,6 +545,34 @@ export function AuthProvider({ children }: PropsWithChildren) {
     },
     [applyAccessContext, clearAccess, loadAccessContext],
   )
+
+  useEffect(() => {
+    const isFixedDemoSession =
+      appHost.mode === 'tenant' &&
+      appHost.slug === 'demo' &&
+      session?.user.app_metadata.demo_account === true
+
+    if (!isFixedDemoSession) return
+
+    let isCancelled = false
+    const cleanup = async () => {
+      const { data, error } = await supabase.functions.invoke<{ reset?: boolean }>('demo-login', {
+        body: { action: 'cleanup' },
+      })
+
+      if (!isCancelled && !error && data?.reset) {
+        await queryClient.invalidateQueries()
+      }
+    }
+
+    void cleanup()
+    const intervalId = window.setInterval(() => void cleanup(), 60_000)
+
+    return () => {
+      isCancelled = true
+      window.clearInterval(intervalId)
+    }
+  }, [session?.user.app_metadata.demo_account, session?.user.id])
 
   const signOut = useCallback(async () => {
     setIsLoading(true)
