@@ -216,6 +216,17 @@ export type EmployeeLockStateRow = {
   pending_pin_change_requested_at: string | null
 }
 
+export type FinancePinStateRow = {
+  has_pin: boolean
+  pin_set_at: string | null
+  locked_until: string | null
+}
+
+export type FinancePinVerificationRow = {
+  is_valid: boolean
+  locked_until: string | null
+}
+
 export type CatalogCategoryRow = {
   id: string
   organization_id: string
@@ -1586,6 +1597,27 @@ export type Database = {
           target_pin: string
         }
         Returns: boolean
+      }
+      get_finance_pin_state: {
+        Args: {
+          target_organization_id: string
+        }
+        Returns: FinancePinStateRow[]
+      }
+      set_finance_pin: {
+        Args: {
+          target_account_password: string
+          target_organization_id: string
+          target_pin: string
+        }
+        Returns: undefined
+      }
+      verify_finance_pin: {
+        Args: {
+          target_organization_id: string
+          target_pin: string
+        }
+        Returns: FinancePinVerificationRow[]
       }
       set_category_status: {
         Args: {

@@ -1,4 +1,4 @@
-import { AlertTriangle, Building2, Clock3, Landmark, Settings, Trash2, Warehouse } from 'lucide-react'
+import { Building2, Clock3, Landmark, Loader2, LockKeyhole, Settings, ShieldCheck, Trash2, Warehouse } from 'lucide-react'
 import type { ChangeEvent } from 'react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -14,6 +14,7 @@ import {
   type OrganizationTestOrderResetSummary,
   useOrganizationMaintenanceMutations,
 } from '../maintenance/maintenanceApi'
+import { useFinancePinState, useSetFinancePin } from '../../finance/financeAccessApi'
 
 const mobileManagementLinks = [
   {
@@ -29,12 +30,6 @@ const mobileManagementLinks = [
     icon: Clock3,
   },
   {
-    label: 'Исправления',
-    description: 'Запросы на удаление и корректировки.',
-    path: '/admin/adjustment-requests',
-    icon: AlertTriangle,
-  },
-  {
     label: 'Склад',
     description: 'Остатки, документы и движение товаров.',
     path: '/admin/inventory',
@@ -48,12 +43,50 @@ export function AdminSettingsPage() {
   const maintenanceMutations = useOrganizationMaintenanceMutations()
   const [resetError, setResetError] = useState<string | null>(null)
   const [resetSummary, setResetSummary] = useState<OrganizationTestOrderResetSummary | null>(null)
+  const [financePassword, setFinancePassword] = useState('')
+  const [financePin, setFinancePin] = useState('')
+  const [financePinConfirmation, setFinancePinConfirmation] = useState('')
+  const [financePinMessage, setFinancePinMessage] = useState<string | null>(null)
+  const financePinStateQuery = useFinancePinState(currentOrganization?.id ?? null)
+  const setFinancePinMutation = useSetFinancePin(currentOrganization?.id ?? null)
   const buildAdminPath = (path: string) =>
     getTenantRoutePath(path, currentOrganization?.slug)
   const handleLanguageChange = (event: ChangeEvent<HTMLSelectElement>) => {
     setLanguage(event.target.value as SystemLanguage)
   }
   const isPlatformOwner = role === USER_ROLES.platformOwner
+
+  const saveFinancePin = async () => {
+    setFinancePinMessage(null)
+    if (!/^\d{4}$/.test(financePin)) {
+      setFinancePinMessage(t('financeAccess.enterFourDigits'))
+      return
+    }
+    if (financePin !== financePinConfirmation) {
+      setFinancePinMessage(t('financeAccess.pinMismatch'))
+      return
+    }
+    if (!financePassword) {
+      setFinancePinMessage(t('financeAccess.passwordRequired'))
+      return
+    }
+
+    try {
+      await setFinancePinMutation.mutateAsync({ password: financePassword, pin: financePin })
+      setFinancePin('')
+      setFinancePinConfirmation('')
+      setFinancePinMessage(t('financeAccess.saved'))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : ''
+      setFinancePinMessage(
+        message.includes('account password is incorrect')
+          ? t('financeAccess.passwordInvalid')
+          : message || t('financeAccess.saveFailed'),
+      )
+    } finally {
+      setFinancePassword('')
+    }
+  }
 
   const resetTestOrders = async () => {
     if (!currentOrganization) return
@@ -137,6 +170,92 @@ export function AdminSettingsPage() {
         <div className="grid max-w-sm gap-1 text-sm font-medium text-slate-700">
           <span>{t('theme.appearance')}</span>
           <ThemeToggle />
+        </div>
+      </article>
+
+      <article className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex items-start gap-3">
+          <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-800">
+            <LockKeyhole aria-hidden="true" className="size-6" />
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-lg font-semibold text-slate-950">{t('financeAccess.settingsTitle')}</h3>
+            <p className="mt-1 text-sm leading-6 text-slate-600">{t('financeAccess.settingsDescription')}</p>
+            <p className="mt-1 text-xs font-medium text-slate-500">
+              {financePinStateQuery.isLoading
+                ? t('financeAccess.checking')
+                : financePinStateQuery.isError
+                  ? t('financeAccess.stateUnavailable')
+                : financePinStateQuery.data?.has_pin
+                  ? t('financeAccess.configured')
+                  : t('financeAccess.notConfigured')}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="grid min-w-0 gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
+            <span>{t('financeAccess.accountPassword')}</span>
+            <input
+              autoComplete="current-password"
+              className="min-h-11 w-full min-w-0 rounded-md border border-slate-200 bg-white px-3 text-slate-950 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+              onChange={(event) => setFinancePassword(event.target.value)}
+              type="password"
+              value={financePassword}
+            />
+          </label>
+          <label className="grid min-w-0 gap-1.5 text-sm font-medium text-slate-700">
+            <span>{t('financeAccess.newPin')}</span>
+            <input
+              autoComplete="new-password"
+              className="min-h-11 w-full min-w-0 rounded-md border border-slate-200 bg-white px-3 text-center text-lg font-semibold tracking-[0.35em] text-slate-950 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+              inputMode="numeric"
+              maxLength={4}
+              onChange={(event) => setFinancePin(event.target.value.replace(/\D/g, '').slice(0, 4))}
+              pattern="[0-9]*"
+              placeholder="0000"
+              type="password"
+              value={financePin}
+            />
+          </label>
+          <label className="grid min-w-0 gap-1.5 text-sm font-medium text-slate-700">
+            <span>{t('financeAccess.confirmPin')}</span>
+            <input
+              autoComplete="new-password"
+              className="min-h-11 w-full min-w-0 rounded-md border border-slate-200 bg-white px-3 text-center text-lg font-semibold tracking-[0.35em] text-slate-950 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+              inputMode="numeric"
+              maxLength={4}
+              onChange={(event) => setFinancePinConfirmation(event.target.value.replace(/\D/g, '').slice(0, 4))}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  void saveFinancePin()
+                }
+              }}
+              pattern="[0-9]*"
+              placeholder="0000"
+              type="password"
+              value={financePinConfirmation}
+            />
+          </label>
+        </div>
+
+        {financePinMessage ? (
+          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+            {financePinMessage}
+          </div>
+        ) : null}
+
+        <div className="flex justify-end">
+          <Button
+            className="w-full sm:w-auto"
+            disabled={setFinancePinMutation.isPending || financePinStateQuery.isLoading}
+            onClick={() => void saveFinancePin()}
+            type="button"
+          >
+            {setFinancePinMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
+            {financePinStateQuery.data?.has_pin ? t('financeAccess.changePin') : t('financeAccess.setPin')}
+          </Button>
         </div>
       </article>
 

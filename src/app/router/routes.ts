@@ -10,7 +10,6 @@ import {
   LayoutDashboard,
   MapPin,
   Package,
-  Pencil,
   ReceiptText,
   Settings,
   Tags,
@@ -119,12 +118,6 @@ export const adminNavItems: NavItem[] = [
     path: '/admin/finance',
     icon: Landmark,
     mobileOrder: 4,
-  },
-  {
-    label: 'Исправления',
-    path: '/admin/adjustment-requests',
-    icon: Pencil,
-    mobile: false,
   },
   {
     label: 'Журнал',

@@ -125,6 +125,7 @@ const actionLabels: Record<string, string> = {
   'finance.platform_share_payment_confirmed': 'подтвердил оплату платформы',
   'finance.platform_share_payment_rejected': 'отклонил оплату платформы',
   'finance.expense_converted_to_platform_payment': 'activity.action.expenseConverted',
+  'finance.pin_updated': 'financeAccess.activityPinUpdated',
   'catalog.product_deleted': 'удалил товар',
   'place.created': 'activity.action.placeCreated',
   'place.updated': 'activity.action.placeUpdated',

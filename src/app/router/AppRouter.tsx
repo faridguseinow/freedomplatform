@@ -14,6 +14,7 @@ import { AccessNotConfiguredPage } from '../../features/auth/pages/AccessNotConf
 import { LoginPage } from '../../features/auth/pages/LoginPage'
 import { NotFoundPage } from '../../pages/NotFoundPage'
 import { USER_ROLES } from '../../types/roles'
+import { FinanceAccessGuard } from '../../features/finance/components/FinanceAccessGuard'
 import { getCurrentAppHost } from '../../lib/routing/appHost'
 import {
   AccessDeniedRoute,
@@ -95,11 +96,6 @@ const AdminOrdersPage = lazy(() =>
 const AdminOrderDetailPage = lazy(() =>
   import('../../features/organization/pages/AdminOrderDetailPage').then((module) => ({
     default: module.AdminOrderDetailPage,
-  })),
-)
-const AdminAdjustmentRequestsPage = lazy(() =>
-  import('../../features/organization/pages/AdminAdjustmentRequestsPage').then((module) => ({
-    default: module.AdminAdjustmentRequestsPage,
   })),
 )
 const AdminActivityPage = lazy(() =>
@@ -276,23 +272,24 @@ const organizationRoutes = (rootPath: string) => (
           <Route element={lazyPage(<AdminCombosPage />)} path="combos" />
           <Route element={lazyPage(<AdminOrdersPage />)} path="orders" />
           <Route element={lazyPage(<AdminOrderDetailPage />)} path="orders/:orderId" />
-          <Route element={lazyPage(<AdminAdjustmentRequestsPage />)} path="adjustment-requests" />
           <Route element={lazyPage(<AdminActivityPage />)} path="activity" />
           <Route element={lazyPage(<AdminShiftsPage />)} path="shifts" />
           <Route element={lazyPage(<AdminShiftDetailPage />)} path="shifts/:shiftId" />
           <Route element={lazyPage(<AdminShiftTemplatesPage />)} path="shift-templates" />
           <Route element={lazyPage(<AdminOperationalDaysPage />)} path="operational-days" />
           <Route element={lazyPage(<AdminNotificationSettingsPage />)} path="notification-settings" />
-          <Route element={lazyPage(<AdminFinancePage />)} path="finance" />
-          <Route element={lazyPage(<AdminFinanceIncomePage />)} path="finance/income" />
-          <Route element={lazyPage(<AdminFinanceExpensesPage />)} path="finance/expenses" />
-          <Route element={lazyPage(<AdminFinanceRecurringPage />)} path="finance/recurring" />
-          <Route element={lazyPage(<AdminFinancePurchasesPage />)} path="finance/purchases" />
-          <Route element={lazyPage(<AdminFinanceCashFlowPage />)} path="finance/cash-flow" />
-          <Route element={lazyPage(<AdminFinanceProfitLossPage />)} path="finance/profit-loss" />
-          <Route element={lazyPage(<AdminFinancePeriodsPage />)} path="finance/periods" />
-          <Route element={lazyPage(<AdminFinancePeriodDetailPage />)} path="finance/periods/:periodId" />
-          <Route element={lazyPage(<AdminFinanceSettingsPage />)} path="finance/settings" />
+          <Route element={<FinanceAccessGuard />}>
+            <Route element={lazyPage(<AdminFinancePage />)} path="finance" />
+            <Route element={lazyPage(<AdminFinanceIncomePage />)} path="finance/income" />
+            <Route element={lazyPage(<AdminFinanceExpensesPage />)} path="finance/expenses" />
+            <Route element={lazyPage(<AdminFinanceRecurringPage />)} path="finance/recurring" />
+            <Route element={lazyPage(<AdminFinancePurchasesPage />)} path="finance/purchases" />
+            <Route element={lazyPage(<AdminFinanceCashFlowPage />)} path="finance/cash-flow" />
+            <Route element={lazyPage(<AdminFinanceProfitLossPage />)} path="finance/profit-loss" />
+            <Route element={lazyPage(<AdminFinancePeriodsPage />)} path="finance/periods" />
+            <Route element={lazyPage(<AdminFinancePeriodDetailPage />)} path="finance/periods/:periodId" />
+            <Route element={lazyPage(<AdminFinanceSettingsPage />)} path="finance/settings" />
+          </Route>
           <Route element={lazyPage(<AdminSettingsPage />)} path="settings" />
         </Route>
       </Route>
