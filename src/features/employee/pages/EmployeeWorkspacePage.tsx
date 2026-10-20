@@ -18,7 +18,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { CatalogImage } from '../../../components/common/CatalogImage'
 import { Button } from '../../../components/ui/Button'
@@ -51,7 +51,6 @@ import {
   buildWorkspaceLayout,
   isTablePlace,
   normalizePlaceName,
-  WORKSPACE_COLUMNS,
 } from '../../places/workspaceLayout'
 
 type PickerTab = 'products' | 'services' | 'combos'
@@ -995,13 +994,9 @@ export function EmployeeWorkspacePage() {
         </div>
       ) : null}
 
-      <section className="h-[640px] shrink-0 overflow-hidden rounded-lg bg-slate-100 p-3 shadow-sm ring-1 ring-slate-200">
+      <section className="h-auto shrink-0 overflow-visible rounded-lg bg-slate-100 p-2 shadow-sm ring-1 ring-slate-200 md:h-[640px] md:overflow-hidden md:p-3">
         <div
-          className="grid w-full min-w-0 content-start auto-rows-[200px] gap-2"
-          style={{
-            gridTemplateColumns: `repeat(${WORKSPACE_COLUMNS}, minmax(0, 1fr))`,
-            gridTemplateRows: 'repeat(3, 200px)',
-          }}
+          className="grid w-full min-w-0 grid-cols-1 content-start auto-rows-auto gap-2 min-[420px]:grid-cols-2 md:auto-rows-[200px] md:[grid-template-columns:repeat(12,minmax(0,1fr))] md:[grid-template-rows:repeat(3,200px)]"
         >
           {placeLayout.map((slot) => {
             const place = slot.place
@@ -1030,11 +1025,15 @@ export function EmployeeWorkspacePage() {
 
             return (
               <article
-                className={getSlotClassName(
-                  place,
-                  Boolean(
-                    hasSessionLimitAlert || sessionLimitInfo?.isWarning || sessionLimitInfo?.isExpired,
+                className={cn(
+                  getSlotClassName(
+                    place,
+                    Boolean(
+                      hasSessionLimitAlert || sessionLimitInfo?.isWarning || sessionLimitInfo?.isExpired,
+                    ),
                   ),
+                  'min-h-40 md:min-h-0 md:[grid-column:var(--workspace-grid-column)] md:[grid-row:var(--workspace-grid-row)]',
+                  hasActiveOrder || hasActiveSession ? 'order-first md:order-none' : 'order-last md:order-none',
                 )}
                 key={slot.key}
                 onClick={() => {
@@ -1049,7 +1048,10 @@ export function EmployeeWorkspacePage() {
                   }
                 }}
                 role={canOpenPlace ? 'button' : undefined}
-                style={slot.style}
+                style={{
+                  '--workspace-grid-column': slot.style.gridColumn,
+                  '--workspace-grid-row': slot.style.gridRow,
+                } as CSSProperties}
                 tabIndex={canOpenPlace ? 0 : undefined}
               >
                 <div className="grid gap-2">
@@ -1145,24 +1147,24 @@ export function EmployeeWorkspacePage() {
         </section>
       ) : null}
 
-      <section className="grid min-h-40 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-2 overflow-hidden border-t border-slate-200 pt-3">
-        <div className="flex items-center justify-between gap-3">
+      <section className="grid min-h-40 flex-none gap-2 overflow-visible border-t border-slate-200 pt-3 md:flex-1 md:grid-rows-[auto_minmax(0,1fr)] md:overflow-hidden">
+        <div className="flex flex-col gap-3 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
           <div className="min-w-0">
             <h3 className="text-base font-semibold text-slate-950">Заказы без места</h3>
             <p className="text-xs text-slate-500">
               {t('order.activeCount', { count: ordersWithoutPlace.length })}
             </p>
           </div>
-          <Button className="min-h-9 px-3" disabled={isWorkspaceReadOnly} onClick={createOrderWithoutPlace} type="button">
+          <Button className="min-h-11 w-full px-3 min-[420px]:min-h-9 min-[420px]:w-auto" disabled={isWorkspaceReadOnly} onClick={createOrderWithoutPlace} type="button">
             <Plus className="size-4" /> Заказ без места
           </Button>
         </div>
 
         {ordersWithoutPlace.length ? (
-          <div className="grid min-h-0 content-start grid-cols-[repeat(auto-fill,minmax(220px,1fr))] auto-rows-[72px] gap-2 overflow-y-auto pr-1">
+          <div className="grid min-h-0 grid-cols-1 content-start auto-rows-[76px] gap-2 overflow-visible min-[420px]:grid-cols-2 md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] md:auto-rows-[72px] md:overflow-y-auto md:pr-1">
             {ordersWithoutPlace.map((order) => (
               <button
-                className="flex h-[72px] min-w-0 flex-col justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-left shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50/40"
+                className="flex h-[76px] min-w-0 flex-col justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-left shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50/40 md:h-[72px]"
                 key={order.id}
                 onClick={() => selectOrder(order.id)}
                 type="button"
@@ -1336,9 +1338,16 @@ export function EmployeeWorkspacePage() {
                         </div>
                       ) : (
                         <div className="grid gap-2">
-                          <div className={cn('grid gap-1.5', selectedOrder.status === 'open' ? 'grid-cols-3' : 'grid-cols-2')}>
+                          <div
+                            className={cn(
+                              'grid gap-1.5',
+                              selectedOrder.status === 'open'
+                                ? 'grid-cols-1 min-[420px]:grid-cols-3'
+                                : 'grid-cols-1 min-[420px]:grid-cols-2',
+                            )}
+                          >
                             {hasNormalPaymentAmount ? (
-                              <Button className="min-h-9 min-w-0 gap-1 px-2 py-1 text-xs leading-tight" disabled={isWorkspaceReadOnly || !canPreparePayment || isClosingOrder} onClick={openPaymentChoice} type="button">
+                              <Button className="min-h-11 min-w-0 gap-1 px-2 py-1 text-xs leading-tight min-[420px]:min-h-9" disabled={isWorkspaceReadOnly || !canPreparePayment || isClosingOrder} onClick={openPaymentChoice} type="button">
                                 <Hourglass className="size-3.5 shrink-0" />
                                 <span className="min-w-0 truncate">
                                   {selectedOrder.status === 'waiting_payment' ? 'Принять оплату' : 'К оплате'}
@@ -1346,7 +1355,7 @@ export function EmployeeWorkspacePage() {
                               </Button>
                             ) : (
                               <Button
-                                className="min-h-9 min-w-0 gap-1 px-2 py-1 text-xs leading-tight"
+                                className="min-h-11 min-w-0 gap-1 px-2 py-1 text-xs leading-tight min-[420px]:min-h-9"
                                 disabled={isWorkspaceReadOnly || !canFinishEmptyOrder || isClosingOrder}
                                 onClick={finishEmptyOrder}
                                 type="button"
@@ -1357,7 +1366,7 @@ export function EmployeeWorkspacePage() {
                             )}
 
                             <Button
-                              className="min-h-9 min-w-0 gap-1 px-2 py-1 text-xs leading-tight"
+                              className="min-h-11 min-w-0 gap-1 px-2 py-1 text-xs leading-tight min-[420px]:min-h-9"
                               disabled={isWorkspaceReadOnly || !canCancelOrder || isClosingOrder}
                               onClick={cancelOrder}
                               type="button"
@@ -1368,7 +1377,7 @@ export function EmployeeWorkspacePage() {
                             </Button>
                             {selectedOrder.status === 'open' ? (
                               <Button
-                                className="min-h-9 min-w-0 gap-1 px-2 py-1 text-xs leading-tight"
+                                className="min-h-11 min-w-0 gap-1 px-2 py-1 text-xs leading-tight min-[420px]:min-h-9"
                                 disabled={isWorkspaceReadOnly || orderMutations.transferOrder.isPending || isClosingOrder}
                                 onClick={() => setIsTransferOpen(true)}
                                 type="button"
@@ -1931,7 +1940,7 @@ export function EmployeeWorkspacePage() {
                                       : t("ui.bez_limita_aa6e7b2")}
                                   </span>
                                 </div>
-                                <div className="grid grid-cols-4 gap-1.5">
+                                <div className="grid grid-cols-2 gap-1.5 min-[420px]:grid-cols-4">
                                   {[
                                     { label: 'Без лимита', value: null },
                                     { label: t('session.limit30Minutes'), value: 30 },
@@ -1991,7 +2000,7 @@ export function EmployeeWorkspacePage() {
                                 </div>
                               </div>
                             ) : null}
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
                             <Button
                               className="min-h-9 bg-emerald-700 text-white hover:bg-emerald-800 focus-visible:ring-emerald-700"
                               disabled={isWorkspaceReadOnly || (!canStartSession && !isSessionPaused) || isSessionActionPending}

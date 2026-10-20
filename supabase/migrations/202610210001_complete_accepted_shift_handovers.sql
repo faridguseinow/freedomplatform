@@ -79,6 +79,18 @@ create trigger employee_shifts_complete_accepted_handover
 after update of status on public.employee_shifts
 for each row execute function public.complete_accepted_handover_on_shift_close();
 
+-- A still-open order or session may legitimately pass through several shift
+-- handovers. Uniqueness belongs to one handover, not to the organization's
+-- entire handover history.
+drop index if exists public.shift_handover_orders_one_open_order_idx;
+
+create unique index if not exists shift_handover_orders_handover_order_unique_idx
+on public.shift_handover_orders (handover_id, order_id);
+
+create unique index if not exists shift_handover_orders_handover_session_unique_idx
+on public.shift_handover_orders (handover_id, active_session_id)
+where active_session_id is not null;
+
 -- Repair accepted handovers whose receiving shift was already closed before
 -- this lifecycle transition existed. This preserves all handover history.
 do $$

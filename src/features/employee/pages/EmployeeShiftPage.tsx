@@ -14,10 +14,13 @@ import {
   Wallet,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
+import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
 import { useI18n } from '../../../lib/i18n/I18nContext'
+import { getTenantRoutePath } from '../../../lib/routing/appHost'
 import { cn } from '../../../lib/utils/cn'
 import { useShiftTemplates } from '../../shifts/shiftTemplatesApi'
 import {
@@ -64,6 +67,61 @@ type ShiftMetricProps = {
   value: string | number
   icon: typeof Clock3
   tone?: 'default' | 'green' | 'orange' | 'red'
+}
+
+type ShiftConfirmationAction = 'open' | 'close'
+
+function ShiftConfirmationModal({
+  action,
+  isPending,
+  onCancel,
+  onConfirm,
+}: {
+  action: ShiftConfirmationAction
+  isPending: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  const { t } = useI18n()
+  const isOpening = action === 'open'
+  const title = t(isOpening ? 'employeeShift.confirmOpenTitle' : 'employeeShift.confirmCloseTitle')
+
+  return (
+    <Modal ariaLabel={title} onClose={isPending ? () => undefined : onCancel}>
+      <section className="m-auto grid w-[calc(100%-2rem)] max-w-md gap-5 rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+        <div className="flex items-start gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-amber-50 text-amber-700">
+            <AlertTriangle aria-hidden="true" className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-lg font-semibold text-slate-950">{title}</h3>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              {t(
+                isOpening
+                  ? 'employeeShift.confirmOpenDescription'
+                  : 'employeeShift.confirmCloseDescription',
+              )}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button disabled={isPending} onClick={onCancel} type="button" variant="secondary">
+            {t('employeeShift.cancelAction')}
+          </Button>
+          <Button disabled={isPending} onClick={onConfirm} type="button">
+            {isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : isOpening ? (
+              <Play className="size-4" />
+            ) : (
+              <Save className="size-4" />
+            )}
+            {t(isOpening ? 'employeeShift.confirmOpenAction' : 'employeeShift.confirmCloseAction')}
+          </Button>
+        </div>
+      </section>
+    </Modal>
+  )
 }
 
 const metricToneClassName: Record<NonNullable<ShiftMetricProps['tone']>, string> = {
@@ -115,6 +173,7 @@ function ShiftMetric({ description, icon: Icon, label, tone = 'default', value }
 export function EmployeeShiftPage() {
   const { currentOrganization, organizationId, profile, user } = useAuth()
   const { t } = useI18n()
+  const navigate = useNavigate()
   const currentShiftQuery = useCurrentEmployeeShift(organizationId)
   const templatesQuery = useShiftTemplates(organizationId, true)
   const mutations = useEmployeeShiftMutations(organizationId)
@@ -124,6 +183,7 @@ export function EmployeeShiftPage() {
   const [actualCashInput, setActualCashInput] = useState('')
   const [comment, setComment] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [confirmationAction, setConfirmationAction] = useState<ShiftConfirmationAction | null>(null)
   const isDemoAccount =
     currentOrganization?.slug === 'demo' && user?.app_metadata.demo_account === true
 
@@ -163,8 +223,36 @@ export function EmployeeShiftPage() {
     setError(null)
     try {
       await action()
+      return true
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Операция не выполнена.')
+      return false
+    }
+  }
+
+  const confirmShiftAction = async () => {
+    if (!confirmationAction) return
+
+    const succeeded = confirmationAction === 'open'
+      ? await runAction(() =>
+          mutations.open.mutateAsync({
+            shiftTemplateId: selectedTemplateId,
+            openingCashAmount: Number(openingCash),
+          }),
+        )
+      : await runAction(() =>
+          mutations.close.mutateAsync({
+            actualCashAmount: actualCash ?? 0,
+            comment: comment || null,
+            handoverCashAmount: actualCash ?? 0,
+          }),
+        )
+
+    if (succeeded) {
+      setConfirmationAction(null)
+      if (confirmationAction === 'open') {
+        navigate(getTenantRoutePath('/employee', currentOrganization?.slug), { replace: true })
+      }
     }
   }
 
@@ -196,6 +284,7 @@ export function EmployeeShiftPage() {
     }
 
     return (
+      <>
       <section className="grid content-start gap-3">
         {error ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
 
@@ -207,12 +296,7 @@ export function EmployeeShiftPage() {
               setError('Выберите первую или вторую смену.')
               return
             }
-            void runAction(() =>
-              mutations.open.mutateAsync({
-                shiftTemplateId: selectedTemplateId,
-                openingCashAmount: Number(openingCash),
-              }),
-            )
+            setConfirmationAction('open')
           }}
         >
           <header className="min-w-0 self-center lg:pb-1">
@@ -287,10 +371,20 @@ export function EmployeeShiftPage() {
           </ol>
         </section>
       </section>
+      {confirmationAction ? (
+        <ShiftConfirmationModal
+          action={confirmationAction}
+          isPending={mutations.open.isPending || mutations.close.isPending}
+          onCancel={() => setConfirmationAction(null)}
+          onConfirm={() => void confirmShiftAction()}
+        />
+      ) : null}
+      </>
     )
   }
 
   return (
+    <>
     <section className="grid content-start gap-3 self-start">
       <header className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
@@ -424,13 +518,7 @@ export function EmployeeShiftPage() {
               setError('При расхождении укажите комментарий.')
               return
             }
-            void runAction(() =>
-              mutations.close.mutateAsync({
-                actualCashAmount: actualCash,
-                comment: comment || null,
-                handoverCashAmount: actualCash,
-              }),
-            )
+            setConfirmationAction('close')
           }}
         >
           <div className="flex items-center justify-between gap-3">
@@ -490,5 +578,14 @@ export function EmployeeShiftPage() {
         )}
       </section>
     </section>
+    {confirmationAction ? (
+      <ShiftConfirmationModal
+        action={confirmationAction}
+        isPending={mutations.open.isPending || mutations.close.isPending}
+        onCancel={() => setConfirmationAction(null)}
+        onConfirm={() => void confirmShiftAction()}
+      />
+    ) : null}
+    </>
   )
 }
