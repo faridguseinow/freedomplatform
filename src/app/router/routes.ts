@@ -63,7 +63,7 @@ export const adminNavItems: NavItem[] = [
     label: 'Рабочее место',
     path: '/employee',
     icon: BriefcaseBusiness,
-    mobile: false,
+    mobileOrder: 1,
   },
   {
     label: 'Сотрудники',
@@ -75,7 +75,7 @@ export const adminNavItems: NavItem[] = [
     label: 'Каталог',
     path: '/admin/catalog',
     icon: Box,
-    mobileOrder: 2,
+    mobile: false,
   },
   {
     label: 'Места',
@@ -111,7 +111,7 @@ export const adminNavItems: NavItem[] = [
     label: 'Заказы',
     path: '/admin/orders',
     icon: ReceiptText,
-    mobileOrder: 1,
+    mobileOrder: 2,
   },
   {
     label: 'Финансы',

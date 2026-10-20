@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Archive, ArrowDownUp, History, Loader2, Minus, Plus, Save, Search, ShoppingBasket, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFieldArray, useForm, useWatch } from 'react-hook-form'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { z } from 'zod'
 import { EmptyState } from '../../../components/common/EmptyState'
 import { Button } from '../../../components/ui/Button'
@@ -104,6 +104,7 @@ const getCurrentPurchaseCost = (product: {
 export function AdminInventoryPage() {
   const { organizationId, user } = useAuth()
   const { language, t } = useI18n()
+  const [searchParams, setSearchParams] = useSearchParams()
   const defaultUnitName = t('inventory.unitItem')
   const balancesQuery = useInventoryBalances(organizationId)
   const recentAdditionsQuery = useInventoryRecentAdditions(organizationId)
@@ -112,7 +113,7 @@ export function AdminInventoryPage() {
   const inventoryMutations = useInventoryMutations(organizationId)
   const productMutations = useProductMutations(organizationId)
   const [search, setSearch] = useState('')
-  const [lowOnly, setLowOnly] = useState(false)
+  const lowOnly = searchParams.get('filter') === 'low-stock'
   const [outOnly, setOutOnly] = useState(false)
   const [sortBy, setSortBy] = useState<InventorySort>('recent')
   const [quickAdjustQuantities, setQuickAdjustQuantities] = useState<Record<string, string>>({})
@@ -122,6 +123,13 @@ export function AdminInventoryPage() {
   const [formError, setFormError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const restoredPurchaseDraftKey = useRef<string | null>(null)
+
+  const setLowStockFilter = (enabled: boolean) => {
+    const nextSearchParams = new URLSearchParams(searchParams)
+    if (enabled) nextSearchParams.set('filter', 'low-stock')
+    else nextSearchParams.delete('filter')
+    setSearchParams(nextSearchParams, { replace: true })
+  }
 
   const {
     control,
@@ -509,7 +517,7 @@ export function AdminInventoryPage() {
         </label>
         <div className="flex flex-wrap gap-2 lg:pb-0.5">
           <label className={cn('inline-flex min-h-10 cursor-pointer items-center rounded-full border px-3 text-sm font-medium transition', lowOnly ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}>
-            <input className="sr-only" checked={lowOnly} onChange={(event) => setLowOnly(event.target.checked)} type="checkbox" />
+            <input className="sr-only" checked={lowOnly} onChange={(event) => setLowStockFilter(event.target.checked)} type="checkbox" />
             {t('Низкий остаток')}
           </label>
           <label className={cn('inline-flex min-h-10 cursor-pointer items-center rounded-full border px-3 text-sm font-medium transition', outOnly ? 'border-red-300 bg-red-50 text-red-800' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}>

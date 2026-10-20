@@ -1,15 +1,11 @@
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import {
-  Clock3,
-  Eye,
   HelpCircle,
   LayoutDashboard,
-  ReceiptText,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CatalogImage } from '../../../components/common/CatalogImage'
-import { Button } from '../../../components/ui/Button'
 import { useAuth } from '../../../hooks/useAuth'
 import { getTenantRoutePath } from '../../../lib/routing/appHost'
 import { useI18n } from '../../../lib/i18n/I18nContext'
@@ -43,22 +39,23 @@ const formatUsageDuration = (hours: number | null | undefined, t: (value: string
 type StatCardProps = {
   description?: string
   label: string
+  to?: string
   value: string | number
   tone?: 'default' | 'success' | 'warning' | 'danger'
 }
 
-function StatCard({ description, label, tone = 'default', value }: StatCardProps) {
+function StatCard({ description, label, to, tone = 'default', value }: StatCardProps) {
   const { t } = useI18n()
-  return (
-    <div
-      className={cn(
-        'rounded-lg border bg-white p-3 shadow-sm sm:p-4',
-        tone === 'default' && 'border-slate-200',
-        tone === 'success' && 'border-emerald-200 bg-emerald-50/40',
-        tone === 'warning' && 'border-amber-200 bg-amber-50/50',
-        tone === 'danger' && 'border-red-200 bg-red-50/50',
-      )}
-    >
+  const className = cn(
+    'rounded-lg border bg-white p-3 shadow-sm sm:p-4',
+    tone === 'default' && 'border-slate-200',
+    tone === 'success' && 'border-emerald-200 bg-emerald-50/40',
+    tone === 'warning' && 'border-amber-200 bg-amber-50/50',
+    tone === 'danger' && 'border-red-200 bg-red-50/50',
+    to && 'block transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2',
+  )
+  const content = (
+    <>
       <div className="flex items-center gap-2">
         <p className="text-[11px] font-medium uppercase leading-4 text-slate-500 sm:text-xs">{t(label)}</p>
         {description ? (
@@ -78,8 +75,10 @@ function StatCard({ description, label, tone = 'default', value }: StatCardProps
         ) : null}
       </div>
       <p className="mt-1 text-xl font-semibold text-slate-950 sm:mt-2 sm:text-2xl">{value}</p>
-    </div>
+    </>
   )
+
+  return to ? <Link className={className} to={to}>{content}</Link> : <div className={className}>{content}</div>
 }
 
 export function AdminDashboardPage() {
@@ -132,8 +131,6 @@ export function AdminDashboardPage() {
   const openShifts = shifts.filter((shift) => shift.status === 'open' || shift.status === 'closing').length
   const timedPlaces = places.filter((place) => place.has_timer).length
   const lowStock = inventory.filter((item) => item.stock_quantity <= item.minimum_stock_quantity).length
-  const operationalDayLabel = currentDayShifts.length ? reportBusinessDate : t("ui.smena_ne_otkryta_a04a370")
-
   const isLoading =
     openOrdersCountQuery.isLoading ||
     shiftsQuery.isLoading ||
@@ -164,33 +161,20 @@ export function AdminDashboardPage() {
 
   return (
     <section className="grid gap-5">
-      <header className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-start gap-3">
+      <header className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex min-w-0 items-center gap-3">
           <CatalogImage
             alt={currentOrganization?.name ?? 'Организация'}
             className="size-14"
             imagePath={currentOrganization?.logo_path}
           />
           <div className="min-w-0">
-            <p className="text-xs font-medium uppercase text-slate-500">{t("ui.obzor_organizatsii_fbbfa22")}</p>
-            <h2 className="mt-1 truncate text-2xl font-semibold text-slate-950 sm:text-3xl">
+            <h2 className="truncate text-2xl font-semibold text-slate-950 sm:text-3xl">
               {currentOrganization?.name ?? t("ui.organizatsiya_48b493a")}
             </h2>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
-              {currentOrganization?.description ||
-                t("ui.operatsionnaya_svodka_po_zakazam_smenam_rabochim_mes_16b8238")}
-            </p>
-            <p className="mt-2 text-xs font-medium text-slate-500">
-              {t("ui.operatsionnyy_den_70810bd")}: {operationalDayLabel}
-            </p>
+            <p className="mt-1 text-sm font-medium text-slate-500">{reportBusinessDate}</p>
           </div>
         </div>
-        <Button className="w-full shrink-0 justify-center sm:w-auto" type="button">
-          <Link className="inline-flex items-center gap-2" to={buildAdminPath('/admin/live')}>
-            <Eye aria-hidden="true" className="size-4" />
-            {t("ui.smotret_mesta_e5cfd88")}
-          </Link>
-        </Button>
       </header>
 
       {firstError ? (
@@ -279,16 +263,11 @@ export function AdminDashboardPage() {
             <LayoutDashboard className="size-5 text-emerald-700" />
           </div>
           <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-5">
-            <StatCard label="Места" value={`${places.length} / ${t("ui.taymer_831d20c")} ${timedPlaces}`} />
-            <StatCard label="Товары" value={products.length} />
-            <StatCard label="Услуги" value={services.length} />
-            <StatCard label="Комбо" value={combos.length} />
-            <StatCard label="Низкий остаток" tone={lowStock ? 'danger' : 'default'} value={lowStock} />
-          </div>
-          <div className="grid gap-2 md:grid-cols-3">
-            <Button type="button" variant="secondary"><Link className="inline-flex items-center gap-2" to={buildAdminPath('/admin/live')}><Eye className="size-4" />{t("ui.monitoring_6e44fdc")}</Link></Button>
-            <Button type="button" variant="secondary"><Link className="inline-flex items-center gap-2" to={buildAdminPath('/admin/orders')}><ReceiptText className="size-4" />{t("ui.zakazy_22ac845")}</Link></Button>
-            <Button type="button" variant="secondary"><Link className="inline-flex items-center gap-2" to={buildAdminPath('/admin/shifts')}><Clock3 className="size-4" />{t("ui.smeny_415748c")}</Link></Button>
+            <StatCard label="Места" to={buildAdminPath('/admin/places')} value={`${places.length} / ${t("ui.taymer_831d20c")} ${timedPlaces}`} />
+            <StatCard label="Товары" to={buildAdminPath('/admin/products')} value={products.length} />
+            <StatCard label="Услуги" to={buildAdminPath('/admin/services')} value={services.length} />
+            <StatCard label="Комбо" to={buildAdminPath('/admin/combos')} value={combos.length} />
+            <StatCard label="Низкий остаток" to={buildAdminPath('/admin/inventory?filter=low-stock')} tone={lowStock ? 'danger' : 'default'} value={lowStock} />
           </div>
       </section>
 
