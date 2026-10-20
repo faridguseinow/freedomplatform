@@ -17,6 +17,13 @@ const technicalPatterns = [
 ]
 
 const messageRules: Array<[RegExp, string]> = [
+  [/order already belongs to an active handover/i, 'errors.orderAlreadyInActiveHandover'],
+  [/opening cash cannot be negative/i, 'errors.openingCashCannotBeNegative'],
+  [/actual cash cannot be negative/i, 'errors.actualCashCannotBeNegative'],
+  [/open shift was not found/i, 'errors.openShiftNotFound'],
+  [/comment is required when cash variance is not zero/i, 'errors.cashVarianceCommentRequired'],
+  [/shift template was not found or is inactive/i, 'errors.shiftTemplateUnavailable'],
+  [/organization is not active/i, 'errors.organizationInactive'],
   [/not enough available stock|not enough stock/i, 'Недостаточно остатка на складе.'],
   [/place already has an active timed session|session already active/i, 'На этом месте уже запущена активная сессия.'],
   [/order already has completed payment|order already paid/i, 'Этот заказ уже оплачен.'],

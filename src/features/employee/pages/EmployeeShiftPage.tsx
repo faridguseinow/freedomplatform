@@ -121,7 +121,7 @@ export function EmployeeShiftPage() {
   const [nowMs, setNowMs] = useState(() => Date.now())
   const [templateId, setTemplateId] = useState('')
   const [openingCash, setOpeningCash] = useState('')
-  const [actualCash, setActualCash] = useState(0)
+  const [actualCashInput, setActualCashInput] = useState('')
   const [comment, setComment] = useState('')
   const [error, setError] = useState<string | null>(null)
   const isDemoAccount =
@@ -137,8 +137,10 @@ export function EmployeeShiftPage() {
   const summary = payload?.summary ?? null
   const templates = useMemo(() => templatesQuery.data ?? [], [templatesQuery.data])
   const expectedCash = summary?.expected_cash_amount ?? shift?.expected_cash_amount ?? 0
-  const variance = actualCash - expectedCash
-  const hasVariance = Math.abs(variance) > 0.009
+  const parsedActualCash = Number(actualCashInput)
+  const actualCash = actualCashInput !== '' && Number.isFinite(parsedActualCash) ? parsedActualCash : null
+  const variance = actualCash === null ? 0 : actualCash - expectedCash
+  const hasVariance = actualCash !== null && Math.abs(variance) > 0.009
   const closeCommentRequired = hasVariance && !comment.trim()
   const closeDisabled = mutations.close.isPending || closeCommentRequired
   const shiftChoices = useMemo(() => {
@@ -415,6 +417,9 @@ export function EmployeeShiftPage() {
           className="grid content-start gap-3 self-start rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
           onSubmit={(event) => {
             event.preventDefault()
+            if (actualCash === null) {
+              return
+            }
             if (closeDisabled) {
               setError('При расхождении укажите комментарий.')
               return
@@ -443,13 +448,15 @@ export function EmployeeShiftPage() {
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
             <Input
+              className="sm:max-w-64"
               id="actual_cash"
               label="Фактическая наличность"
               min={0}
-              onChange={(event) => setActualCash(Number(event.target.value))}
+              onChange={(event) => setActualCashInput(event.target.value)}
+              required
               step="0.01"
               type="number"
-              value={actualCash}
+              value={actualCashInput}
             />
             <div className="grid content-center rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
               <span className="text-xs font-medium uppercase text-slate-500">Ожидается</span>

@@ -1,4 +1,4 @@
-import { Sofa, Timer, X } from 'lucide-react'
+import { ReceiptText, Sofa, Timer, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { CatalogImage } from '../../../components/common/CatalogImage'
 import { Modal } from '../../../components/ui/Modal'
@@ -72,11 +72,15 @@ const calculateCurrentSessionAmount = (place: EmployeeWorkspacePlaceRow, nowMs: 
 const getPlaceStatus = (place: EmployeeWorkspacePlaceRow) =>
   place.active_order_status === 'waiting_payment' ? 'Ожидает оплату' : 'Занято'
 
+const getOrderStatus = (status: string) =>
+  status === 'waiting_payment' ? 'Ожидает оплату' : 'Открыт'
+
 const getStatusClassName = (status: string) =>
   cn(
     'inline-flex rounded-md px-2 py-1 text-[11px] font-semibold',
     status === 'Занято' && 'bg-red-50 text-red-700',
     status === 'Ожидает оплату' && 'bg-amber-50 text-amber-800',
+    status === 'Открыт' && 'bg-emerald-50 text-emerald-700',
   )
 
 export function AdminLiveMonitorPage() {
@@ -87,6 +91,7 @@ export function AdminLiveMonitorPage() {
   const activeShift = openShiftsQuery.data?.[0] ?? null
   const shiftDetailQuery = useAdminShiftDetail(activeShift?.id ?? null, LIVE_REFRESH_INTERVAL)
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null)
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [nowMs, setNowMs] = useState(() => Date.now())
 
   useEffect(() => {
@@ -110,9 +115,16 @@ export function AdminLiveMonitorPage() {
     () => occupiedPlaces.find((place) => place.id === selectedPlaceId) ?? null,
     [occupiedPlaces, selectedPlaceId],
   )
+  const unplacedOrders = useMemo(
+    () => orders.filter((order) => !order.place_id),
+    [orders],
+  )
   const selectedOrder = useMemo(
-    () => orders.find((order) => order.id === selectedPlace?.active_order_id) ?? null,
-    [orders, selectedPlace?.active_order_id],
+    () =>
+      orders.find(
+        (order) => order.id === (selectedOrderId ?? selectedPlace?.active_order_id),
+      ) ?? null,
+    [orders, selectedOrderId, selectedPlace?.active_order_id],
   )
   const orderItemsQuery = useEmployeeOrderItems(selectedOrder?.id ?? null, LIVE_REFRESH_INTERVAL)
   const activeOrderItems = useMemo(
@@ -139,6 +151,10 @@ export function AdminLiveMonitorPage() {
   const expectedCash = openingCash + cashRevenue
   const isLoading = workspaceQuery.isLoading || openShiftsQuery.isLoading
   const firstError = workspaceQuery.error ?? openShiftsQuery.error ?? shiftDetailQuery.error
+  const closeDetails = () => {
+    setSelectedPlaceId(null)
+    setSelectedOrderId(null)
+  }
 
   return (
     <section className="grid gap-4">
@@ -203,7 +219,10 @@ export function AdminLiveMonitorPage() {
                 <button
                   className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 text-left shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
                   key={place.id}
-                  onClick={() => setSelectedPlaceId(place.id)}
+                  onClick={() => {
+                    setSelectedOrderId(null)
+                    setSelectedPlaceId(place.id)
+                  }}
                   type="button"
                 >
                   <div className="flex items-start gap-3">
@@ -249,29 +268,103 @@ export function AdminLiveMonitorPage() {
         ) : null}
       </section>
 
-      {selectedPlace ? (
+      {unplacedOrders.length ? (
+        <section className="grid gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-slate-950">{t("ui.zakazy_bez_mesta_34c1569")}</h2>
+            <span className="text-sm font-medium text-slate-500">{unplacedOrders.length}</span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {unplacedOrders.map((order) => {
+              const status = getOrderStatus(order.status)
+
+              return (
+                <button
+                  className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 text-left shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+                  key={order.id}
+                  onClick={() => {
+                    setSelectedPlaceId(null)
+                    setSelectedOrderId(order.id)
+                  }}
+                  type="button"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="grid size-11 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-600">
+                      <ReceiptText aria-hidden="true" className="size-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="font-semibold text-slate-950">
+                          {t("ui.zakaz_c7b64dd")} #{order.order_number}
+                        </h3>
+                        <span className={getStatusClassName(status)}>{t(status)}</span>
+                      </div>
+                      <p className="mt-1 truncate text-xs text-slate-600">
+                        {order.customer_label || t("ui.bez_imeni_cdf641f")}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="rounded-md bg-slate-50 p-2">
+                      <p className="text-[11px] font-medium uppercase text-slate-500">{t("ui.otkryt_3568fc6")}</p>
+                      <p className="mt-1 font-semibold text-slate-950">
+                        {formatElapsed(order.opened_at, nowMs, t)}
+                      </p>
+                    </div>
+                    <div className="rounded-md bg-slate-50 p-2">
+                      <p className="text-[11px] font-medium uppercase text-slate-500">{t("ui.summa_99d7408")}</p>
+                      <p className="mt-1 font-semibold text-slate-950">{formatAzn(order.total_amount)}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 text-xs text-slate-600">
+                    <span>{t("ui.bez_mesta_da3a88d")}</span>
+                    <span className="font-medium text-emerald-700">{t("ui.detali_85a76a7")}</span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      {selectedPlace || selectedOrder ? (
         <Modal
           align="end"
           className="bg-slate-950/35"
-          onClose={() => setSelectedPlaceId(null)}
+          onClose={closeDetails}
           padding="none"
           panelClassName="!h-full md:flex md:justify-end"
         >
           <aside className="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-white shadow-xl md:w-[620px] md:max-w-full">
             <header className="flex items-start justify-between gap-3 border-b border-slate-200 p-4">
               <div className="flex min-w-0 items-center gap-3">
-                <CatalogImage alt={selectedPlace.name} className="size-12 rounded-full" imagePath={selectedPlace.image_path} />
+                {selectedPlace ? (
+                  <CatalogImage alt={selectedPlace.name} className="size-12 rounded-full" imagePath={selectedPlace.image_path} />
+                ) : (
+                  <span className="grid size-12 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-600">
+                    <ReceiptText aria-hidden="true" className="size-5" />
+                  </span>
+                )}
                 <div className="min-w-0">
-                  <h2 className="truncate text-lg font-semibold text-slate-950">{selectedPlace.name}</h2>
+                  <h2 className="truncate text-lg font-semibold text-slate-950">
+                    {selectedPlace?.name ?? t("ui.zakaz_bez_mesta_a4620c9")}
+                  </h2>
                   <p className="mt-1 text-sm text-slate-600">
-                    {selectedOrder ? `#${selectedOrder.order_number} · ${t(getPlaceStatus(selectedPlace))}` : t(getPlaceStatus(selectedPlace))}
+                    {selectedOrder
+                      ? `#${selectedOrder.order_number} · ${t(selectedPlace ? getPlaceStatus(selectedPlace) : getOrderStatus(selectedOrder.status))}`
+                      : selectedPlace
+                        ? t(getPlaceStatus(selectedPlace))
+                        : null}
                   </p>
                 </div>
               </div>
               <button
                 aria-label={t("ui.zakryt_4ae50d3")}
                 className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100"
-                onClick={() => setSelectedPlaceId(null)}
+                onClick={closeDetails}
                 type="button"
               >
                 <X aria-hidden="true" className="size-4" />
@@ -283,18 +376,29 @@ export function AdminLiveMonitorPage() {
                 <div className="rounded-md bg-slate-50 p-3">
                   <p className="text-[11px] font-medium uppercase text-slate-500">{t("ui.vremya_c80d7e8")}</p>
                   <p className="mt-1 font-semibold text-slate-950">
-                    {formatElapsed(selectedPlace.active_session_started_at ?? selectedPlace.active_order_opened_at, nowMs, t)}
+                    {formatElapsed(
+                      selectedPlace?.active_session_started_at ??
+                        selectedPlace?.active_order_opened_at ??
+                        selectedOrder?.opened_at ??
+                        null,
+                      nowMs,
+                      t,
+                    )}
                   </p>
                 </div>
                 <div className="rounded-md bg-slate-50 p-3">
                   <p className="text-[11px] font-medium uppercase text-slate-500">{t("ui.summa_99d7408")}</p>
                   <p className="mt-1 font-semibold text-slate-950">
-                    {formatAzn((selectedPlace.active_order_total ?? 0) + calculateCurrentSessionAmount(selectedPlace, nowMs))}
+                    {formatAzn(
+                      selectedPlace
+                        ? (selectedPlace.active_order_total ?? 0) + calculateCurrentSessionAmount(selectedPlace, nowMs)
+                        : selectedOrder?.total_amount,
+                    )}
                   </p>
                 </div>
               </div>
 
-              {selectedPlace.active_session_id ? (
+              {selectedPlace?.active_session_id ? (
                 <section className="grid gap-2 rounded-lg border border-slate-200 p-3">
                   <h3 className="font-semibold text-slate-950">{t("ui.sessiya_1c1e92b")}</h3>
                   <dl className="grid grid-cols-2 gap-2 text-sm">

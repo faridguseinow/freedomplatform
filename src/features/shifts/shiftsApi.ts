@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { throwMappedSupabaseError } from '../../lib/errors/mapSupabaseError'
 import { supabase } from '../../lib/supabase/client'
 import type {
   AdminShiftReportRow,
@@ -31,7 +32,7 @@ export function useCurrentEmployeeShift(organizationId: string | null) {
       const { data, error } = await supabase.rpc('get_current_employee_shift_for_organization', {
         target_organization_id: organizationId!,
       })
-      if (error) throw new Error(error.message)
+      if (error) throwMappedSupabaseError(error)
       return data as CurrentEmployeeShiftPayload | null
     },
   })
@@ -64,7 +65,7 @@ export function useEmployeeShiftMutations(organizationId: string | null) {
           target_shift_template_id: shiftTemplateId ?? null,
           target_opening_cash_amount: openingCashAmount,
         })
-        if (error) throw new Error(error.message)
+        if (error) throwMappedSupabaseError(error)
         return data
       },
       onSuccess: invalidate,
@@ -89,7 +90,7 @@ export function useEmployeeShiftMutations(organizationId: string | null) {
           target_comment: comment ?? null,
           target_handover_cash_amount: handoverCashAmount ?? null,
         })
-        if (error) throw new Error(error.message)
+        if (error) throwMappedSupabaseError(error)
         return data
       },
       onSuccess: invalidate,
