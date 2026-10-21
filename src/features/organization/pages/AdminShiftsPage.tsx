@@ -125,7 +125,7 @@ export function AdminShiftsPage() {
                   <td className="h-5 border-0 bg-slate-50 p-0" colSpan={metrics.length + 3} />
                 </tr>
               ) : null}
-              <tr className="bg-emerald-700/75">
+              <tr className="shift-day-header bg-emerald-700/75">
                 <th className="rounded-t-lg border-y border-emerald-800 px-4 py-2 text-left text-sm font-semibold text-white" colSpan={metrics.length + 3}>
                   <div className="flex items-center justify-between gap-3">
                     <span className="inline-flex items-center gap-2">
@@ -200,7 +200,7 @@ export function AdminShiftsPage() {
     <div className="grid gap-3 md:hidden">
       {groups.map((group) => (
         <section className="overflow-hidden rounded-lg border border-emerald-300 bg-white shadow-sm ring-1 ring-emerald-100" key={group.date}>
-          <header className="flex items-center justify-between gap-3 border-b border-emerald-800 bg-emerald-700/75 px-3 py-2">
+          <header className="shift-day-header flex items-center justify-between gap-3 border-b border-emerald-800 bg-emerald-700/75 px-3 py-2">
             <h3 className="inline-flex items-center gap-2 font-semibold text-white">
               <CalendarDays className="size-4" /> {group.date}
             </h3>

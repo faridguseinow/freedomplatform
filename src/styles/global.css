@@ -150,6 +150,10 @@ button:disabled {
   background-color: var(--theme-accent-hover);
 }
 
+.theme-dark .shift-day-header {
+  background-color: rgb(6 78 59 / 42%);
+}
+
 .theme-dark .text-emerald-700,
 .theme-dark .text-emerald-800,
 .theme-dark .text-emerald-900,
