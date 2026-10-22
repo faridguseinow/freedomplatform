@@ -1,4 +1,4 @@
-import { ArrowLeft, LogOut, Menu, PanelLeftClose, PanelLeftOpen, UserRound } from 'lucide-react'
+import { ArrowLeft, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Settings, UserRound } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { CatalogImage } from '../../components/common/CatalogImage'
@@ -38,6 +38,8 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
   const { t } = useI18n()
   const sidebarProfileMenuRef = useRef<HTMLDivElement | null>(null)
   const headerProfileMenuRef = useRef<HTMLDivElement | null>(null)
+  const mobileProfileMenuRef = useRef<HTMLDivElement | null>(null)
+  const mobileSettingsButtonRef = useRef<HTMLButtonElement | null>(null)
   const sidebarStorageKey = `freedom.sidebarCollapsed.${productArea}`
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false
@@ -88,7 +90,9 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
 
       if (
         sidebarProfileMenuRef.current?.contains(target) ||
-        headerProfileMenuRef.current?.contains(target)
+        headerProfileMenuRef.current?.contains(target) ||
+        mobileProfileMenuRef.current?.contains(target) ||
+        mobileSettingsButtonRef.current?.contains(target)
       ) {
         return
       }
@@ -435,9 +439,58 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
         </div>
       </div>
 
+      {isEmployeeArea && isUserMenuOpen ? (
+        <div
+          className="fixed inset-x-2 bottom-[calc(max(env(safe-area-inset-bottom),0.75rem)+4.25rem)] z-40 rounded-lg border border-slate-200 bg-white p-3 shadow-xl md:hidden"
+          ref={mobileProfileMenuRef}
+        >
+          <div className="border-b border-slate-100 px-1 pb-2">
+            <p className="truncate text-sm font-semibold text-slate-900">{displayName}</p>
+            {currentOrganization ? (
+              <p className="mt-0.5 truncate text-xs text-slate-500">{currentOrganization.name}</p>
+            ) : null}
+          </div>
+          <div className="grid grid-cols-2 gap-2 py-2">
+            <LanguageSwitcher className="w-full justify-center shadow-none" />
+            <ThemeToggle className="w-full min-w-0 px-2 shadow-none" compact />
+          </div>
+          {isPlatformOwnerOrganizationView ? (
+            <Button
+              className="w-full justify-start px-2"
+              onClick={handleExitOrganizationView}
+              type="button"
+              variant="secondary"
+            >
+              <ArrowLeft aria-hidden="true" className="size-4" />
+              Вернуться в платформу
+            </Button>
+          ) : null}
+          {isOrganizationAdminEmployeeView ? (
+            <Button
+              className="w-full justify-start px-2"
+              onClick={handleBackToAdmin}
+              type="button"
+              variant="secondary"
+            >
+              <ArrowLeft aria-hidden="true" className="size-4" />
+              В админку
+            </Button>
+          ) : null}
+          <Button
+            className="mt-2 w-full justify-start px-2"
+            onClick={handleSignOut}
+            type="button"
+            variant="danger"
+          >
+            <LogOut aria-hidden="true" className="size-4" />
+            Выйти
+          </Button>
+        </div>
+      ) : null}
+
       <nav
         className="fixed inset-x-0 bottom-0 z-30 grid border-t border-slate-200 bg-white px-2 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-1 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] md:hidden"
-        style={{ gridTemplateColumns: `repeat(${mobileNavItems.length}, minmax(0, 1fr))` }}
+        style={{ gridTemplateColumns: `repeat(${mobileNavItems.length + (isEmployeeArea ? 1 : 0)}, minmax(0, 1fr))` }}
         aria-label={`${productAreaLabel}: ${t("ui.mobilnaya_navigatsiya_09a11d6")}`}
       >
         {mobileNavItems.map((item) => {
@@ -450,6 +503,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                 active ? 'text-emerald-800' : 'text-slate-500',
               ].join(' ')}
               key={item.path}
+              onClick={() => setIsUserMenuOpen(false)}
               to={item.path}
               {...(item.end ? { end: true } : {})}
             >
@@ -458,6 +512,22 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
             </NavLink>
           )
         })}
+        {isEmployeeArea ? (
+          <button
+            aria-expanded={isUserMenuOpen}
+            aria-label={t('Настройки')}
+            className={[
+              'grid min-h-14 place-items-center gap-0.5 rounded-md px-1 py-1 text-[11px] font-medium',
+              isUserMenuOpen ? 'text-emerald-800' : 'text-slate-500',
+            ].join(' ')}
+            onClick={() => setIsUserMenuOpen((current) => !current)}
+            ref={mobileSettingsButtonRef}
+            type="button"
+          >
+            <Settings aria-hidden="true" className="size-5" />
+            <span className="max-w-full truncate">{t('Настройки')}</span>
+          </button>
+        ) : null}
       </nav>
     </div>
   )

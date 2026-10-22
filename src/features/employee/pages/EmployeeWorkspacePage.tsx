@@ -269,7 +269,7 @@ function CatalogAddButton({
   return (
     <button
       className={cn(
-        'grid grid-cols-[36px_1fr_auto] items-start gap-2 rounded-md border border-slate-200 p-1.5 text-left transition active:scale-[0.98]',
+        'grid grid-cols-[32px_1fr_auto] items-start gap-1.5 rounded-md border border-slate-200 p-1.5 text-left transition active:scale-[0.98] md:grid-cols-[36px_1fr_auto] md:gap-2',
         'hover:border-emerald-200 hover:bg-emerald-50/40',
         isPressed && 'border-emerald-300 bg-emerald-50 ring-2 ring-emerald-600/20',
         disabled && 'cursor-not-allowed opacity-60 hover:border-slate-200 hover:bg-transparent active:scale-100',
@@ -278,11 +278,11 @@ function CatalogAddButton({
       onClick={onClick}
       type="button"
     >
-      <CatalogImage alt={name} className="size-9" imagePath={imagePath} />
+      <CatalogImage alt={name} className="size-8 md:size-9" imagePath={imagePath} />
       <span className="grid min-w-0 gap-0.5">
-        <span className="break-words text-sm font-medium text-slate-950">{name}</span>
-        <span className="text-xs text-slate-600">{formatAzn(price)}</span>
-        {stockLabel ? <span className="text-xs text-slate-500">{stockLabel}</span> : null}
+        <span className="break-words text-xs font-medium text-slate-950 md:text-sm">{name}</span>
+        <span className="text-[11px] text-slate-600 md:text-xs">{formatAzn(price)}</span>
+        {stockLabel ? <span className="text-[11px] text-slate-500 md:text-xs">{stockLabel}</span> : null}
         {details.length ? (
           <span className="mt-1 grid gap-0.5 border-t border-slate-100 pt-1 text-xs leading-4 text-slate-500">
             {details.map((detail, index) => (
@@ -294,7 +294,7 @@ function CatalogAddButton({
       <span
         aria-hidden="true"
         className={cn(
-          'mt-0.5 inline-flex size-8 items-center justify-center rounded-md bg-emerald-700 text-white transition',
+          'mt-0.5 inline-flex size-7 items-center justify-center rounded-md bg-emerald-700 text-white transition md:size-8',
           isPressed && 'scale-110 bg-emerald-800',
         )}
       >
@@ -996,7 +996,7 @@ export function EmployeeWorkspacePage() {
 
       <section className="h-auto shrink-0 overflow-visible rounded-lg bg-slate-100 p-2 shadow-sm ring-1 ring-slate-200 md:h-[640px] md:overflow-hidden md:p-3">
         <div
-          className="grid w-full min-w-0 grid-cols-1 content-start auto-rows-auto gap-2 min-[420px]:grid-cols-2 md:auto-rows-[200px] md:[grid-template-columns:repeat(12,minmax(0,1fr))] md:[grid-template-rows:repeat(3,200px)]"
+          className="grid w-full min-w-0 grid-cols-2 content-start auto-rows-auto gap-2 md:auto-rows-[200px] md:[grid-template-columns:repeat(12,minmax(0,1fr))] md:[grid-template-rows:repeat(3,200px)]"
         >
           {placeLayout.map((slot) => {
             const place = slot.place
@@ -1161,7 +1161,7 @@ export function EmployeeWorkspacePage() {
         </div>
 
         {ordersWithoutPlace.length ? (
-          <div className="grid min-h-0 grid-cols-1 content-start auto-rows-[76px] gap-2 overflow-visible min-[420px]:grid-cols-2 md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] md:auto-rows-[72px] md:overflow-y-auto md:pr-1">
+          <div className="grid min-h-0 grid-cols-2 content-start auto-rows-[76px] gap-2 overflow-visible md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] md:auto-rows-[72px] md:overflow-y-auto md:pr-1">
             {ordersWithoutPlace.map((order) => (
               <button
                 className="flex h-[76px] min-w-0 flex-col justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-left shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50/40 md:h-[72px]"
@@ -1197,10 +1197,10 @@ export function EmployeeWorkspacePage() {
           panelClassName="!h-full !overflow-hidden md:flex md:justify-end"
         >
           <aside className="grid h-full w-full max-w-6xl grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-white shadow-xl md:w-[1040px] md:max-w-full">
-            <header className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
-              <div className="grid min-w-0 flex-1 gap-2">
+            <header className="flex items-start justify-between gap-2 border-b border-slate-200 px-3 py-2 md:gap-3 md:px-4 md:py-2.5">
+              <div className="grid min-w-0 flex-1 gap-1 md:gap-2">
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <h3 className="shrink-0 text-lg font-semibold text-slate-950">Заказ #{selectedOrder.order_number}</h3>
+                  <h3 className="shrink-0 text-base font-semibold text-slate-950 md:text-lg">Заказ #{selectedOrder.order_number}</h3>
                   <label className="min-w-36 max-w-56 flex-1">
                     <span className="sr-only">{t('Имя клиента')}</span>
                     <input
@@ -1228,7 +1228,7 @@ export function EmployeeWorkspacePage() {
                     />
                   ) : null}
                 </div>
-                <p className="text-sm text-slate-600">
+                <p className="text-xs text-slate-600 md:text-sm">
                   {selectedOrder.current_place_name_snapshot ?? 'Без места'} · {orderStatusLabel[selectedOrder.status]}
                 </p>
               </div>
@@ -1242,8 +1242,8 @@ export function EmployeeWorkspacePage() {
               </button>
             </header>
 
-            <div className="grid min-h-0 gap-3 overflow-hidden p-3 md:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
-              <section className="grid min-h-0 content-start gap-3 overflow-y-auto pr-1">
+            <div className="flex min-h-0 flex-col gap-2 overflow-y-auto p-2 md:grid md:gap-3 md:overflow-hidden md:p-3 md:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
+              <section className="grid content-start gap-2 md:min-h-0 md:gap-3 md:overflow-y-auto md:pr-1">
                 {(() => {
                   const selectedPlace = placesById.get(selectedOrder.place_id ?? '') ?? null
                   const hasActiveSession = Boolean(selectedPlace?.active_session_id)
@@ -1264,10 +1264,10 @@ export function EmployeeWorkspacePage() {
                   const isClosingOrder = isOrderCloseActionPending
 
                   return (
-                    <div className="grid gap-2 rounded-lg border border-red-300 bg-slate-50/60 p-2.5">
+                    <div className="grid gap-1.5 rounded-lg border border-red-300 bg-slate-50/60 p-2 md:gap-2 md:p-2.5">
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-sm font-semibold text-slate-950">Сумма заказа</span>
-                        <span className="text-xl font-semibold text-slate-950">{formatAzn(selectedOrderTotalWithTip)}</span>
+                        <span className="text-xs font-semibold text-slate-950 md:text-sm">Сумма заказа</span>
+                        <span className="text-lg font-semibold text-slate-950 md:text-xl">{formatAzn(selectedOrderTotalWithTip)}</span>
                       </div>
 
                       {selectedOrder.paid_amount > 0 ? (
@@ -1341,13 +1341,11 @@ export function EmployeeWorkspacePage() {
                           <div
                             className={cn(
                               'grid gap-1.5',
-                              selectedOrder.status === 'open'
-                                ? 'grid-cols-1 min-[420px]:grid-cols-3'
-                                : 'grid-cols-1 min-[420px]:grid-cols-2',
+                              selectedOrder.status === 'open' ? 'grid-cols-3' : 'grid-cols-2',
                             )}
                           >
                             {hasNormalPaymentAmount ? (
-                              <Button className="min-h-11 min-w-0 gap-1 px-2 py-1 text-xs leading-tight min-[420px]:min-h-9" disabled={isWorkspaceReadOnly || !canPreparePayment || isClosingOrder} onClick={openPaymentChoice} type="button">
+                              <Button className="min-h-9 min-w-0 gap-1 px-1.5 py-1 text-[11px] leading-tight" disabled={isWorkspaceReadOnly || !canPreparePayment || isClosingOrder} onClick={openPaymentChoice} type="button">
                                 <Hourglass className="size-3.5 shrink-0" />
                                 <span className="min-w-0 truncate">
                                   {selectedOrder.status === 'waiting_payment' ? 'Принять оплату' : 'К оплате'}
@@ -1355,7 +1353,7 @@ export function EmployeeWorkspacePage() {
                               </Button>
                             ) : (
                               <Button
-                                className="min-h-11 min-w-0 gap-1 px-2 py-1 text-xs leading-tight min-[420px]:min-h-9"
+                                className="min-h-9 min-w-0 gap-1 px-1.5 py-1 text-[11px] leading-tight"
                                 disabled={isWorkspaceReadOnly || !canFinishEmptyOrder || isClosingOrder}
                                 onClick={finishEmptyOrder}
                                 type="button"
@@ -1366,7 +1364,7 @@ export function EmployeeWorkspacePage() {
                             )}
 
                             <Button
-                              className="min-h-11 min-w-0 gap-1 px-2 py-1 text-xs leading-tight min-[420px]:min-h-9"
+                              className="min-h-9 min-w-0 gap-1 px-1.5 py-1 text-[11px] leading-tight"
                               disabled={isWorkspaceReadOnly || !canCancelOrder || isClosingOrder}
                               onClick={cancelOrder}
                               type="button"
@@ -1377,7 +1375,7 @@ export function EmployeeWorkspacePage() {
                             </Button>
                             {selectedOrder.status === 'open' ? (
                               <Button
-                                className="min-h-11 min-w-0 gap-1 px-2 py-1 text-xs leading-tight min-[420px]:min-h-9"
+                                className="min-h-9 min-w-0 gap-1 px-1.5 py-1 text-[11px] leading-tight"
                                 disabled={isWorkspaceReadOnly || orderMutations.transferOrder.isPending || isClosingOrder}
                                 onClick={() => setIsTransferOpen(true)}
                                 type="button"
@@ -1468,10 +1466,10 @@ export function EmployeeWorkspacePage() {
                   )
                 })()}
 
-                <div className="grid gap-3 rounded-lg border border-emerald-200 bg-white p-3 shadow-sm">
+                <div className="grid gap-2 rounded-lg border border-emerald-200 bg-white p-2 shadow-sm md:gap-3 md:p-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <h4 className="text-base font-semibold text-slate-950">Состав заказа</h4>
+                      <h4 className="text-sm font-semibold text-slate-950 md:text-base">Состав заказа</h4>
                     </div>
                     <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800">
                       {t('order.itemCountShort', { count: activeOrderItemsCount })}
@@ -1519,15 +1517,15 @@ export function EmployeeWorkspacePage() {
 
                       return (
                         <div
-                          className="grid grid-cols-[80px_1fr] gap-5 border-b border-slate-200 p-3 last:border-b-0"
+                          className="grid grid-cols-[48px_minmax(0,1fr)] gap-2 border-b border-slate-200 p-2 last:border-b-0 md:grid-cols-[80px_1fr] md:gap-5 md:p-3"
                           key={item.id}
                         >
-                          <CatalogImage alt={item.name_snapshot} className="size-20" imagePath={itemImagePath} />
-                          <div className="grid min-w-0 gap-2">
-                            <div className="flex items-start justify-between gap-3">
+                          <CatalogImage alt={item.name_snapshot} className="size-12 md:size-20" imagePath={itemImagePath} />
+                          <div className="grid min-w-0 gap-1.5 md:gap-2">
+                            <div className="flex items-start justify-between gap-2 md:gap-3">
                               <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <div className="truncate font-medium text-slate-950">{item.name_snapshot}</div>
+                                <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+                                  <div className="truncate text-sm font-medium text-slate-950 md:text-base">{item.name_snapshot}</div>
                                   {isFullyPaid ? (
                                     <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
                                       {t('payment.paid')}
@@ -1541,19 +1539,19 @@ export function EmployeeWorkspacePage() {
                                     </span>
                                   ) : null}
                                 </div>
-                                <div className="text-sm text-slate-600">
+                                <div className="text-xs text-slate-600 md:text-sm">
                                   {item.quantity} × {formatAzn(item.unit_price)}
                                 </div>
                               </div>
                               <div className="grid shrink-0 justify-items-end gap-0.5 text-right">
-                                <span className="font-semibold text-slate-950">{formatAzn(item.total_price)}</span>
-                                <time className="text-xs font-normal text-slate-500" dateTime={item.added_at}>
+                                <span className="text-sm font-semibold text-slate-950 md:text-base">{formatAzn(item.total_price)}</span>
+                                <time className="text-[10px] font-normal text-slate-500 md:text-xs" dateTime={item.added_at}>
                                   {formatOrderItemAddedAt(item.added_at)}
                                 </time>
                               </div>
                             </div>
                             {session ? (
-                              <dl className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-md bg-slate-50 px-3 py-2 text-xs sm:grid-cols-4">
+                              <dl className="grid grid-cols-4 gap-1 rounded-md bg-slate-50 px-2 py-1 text-[10px] md:gap-x-4 md:gap-y-1 md:px-3 md:py-2 md:text-xs">
                                 <div>
                                   <dt className="text-slate-500">{t('sessionSummary.started')}</dt>
                                   <dd className="font-medium text-slate-800">{formatNumericTime(session.started_at)}</dd>
@@ -1587,13 +1585,13 @@ export function EmployeeWorkspacePage() {
                               </dl>
                             ) : null}
                             {item.status === 'active' && selectedOrder.status === 'open' ? (
-                              <div className="grid gap-2">
-                                <div className="flex flex-wrap items-center gap-2">
+                              <div className="grid gap-1.5 md:gap-2">
+                                <div className="flex flex-nowrap items-center gap-1.5 md:flex-wrap md:gap-2">
                                   {canEditQuantity ? (
-                                    <div className="inline-grid grid-cols-[32px_44px_32px] overflow-hidden rounded-md border border-slate-200 bg-white">
+                                    <div className="inline-grid shrink-0 grid-cols-[28px_36px_28px] overflow-hidden rounded-md border border-slate-200 bg-white md:grid-cols-[32px_44px_32px]">
                                       <button
                                         aria-label="Уменьшить на 1"
-                                        className="inline-flex min-h-8 items-center justify-center text-slate-700 transition hover:bg-slate-50 disabled:text-slate-300"
+                                        className="inline-flex min-h-7 items-center justify-center text-slate-700 transition hover:bg-slate-50 disabled:text-slate-300 md:min-h-8"
                                         disabled={
                                           isWorkspaceReadOnly ||
                                           item.quantity <= 1 ||
@@ -1605,28 +1603,28 @@ export function EmployeeWorkspacePage() {
                                       >
                                         -
                                       </button>
-                                      <span className="inline-flex min-h-8 items-center justify-center border-x border-slate-200 text-sm font-semibold text-slate-950">
+                                      <span className="inline-flex min-h-7 items-center justify-center border-x border-slate-200 text-xs font-semibold text-slate-950 md:min-h-8 md:text-sm">
                                         {item.quantity}
                                       </span>
                                       <button
                                         aria-label="Увеличить на 1"
-                                        className="inline-flex min-h-8 items-center justify-center text-emerald-800 transition hover:bg-emerald-50 disabled:text-slate-300"
+                                        className="inline-flex min-h-7 items-center justify-center text-emerald-800 transition hover:bg-emerald-50 disabled:text-slate-300 md:min-h-8"
                                         disabled={isWorkspaceReadOnly || orderMutations.requestAdjustment.isPending}
                                         onClick={() => changeItemQuantity(item, item.quantity + 1)}
                                         type="button"
                                       >
-                                        <Plus className="size-4" />
+                                        <Plus className="size-3.5 md:size-4" />
                                       </button>
                                     </div>
                                   ) : null}
                                   {canEditQuantity ? (
-                                    <Button className="min-h-8 px-3 py-1 text-xs" disabled={isWorkspaceReadOnly} onClick={() => requestQuantity(item)} type="button" variant="secondary">
+                                    <Button className="min-h-7 shrink px-2 py-1 text-[11px] md:min-h-8 md:px-3 md:text-xs" disabled={isWorkspaceReadOnly} onClick={() => requestQuantity(item)} type="button" variant="secondary">
                                       Кол-во
                                     </Button>
                                   ) : null}
                                   {!isFullyPaid && item.unit_price > 0 ? (
                                     <Button
-                                      className="min-h-8 gap-1 px-2.5 py-1 text-xs"
+                                      className="min-h-7 shrink gap-1 px-2 py-1 text-[11px] md:min-h-8 md:px-2.5 md:text-xs"
                                       disabled={isWorkspaceReadOnly || orderMutations.payItems.isPending}
                                       onClick={() => openItemPayment(item)}
                                       type="button"
@@ -1637,7 +1635,7 @@ export function EmployeeWorkspacePage() {
                                   ) : null}
                                   <Button
                                     aria-label={t('Удалить')}
-                                    className="size-8 min-h-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700 disabled:text-slate-300"
+                                    className="size-7 min-h-7 shrink-0 p-0 text-red-600 hover:bg-red-50 hover:text-red-700 disabled:text-slate-300 md:size-8 md:min-h-8"
                                     disabled={isWorkspaceReadOnly || paidQuantity > 0}
                                     onClick={() => requestRemove(item)}
                                     title={paidQuantity > 0 ? t('payment.paidItemCannotBeRemoved') : t('Удалить')}
@@ -1703,7 +1701,7 @@ export function EmployeeWorkspacePage() {
                       )
                     })}
                     {!orderItems.length && !orderItemsQuery.isLoading ? (
-                      <div className="grid min-h-28 place-items-center p-4 text-center text-sm text-slate-600">
+                      <div className="grid min-h-16 place-items-center p-3 text-center text-xs text-slate-600 md:min-h-28 md:p-4 md:text-sm">
                         Позиции пока не добавлены.
                       </div>
                     ) : null}
@@ -1714,7 +1712,7 @@ export function EmployeeWorkspacePage() {
               <section
                 aria-disabled={selectedOrder.status !== 'open'}
                 className={cn(
-                  'grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-2 overflow-hidden transition',
+                  'grid flex-none gap-2 transition md:min-h-0 md:grid-rows-[minmax(0,1fr)_auto] md:overflow-hidden',
                   selectedOrder.status !== 'open' && 'select-none grayscale opacity-50',
                 )}
               >
@@ -1747,7 +1745,7 @@ export function EmployeeWorkspacePage() {
 
                   return (
                     <>
-                      <div className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-2 overflow-hidden rounded-lg border border-blue-300 bg-slate-50/40 p-2">
+                      <div className="grid max-h-[17rem] min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-1.5 overflow-hidden rounded-lg border border-blue-300 bg-slate-50/40 p-2 md:max-h-none md:gap-2">
                           <div className="grid grid-cols-3 gap-1.5">
                             {(['products', 'services', 'combos'] as const).map((tab) => (
                               <button
@@ -1846,9 +1844,9 @@ export function EmployeeWorkspacePage() {
                           </div>
                         </div>
 
-                      <div className="grid gap-2 rounded-lg border border-amber-300 p-2.5">
+                      <div className="grid gap-1.5 rounded-lg border border-amber-300 p-1.5 md:gap-2 md:p-2.5">
                         <div className="flex items-center justify-between gap-2">
-                          <div>
+                          <div className="hidden md:block">
                             <h4 className="text-sm font-semibold text-slate-950">
                               {isSelectedTable ? t('session.occupancy') : 'Сессия'}
                             </h4>
@@ -1865,7 +1863,7 @@ export function EmployeeWorkspacePage() {
                             </p>
                           </div>
                           {hasActiveSession ? (
-                            <div className="shrink-0 rounded-md border border-cyan-100 bg-cyan-50 px-2.5 py-1.5 text-right text-sm text-cyan-900">
+                            <div className="ml-auto shrink-0 rounded-md border border-cyan-100 bg-cyan-50 px-2 py-1 text-right text-xs text-cyan-900 md:px-2.5 md:py-1.5 md:text-sm">
                               {hasComboGiftTime && selectedSessionLimitInfo ? (
                                 <div
                                   className={cn(
@@ -1873,7 +1871,7 @@ export function EmployeeWorkspacePage() {
                                     selectedSessionLimitInfo.isExpired ? 'text-red-800' : 'text-emerald-800',
                                   )}
                                 >
-                                  <Hourglass className="size-4" />
+                                  <Hourglass className="size-3.5 md:size-4" />
                                   {selectedSessionLimitInfo.isExpired
                                     ? t('ui.limit_istek_a337232')
                                     : t('session.giftTimeRemaining', {
@@ -1882,11 +1880,11 @@ export function EmployeeWorkspacePage() {
                                 </div>
                               ) : (
                                 <div className="flex items-center justify-end gap-1.5 font-semibold">
-                                  <Timer className="size-4" />
+                                  <Timer className="size-3.5 md:size-4" />
                                   {selectedPlace ? formatTimedSessionElapsed(selectedPlace, nowMs) : '00:00'}
                                 </div>
                               )}
-                              <div className="mt-0.5 text-xs">
+                              <div className="mt-0.5 hidden text-xs md:block">
                                 {hasComboGiftTime && selectedPlace
                                   ? `${t('session.elapsed', { time: formatTimedSessionElapsed(selectedPlace, nowMs) })} · `
                                   : null}
@@ -1898,14 +1896,14 @@ export function EmployeeWorkspacePage() {
                                 )}
                               </div>
                               {selectedSessionGraceNotice ? (
-                                <div className="mt-0.5 text-xs font-semibold text-orange-700">
+                                <div className="mt-0.5 hidden text-xs font-semibold text-orange-700 md:block">
                                   {t('session.graceRemaining', { minutes: selectedSessionGraceNotice })}
                                 </div>
                               ) : null}
                               {selectedSessionLimitInfo && !hasComboGiftTime ? (
                                 <div
                                   className={cn(
-                                    'mt-0.5 text-xs font-semibold',
+                                    'mt-0.5 hidden text-xs font-semibold md:block',
                                     selectedSessionLimitInfo.isExpired ? 'text-red-800' : 'text-orange-700',
                                   )}
                                 >
@@ -1916,18 +1914,18 @@ export function EmployeeWorkspacePage() {
                               ) : null}
                             </div>
                           ) : tableOpenedAt ? (
-                            <div className="shrink-0 rounded-md border border-cyan-100 bg-cyan-50 px-2.5 py-1.5 text-right text-sm text-cyan-900">
+                            <div className="ml-auto shrink-0 rounded-md border border-cyan-100 bg-cyan-50 px-2 py-1 text-right text-xs text-cyan-900 md:px-2.5 md:py-1.5 md:text-sm">
                               <div className="flex items-center justify-end gap-1.5 font-semibold">
-                                <Timer className="size-4" />
+                                <Timer className="size-3.5 md:size-4" />
                                 {formatElapsed(tableOpenedAt, nowMs)}
                               </div>
-                              <div className="mt-0.5 text-xs">{t('session.tableOpen')}</div>
+                              <div className="mt-0.5 hidden text-xs md:block">{t('session.tableOpen')}</div>
                             </div>
                           ) : null}
                         </div>
 
                         {!isSelectedTable ? (
-                          <div className="grid gap-2">
+                          <div className="grid gap-1.5 md:gap-2">
                             {canStartSession ? (
                               <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-2">
                                 <div className="flex items-center justify-between gap-2">
@@ -2000,9 +1998,9 @@ export function EmployeeWorkspacePage() {
                                 </div>
                               </div>
                             ) : null}
-                            <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
+                            <div className="grid grid-cols-3 gap-1.5 md:gap-2">
                             <Button
-                              className="min-h-9 bg-emerald-700 text-white hover:bg-emerald-800 focus-visible:ring-emerald-700"
+                              className="min-h-8 gap-1 bg-emerald-700 px-1 text-[11px] text-white hover:bg-emerald-800 focus-visible:ring-emerald-700 md:min-h-9 md:px-1.5 md:text-xs"
                               disabled={isWorkspaceReadOnly || (!canStartSession && !isSessionPaused) || isSessionActionPending}
                               onClick={() => {
                                 if (!selectedPlace) return
@@ -2017,10 +2015,10 @@ export function EmployeeWorkspacePage() {
                               title={isSessionPaused ? t('session.resume') : t('session.start')}
                               type="button"
                             >
-                              <Play className="size-4" /> {isSessionPaused ? t('session.resume') : t('session.start')}
+                              <Play className="size-3.5 md:size-4" /> {isSessionPaused ? t('session.resume') : t('session.start')}
                             </Button>
                             <Button
-                              className="min-h-9 border border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200 focus-visible:ring-amber-500"
+                              className="min-h-8 gap-1 border border-amber-300 bg-amber-100 px-1 text-[11px] text-amber-900 hover:bg-amber-200 focus-visible:ring-amber-500 md:min-h-9 md:px-1.5 md:text-xs"
                               disabled={isWorkspaceReadOnly || !hasActiveSession || isSessionPaused || isSessionActionPending}
                               onClick={() =>
                                 selectedPlace?.active_session_id &&
@@ -2029,10 +2027,10 @@ export function EmployeeWorkspacePage() {
                               title={t('session.pause')}
                               type="button"
                             >
-                              <Pause className="size-4" /> {t('session.pause')}
+                              <Pause className="size-3.5 md:size-4" /> {t('session.pause')}
                             </Button>
                             <Button
-                              className="min-h-9 bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-600"
+                              className="min-h-8 gap-1 bg-red-600 px-1 text-[11px] text-white hover:bg-red-700 focus-visible:ring-red-600 md:min-h-9 md:px-1.5 md:text-xs"
                               disabled={isWorkspaceReadOnly || !hasActiveSession || isSessionActionPending}
                               onClick={() =>
                                 selectedPlace?.active_session_id &&
@@ -2041,7 +2039,7 @@ export function EmployeeWorkspacePage() {
                               title={t('session.stop')}
                               type="button"
                             >
-                              <Square className="size-4" /> {t('session.stop')}
+                              <Square className="size-3.5 md:size-4" /> {t('session.stop')}
                             </Button>
                             </div>
                           </div>
@@ -2053,7 +2051,7 @@ export function EmployeeWorkspacePage() {
               </section>
             </div>
 
-            <footer className="border-t border-slate-200 px-4 py-3 text-xs text-slate-500">
+            <footer className="hidden border-t border-slate-200 px-4 py-3 text-xs text-slate-500 md:block">
               Таймер считается локально; финальная сумма сессии пересчитывается сервером при завершении.
             </footer>
           </aside>
