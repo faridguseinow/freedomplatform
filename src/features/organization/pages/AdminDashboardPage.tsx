@@ -1,5 +1,6 @@
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import {
+  Eye,
   HelpCircle,
   LayoutDashboard,
 } from 'lucide-react'
@@ -124,9 +125,16 @@ export function AdminDashboardPage() {
     productReportRange === 'all' ? null : productReportRange === 'today' ? reportBusinessDate : productReportStart,
     productReportRange === 'all' ? null : productReportRange === 'today' ? reportBusinessDate : productReportEnd,
   )
+  const todayProfitQuery = useProductProfitReport(organizationId, reportBusinessDate, reportBusinessDate)
   const productProfitRows = (productProfitQuery.data ?? []).filter(
     (row) => selectedProductId === 'all' || row.productId === selectedProductId,
   )
+  const todayProfitRows = todayProfitQuery.data ?? []
+  const serviceRevenue = todayProfitRows
+    .filter((row) => row.itemType === 'service')
+    .reduce((sum, row) => sum + row.revenue, 0)
+  const catalogCost = todayProfitRows.reduce((sum, row) => sum + row.cost, 0)
+  const cleanIncome = (paymentSummary?.total ?? 0) - catalogCost
   const openOrders = openOrdersCountQuery.data ?? 0
   const openShifts = shifts.filter((shift) => shift.status === 'open' || shift.status === 'closing').length
   const timedPlaces = places.filter((place) => place.has_timer).length
@@ -142,6 +150,7 @@ export function AdminDashboardPage() {
     paymentSummaryQuery.isLoading ||
     revenueBreakdownQuery.isLoading ||
     usageHoursQuery.isLoading ||
+    todayProfitQuery.isLoading ||
     productProfitQuery.isLoading
 
   const firstError =
@@ -155,6 +164,7 @@ export function AdminDashboardPage() {
     paymentSummaryQuery.error ??
     revenueBreakdownQuery.error ??
     usageHoursQuery.error ??
+    todayProfitQuery.error ??
     productProfitQuery.error
   const buildAdminPath = (path: string) =>
     getTenantRoutePath(path, currentOrganization?.slug)
@@ -162,18 +172,27 @@ export function AdminDashboardPage() {
   return (
     <section className="grid gap-5">
       <header className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex min-w-0 items-center gap-3">
-          <CatalogImage
-            alt={currentOrganization?.name ?? 'Организация'}
-            className="size-14"
-            imagePath={currentOrganization?.logo_path}
-          />
-          <div className="min-w-0">
-            <h2 className="truncate text-2xl font-semibold text-slate-950 sm:text-3xl">
-              {currentOrganization?.name ?? t("ui.organizatsiya_48b493a")}
-            </h2>
-            <p className="mt-1 text-sm font-medium text-slate-500">{reportBusinessDate}</p>
+        <div className="flex min-w-0 items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <CatalogImage
+              alt={currentOrganization?.name ?? 'Организация'}
+              className="size-14"
+              imagePath={currentOrganization?.logo_path}
+            />
+            <div className="min-w-0">
+              <h2 className="truncate text-2xl font-semibold text-slate-950 sm:text-3xl">
+                {currentOrganization?.name ?? t("ui.organizatsiya_48b493a")}
+              </h2>
+              <p className="mt-1 text-sm font-medium text-slate-500">{reportBusinessDate}</p>
+            </div>
           </div>
+          <Link
+            className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-md border border-emerald-700 px-3 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 sm:px-4"
+            to={buildAdminPath('/admin/live')}
+          >
+            <Eye className="size-4" />
+            <span className="hidden sm:inline">{t('dashboard.monitoring')}</span>
+          </Link>
         </div>
       </header>
 
@@ -201,7 +220,7 @@ export function AdminDashboardPage() {
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-lg font-semibold text-slate-950">{t("ui.vyruchka_po_napravleniyam_segodnya_99f8f48")}</h3>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-5">
           <StatCard
             description="Выручка по заказам PlayStation без товарных позиций. Товары из этих заказов считаются отдельно в карточке Товары."
             label="PlayStation"
@@ -215,16 +234,22 @@ export function AdminDashboardPage() {
             value={formatMoney(revenueBreakdown?.billiard ?? 0)}
           />
           <StatCard
-            description="Вся оплаченная выручка заказов со столов и VIP-комнат: услуги, товары, комбо и ручные позиции внутри этих заказов."
-            label="Столы"
+            description="dashboard.serviceRevenueDescription"
+            label="dashboard.serviceRevenue"
             tone="default"
-            value={formatMoney(revenueBreakdown?.tables ?? 0)}
+            value={formatMoney(serviceRevenue)}
           />
           <StatCard
             description="dashboard.catalogProfitDescription"
             label="dashboard.catalogProfit"
             tone="default"
             value={formatMoney(revenueBreakdown?.goods ?? 0)}
+          />
+          <StatCard
+            description="dashboard.cleanIncomeDescription"
+            label="dashboard.cleanIncome"
+            tone="success"
+            value={formatMoney(cleanIncome)}
           />
         </div>
       </section>

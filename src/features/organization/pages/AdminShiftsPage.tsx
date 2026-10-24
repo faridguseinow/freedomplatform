@@ -103,7 +103,7 @@ export function AdminShiftsPage() {
   type ShiftDayGroup = (typeof dayGroups)[number]
 
   const renderDesktopGroups = (groups: ShiftDayGroup[], allowDelete: boolean) => (
-    <div className="hidden min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm md:block">
+    <div className="hidden min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm xl:block">
       <div className="h-full overflow-auto overscroll-contain">
         <table className="min-w-full border-separate border-spacing-0 text-sm">
           <thead className="sticky top-0 z-20 bg-slate-50 shadow-[0_1px_0_0_rgb(226_232_240)]">
@@ -197,7 +197,7 @@ export function AdminShiftsPage() {
   )
 
   const renderMobileGroups = (groups: ShiftDayGroup[], allowDelete: boolean) => (
-    <div className="grid gap-3 md:hidden">
+    <div className="grid gap-3 xl:hidden">
       {groups.map((group) => (
         <section className="overflow-hidden rounded-lg border border-emerald-300 bg-white shadow-sm ring-1 ring-emerald-100" key={group.date}>
           <header className="shift-day-header flex items-center justify-between gap-3 border-b border-emerald-800 bg-emerald-700/75 px-3 py-2">
@@ -258,7 +258,7 @@ export function AdminShiftsPage() {
   )
 
   return (
-    <section className="grid gap-4 md:h-[calc(100svh-2.75rem)] md:grid-rows-[auto_minmax(0,1fr)_auto] md:overflow-hidden">
+    <section className="grid gap-4 xl:h-[calc(100svh-2.75rem)] xl:grid-rows-[auto_minmax(0,1fr)_auto] xl:overflow-hidden">
       <header className="grid gap-2">
         <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">{t("ui.smeny_415748c")}</h2>
         <p className="max-w-3xl text-sm leading-6 text-slate-600">
@@ -341,7 +341,7 @@ export function AdminShiftsPage() {
               </button>
             </div>
             {selectedPeriod.groups.length ? renderDesktopGroups(selectedPeriod.groups, false) : null}
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain md:hidden">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain xl:hidden">
               {selectedPeriod.groups.length ? renderMobileGroups(selectedPeriod.groups, false) : (
                 <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
                   {t("ui.smeny_ne_naydeny_6a589a1")}
@@ -349,7 +349,7 @@ export function AdminShiftsPage() {
               )}
             </div>
             {!selectedPeriod.groups.length ? (
-              <div className="hidden rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600 md:block">
+              <div className="hidden rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600 xl:block">
                 {t("ui.smeny_ne_naydeny_6a589a1")}
               </div>
             ) : null}

@@ -523,6 +523,7 @@ const normalizeCatalogName = (value: string) => value
   .trim()
 
 const isTeaName = (value: string) => /(^| )(CAY|CHAY|TEA)( |$)/.test(normalizeCatalogName(value))
+const isHookahName = (value: string) => /(^| )(QELYAN|KALYAN|HOOKAH|NARGILE)( |$)/.test(normalizeCatalogName(value))
 
 export function useProductProfitReport(
   organizationId: string | null,
@@ -562,6 +563,7 @@ export function useProductProfitReport(
       if (servicesError) throw new Error(servicesError.message)
       const serviceByName = new Map((services ?? []).map((service) => [normalizeCatalogName(service.name), service]))
       const teaServices = (services ?? []).filter((service) => isTeaName(service.name))
+      const hookahServices = (services ?? []).filter((service) => isHookahName(service.name))
 
       const items: Array<{
         item_type: string
@@ -593,6 +595,7 @@ export function useProductProfitReport(
           ? (services ?? []).find((service) => service.id === item.service_id)
           : serviceByName.get(normalizeCatalogName(item.name_snapshot))
             ?? (isTeaName(item.name_snapshot) && teaServices.length === 1 ? teaServices[0] : undefined)
+            ?? (isHookahName(item.name_snapshot) && hookahServices.length === 1 ? hookahServices[0] : undefined)
         const itemType = matchedService ? 'service' : 'product'
         const productId = matchedService
           ? `service:${matchedService.id}`
