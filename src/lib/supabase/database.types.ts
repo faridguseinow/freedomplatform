@@ -2079,18 +2079,16 @@ export type Database = {
         }
         Returns: FinancialPeriodSummary
       }
-      submit_financial_period: {
+      close_financial_period: {
         Args: {
           target_period_start: string
           target_period_end: string
         }
         Returns: FinancialPeriodRow
       }
-      review_financial_period: {
+      reopen_financial_period: {
         Args: {
           target_period_id: string
-          target_decision: 'approved' | 'clarification_requested' | 'rejected'
-          target_comment?: string | null
         }
         Returns: FinancialPeriodRow
       }

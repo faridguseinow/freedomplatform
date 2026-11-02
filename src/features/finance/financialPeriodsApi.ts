@@ -48,9 +48,9 @@ export function useFinancialPeriodMutations(organizationId: string | null) {
   }
 
   return {
-    submit: useMutation({
+    close: useMutation({
       mutationFn: async ({ periodStart, periodEnd }: { periodStart: string; periodEnd: string }) => {
-        const { data, error } = await supabase.rpc('submit_financial_period', {
+        const { data, error } = await supabase.rpc('close_financial_period', {
           target_period_start: periodStart,
           target_period_end: periodEnd,
         })
@@ -60,20 +60,10 @@ export function useFinancialPeriodMutations(organizationId: string | null) {
       },
       onSuccess: (period) => invalidate(period.id),
     }),
-    review: useMutation({
-      mutationFn: async ({
-        periodId,
-        decision,
-        comment,
-      }: {
-        periodId: string
-        decision: 'approved' | 'clarification_requested' | 'rejected'
-        comment?: string | null
-      }) => {
-        const { data, error } = await supabase.rpc('review_financial_period', {
+    reopen: useMutation({
+      mutationFn: async ({ periodId }: { periodId: string }) => {
+        const { data, error } = await supabase.rpc('reopen_financial_period', {
           target_period_id: periodId,
-          target_decision: decision,
-          target_comment: comment ?? null,
         })
 
         if (error) throw new Error(error.message)

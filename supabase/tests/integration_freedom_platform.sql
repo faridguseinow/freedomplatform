@@ -71,8 +71,8 @@ $$;
 --    - purchase appears in cash flow only when paid; it is not full-period COGS.
 --    - COGS uses order snapshots.
 --    - negative profit produces zero platform share.
---    - submit_financial_period is idempotent and cannot mutate locked periods.
---    - review_financial_period approved creates one platform_share_accrual.
+--    - close_financial_period closes immediately without platform review.
+--    - reopen_financial_period is available only to the organization admin and is audited.
 --    - confirmed platform share payment reduces outstanding_amount.
 --
 -- 8. Notification outbox:

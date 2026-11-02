@@ -7,6 +7,7 @@ import {
   Eye,
   HelpCircle,
   ListChecks,
+  LockOpen,
   Loader2,
   Plus,
   ReceiptText,
@@ -173,11 +174,11 @@ function financialPeriodMutationMessage(message: string, t: (value: string) => s
 
 const periodStatusLabel: Record<string, string> = {
   open: 'Открыт',
-  submitted: 'На проверке',
-  clarification_requested: 'Нужны уточнения',
-  approved: 'Одобрен',
+  submitted: 'Закрыт',
+  clarification_requested: 'Закрыт',
+  approved: 'Закрыт',
   locked: 'Закрыт',
-  rejected: 'Отклонён',
+  rejected: 'Закрыт',
   cancelled: 'Удалён',
 }
 
@@ -1580,16 +1581,18 @@ export function AdminFinancePeriodsPage() {
     if (periodFilter === 'cancelled') return period.status === 'cancelled'
     return true
   })
-  const totals = visiblePeriods.reduce(
+  const totals = periods
+    .filter((period) => period.status !== 'cancelled')
+    .reduce(
     (result, period) => ({
-      cogs: result.cogs + period.cogs,
+      expenses: result.expenses + period.cogs + period.operating_expenses,
       profit: result.profit + period.net_profit_before_platform_share,
       revenue: result.revenue + period.revenue,
     }),
-    { cogs: 0, profit: 0, revenue: 0 },
-  )
+    { expenses: 0, profit: 0, revenue: 0 },
+    )
   const mutationError =
-    mutations.submit.error ?? mutations.update.error ?? mutations.cancel.error
+    mutations.close.error ?? mutations.reopen.error ?? mutations.update.error ?? mutations.cancel.error
   const mutationErrorMessage = mutationError
     ? financialPeriodMutationMessage(mutationError.message, t)
     : null
@@ -1597,7 +1600,7 @@ export function AdminFinancePeriodsPage() {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
-    mutations.submit.mutate({
+    mutations.close.mutate({
       periodStart: String(form.get('period_start') || nextPeriod.start),
       periodEnd: String(form.get('period_end') || nextPeriod.end),
     })
@@ -1627,18 +1630,15 @@ export function AdminFinancePeriodsPage() {
       { onSuccess: () => setCancellingPeriod(null) },
     )
   }
-  const canChangePeriod = (period: FinancialPeriodRow) =>
-    period.status !== 'locked' && period.status !== 'cancelled'
+  const isClosedPeriod = (period: FinancialPeriodRow) =>
+    ['submitted', 'clarification_requested', 'approved', 'locked', 'rejected'].includes(period.status)
+  const canChangePeriod = (period: FinancialPeriodRow) => period.status === 'open'
   const statusClassName = (period: FinancialPeriodRow) =>
     cn(
       'inline-flex rounded-md px-2 py-1 text-xs font-semibold',
-      period.status === 'submitted' && 'bg-amber-50 text-amber-800',
-      period.status === 'clarification_requested' && 'bg-orange-50 text-orange-800',
-      period.status === 'locked' && 'bg-emerald-50 text-emerald-800',
-      period.status === 'rejected' && 'bg-red-50 text-red-700',
+      isClosedPeriod(period) && 'bg-emerald-50 text-emerald-800',
       period.status === 'cancelled' && 'bg-slate-100 text-slate-500',
       period.status === 'open' && 'bg-slate-100 text-slate-700',
-      period.status === 'approved' && 'bg-emerald-50 text-emerald-800',
     )
   const filterClassName = (filter: typeof periodFilter) =>
     cn(
@@ -1656,30 +1656,59 @@ export function AdminFinancePeriodsPage() {
         <Eye aria-hidden="true" className="size-4" />
         {t("ui.otkryt_1259571")}
       </Link>
-      <Button
-        disabled={!canChangePeriod(period) || mutations.update.isPending}
-        onClick={() => setEditingPeriod(period)}
-        type="button"
-        variant="secondary"
-      >
-        <Edit3 aria-hidden="true" className="size-4" />
-        {t("ui.izmenit_9d809f8")}
-      </Button>
-      <Button
-        disabled={!canChangePeriod(period) || mutations.cancel.isPending}
-        onClick={() => setCancellingPeriod(period)}
-        type="button"
-        variant="danger"
-      >
-        <Trash2 aria-hidden="true" className="size-4" />
-        {t("ui.udalit_86ea33a")}
-      </Button>
+      {isClosedPeriod(period) ? (
+        <Button
+          disabled={mutations.reopen.isPending}
+          onClick={() => {
+            if (window.confirm(t('finance.confirmReopenPeriod'))) {
+              mutations.reopen.mutate({ periodId: period.id })
+            }
+          }}
+          type="button"
+          variant="secondary"
+        >
+          <LockOpen aria-hidden="true" className="size-4" />
+          {t('finance.reopenPeriod')}
+        </Button>
+      ) : (
+        <>
+          <Button
+            disabled={!canChangePeriod(period) || mutations.close.isPending}
+            onClick={() => mutations.close.mutate({
+              periodEnd: period.period_end,
+              periodStart: period.period_start,
+            })}
+            type="button"
+          >
+            <ListChecks aria-hidden="true" className="size-4" />
+            {t('finance.closePeriod')}
+          </Button>
+          <Button
+            disabled={!canChangePeriod(period) || mutations.update.isPending}
+            onClick={() => setEditingPeriod(period)}
+            type="button"
+            variant="secondary"
+          >
+            <Edit3 aria-hidden="true" className="size-4" />
+            {t("ui.izmenit_9d809f8")}
+          </Button>
+          <Button
+            disabled={!canChangePeriod(period) || mutations.cancel.isPending}
+            onClick={() => setCancellingPeriod(period)}
+            type="button"
+            variant="danger"
+          >
+            <Trash2 aria-hidden="true" className="size-4" />
+            {t("ui.udalit_86ea33a")}
+          </Button>
+        </>
+      )}
     </div>
   )
 
   return (
     <section className="grid gap-5">
-      <PageHeader description={t("ui.zakrytie_finansovyh_periodov_i_otpravka_na_proverku__893d161")} title={t("ui.finansovye_periody_32fa387")} />
+      <PageHeader description={t('finance.periodsOwnerDescription')} title={t("ui.finansovye_periody_32fa387")} />
 
       {mutationErrorMessage ? (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -1689,17 +1718,17 @@ export function AdminFinancePeriodsPage() {
 
       <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4">
         <div>
-          <h3 className="font-semibold text-slate-950">{t("ui.sozdat_period_e3ec01e")}</h3>
+          <h3 className="font-semibold text-slate-950">{t('finance.closePeriod')}</h3>
           <p className="mt-1 text-sm text-slate-600">
-            {t('Выберите даты: система пересчитает доходы, закупки, расходы и прибыль и отправит период на проверку.')}
+            {t('finance.closePeriodDescription')}
           </p>
         </div>
         <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={handleSubmit}>
           <Input key={`start-${nextPeriod.start}`} label={t("ui.nachalo_cb26bdc")} name="period_start" readOnly required type="date" value={nextPeriod.start} />
           <Input key={`end-${nextPeriod.end}`} label={t("ui.konets_4e895fd")} name="period_end" readOnly required type="date" value={nextPeriod.end} />
-          <Button disabled={mutations.submit.isPending || !nextPeriod.isReady} type="submit">
+          <Button disabled={mutations.close.isPending || !nextPeriod.isReady} type="submit">
             <ListChecks aria-hidden="true" className="size-4" />
-            {t("ui.otpravit_76dcf73")}
+            {t('finance.closePeriod')}
           </Button>
         </form>
         {!nextPeriod.isReady ? (
@@ -1723,9 +1752,9 @@ export function AdminFinancePeriodsPage() {
         </div>
 
         <div className="grid gap-2 md:grid-cols-3">
-          <MetricCard label="Доход" value={totals.revenue} />
-          <MetricCard label="Закупка товаров" value={totals.cogs} />
-          <MetricCard label="Чистая прибыль" value={totals.profit} />
+          <MetricCard label={t('finance.totalIncome')} value={totals.revenue} />
+          <MetricCard label={t('finance.totalExpenses')} value={totals.expenses} />
+          <MetricCard label={t('finance.totalNetProfit')} value={totals.profit} />
         </div>
 
         {rows.isLoading ? (

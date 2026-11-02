@@ -133,7 +133,10 @@ export function AdminDashboardPage() {
   const serviceRevenue = todayProfitRows
     .filter((row) => row.itemType === 'service')
     .reduce((sum, row) => sum + row.revenue, 0)
-  const catalogCost = todayProfitRows.reduce((sum, row) => sum + row.cost, 0)
+  const catalogProfit = todayProfitRows.reduce((sum, row) => sum + row.profit, 0)
+  const catalogCost = todayProfitRows
+    .filter((row) => row.itemType === 'product')
+    .reduce((sum, row) => sum + row.cost, 0)
   const cleanIncome = (paymentSummary?.total ?? 0) - catalogCost
   const openOrders = openOrdersCountQuery.data ?? 0
   const openShifts = shifts.filter((shift) => shift.status === 'open' || shift.status === 'closing').length
@@ -243,7 +246,7 @@ export function AdminDashboardPage() {
             description="dashboard.catalogProfitDescription"
             label="dashboard.catalogProfit"
             tone="default"
-            value={formatMoney(revenueBreakdown?.goods ?? 0)}
+            value={formatMoney(catalogProfit)}
           />
           <StatCard
             description="dashboard.cleanIncomeDescription"
@@ -297,12 +300,11 @@ export function AdminDashboardPage() {
       </section>
 
       <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-        <div className="grid items-end gap-4 xl:grid-cols-[minmax(220px,0.65fr)_minmax(0,1.35fr)]">
-          <div className="min-w-0">
-            <h3 className="text-lg font-semibold text-slate-950">{t('dashboard.productProfitReport')}</h3>
-            <p className="mt-1 text-sm text-slate-600">{t('dashboard.productProfitDescription')}</p>
-          </div>
-          <div className={cn('grid min-w-0 gap-x-3 gap-y-2', productReportRange === 'period' ? 'sm:grid-cols-2 xl:grid-cols-4' : 'sm:grid-cols-2')}>
+        <div className="min-w-0">
+          <h3 className="text-lg font-semibold text-slate-950">{t('dashboard.productProfitReport')}</h3>
+          <p className="mt-1 text-sm text-slate-600">{t('dashboard.productProfitDescription')}</p>
+        </div>
+        <div className={cn('grid min-w-0 gap-x-3 gap-y-2', productReportRange === 'period' ? 'sm:grid-cols-2 xl:grid-cols-4' : 'sm:grid-cols-2')}>
             <label className="grid gap-1 text-xs font-medium text-slate-600">
               {t('dashboard.reportRange')}
               <select
@@ -338,7 +340,6 @@ export function AdminDashboardPage() {
                 ))}
               </select>
             </label>
-          </div>
         </div>
         <div className="grid gap-2">
           {productProfitRows.length ? productProfitRows.map((row) => (
@@ -348,7 +349,8 @@ export function AdminDashboardPage() {
                 <h4 className="truncate font-medium text-slate-950">{row.name}</h4>
                 <p className="mt-1 text-xs text-slate-500">
                   {t(row.itemType === 'service' ? 'dashboard.service' : 'dashboard.product')} ·{' '}
-                  {t('dashboard.soldQuantity')}: {formatMoney(row.quantity)} · {t('dashboard.revenue')}: {formatMoney(row.revenue)} · {t('dashboard.cost')}: {formatMoney(row.cost)}
+                  {t('dashboard.soldQuantity')}: {formatMoney(row.quantity)} · {t('dashboard.revenue')}: {formatMoney(row.revenue)}
+                  {row.itemType === 'product' ? <> · {t('dashboard.cost')}: {formatMoney(row.cost)}</> : null}
                 </p>
               </div>
               <div className="text-right">

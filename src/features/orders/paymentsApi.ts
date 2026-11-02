@@ -614,7 +614,7 @@ export function useProductProfitReport(
         }
         current.quantity += item.quantity
         current.revenue += item.total_price
-        current.cost += item.total_cost_snapshot ?? 0
+        current.cost += itemType === 'service' ? 0 : (item.total_cost_snapshot ?? 0)
         current.profit = current.revenue - current.cost
         rows.set(productId, current)
       }

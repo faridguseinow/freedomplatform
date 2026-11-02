@@ -1,24 +1,11 @@
 import { getCurrentLocale } from '../../../lib/i18n/translator'
-import {
-  CheckCircle2,
-  Edit3,
-  Eye,
-  Trash2,
-  XCircle,
-} from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Button } from '../../../components/ui/Button'
-import { Input } from '../../../components/ui/Input'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import { getPlatformRoutePath } from '../../../lib/routing/appHost'
 import { usePaymentMethodSummary, useRevenueBreakdown } from '../../orders/paymentsApi'
 import { usePlatformOrganizations } from '../../platform/platformApi'
 import { todayDate } from '../financeApi'
-import {
-  useFinancialPeriod,
-  useFinancialPeriodMutations,
-} from '../financialPeriodsApi'
 import { usePlatformOrganizationFinance, usePlatformFinanceSummary } from '../platformFinanceApi'
 import { usePlatformSharePayments } from '../platformShareApi'
 
@@ -28,10 +15,12 @@ const money = (value: number | null | undefined) =>
   )
 
 const statusLabel: Record<string, string> = {
-  submitted: 'На проверке',
-  clarification_requested: 'Нужны уточнения',
+  open: 'Открыт',
+  submitted: 'Закрыт',
+  clarification_requested: 'Закрыт',
+  approved: 'Закрыт',
   locked: 'Закрыт',
-  rejected: 'Отклонён',
+  rejected: 'Закрыт',
   cancelled: 'Удалён',
   confirmed: 'Подтверждён',
   paid: 'Оплачено',
@@ -103,12 +92,6 @@ export function PlatformFinanceOrganizationPage() {
   const { organizationId } = useParams()
   const finance = usePlatformOrganizationFinance(organizationId ?? null)
   const platformPayments = usePlatformSharePayments(organizationId ?? null)
-  const periodMutations = useFinancialPeriodMutations(organizationId ?? null)
-  const [editingPeriod, setEditingPeriod] = useState<{
-    id: string
-    periodEnd: string
-    periodStart: string
-  } | null>(null)
   const [periodState, setPeriodState] = useState<'all' | 'open' | 'closed'>('all')
   const [selectedPeriodId, setSelectedPeriodId] = useState('all')
   const today = todayDate()
@@ -143,28 +126,6 @@ export function PlatformFinanceOrganizationPage() {
           && payment.billing_period_end === selectedPeriod.period_end)
         .reduce((sum, payment) => sum + payment.amount, 0)
     : paidToPlatform
-
-  const handlePeriodUpdate = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!editingPeriod) return
-    const form = new FormData(event.currentTarget)
-    periodMutations.update.mutate(
-      {
-        periodEnd: String(form.get('period_end') || editingPeriod.periodEnd),
-        periodId: editingPeriod.id,
-        periodStart: String(form.get('period_start') || editingPeriod.periodStart),
-      },
-      { onSuccess: () => setEditingPeriod(null) },
-    )
-  }
-
-  const handlePeriodDelete = (periodId: string) => {
-    if (!window.confirm(t('platform.deletePeriodForeverConfirm'))) return
-    periodMutations.delete.mutate({
-      comment: t('platform.deletedForeverReason'),
-      periodId,
-    })
-  }
 
   return (
     <section className="grid gap-5">
@@ -254,20 +215,8 @@ export function PlatformFinanceOrganizationPage() {
           </div>
         </div>
 
-        {editingPeriod ? (
-          <form
-            className="grid gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 sm:grid-cols-[1fr_1fr_auto_auto]"
-            onSubmit={handlePeriodUpdate}
-          >
-            <Input defaultValue={editingPeriod.periodStart} label="Начало" name="period_start" type="date" />
-            <Input defaultValue={editingPeriod.periodEnd} label="Конец" name="period_end" type="date" />
-            <Button disabled={periodMutations.update.isPending} type="submit">Сохранить</Button>
-            <Button onClick={() => setEditingPeriod(null)} type="button" variant="secondary">Отмена</Button>
-          </form>
-        ) : null}
-
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] border-collapse text-sm">
+          <table className="w-full min-w-[760px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase text-slate-500">
                 <th className="py-3 pr-3">Период</th>
@@ -275,8 +224,7 @@ export function PlatformFinanceOrganizationPage() {
                 <th className="py-3 pr-3 text-right">Доход</th>
                 <th className="py-3 pr-3 text-right">Закупка товаров</th>
                 <th className="py-3 pr-3 text-right">Прибыль</th>
-                <th className="py-3 pr-3">Отправлен</th>
-                <th className="py-3 text-right">Действия</th>
+                <th className="py-3 pr-3">Закрыт</th>
               </tr>
             </thead>
             <tbody>
@@ -293,86 +241,13 @@ export function PlatformFinanceOrganizationPage() {
                   <td className="py-3 pr-3 text-right">{money(period.revenue)}</td>
                   <td className="py-3 pr-3 text-right">{money(period.cogs)}</td>
                   <td className="py-3 pr-3 text-right">{money(period.net_profit_before_platform_share)}</td>
-                  <td className="py-3 pr-3 text-slate-600">{formatDateTime(period.submitted_at)}</td>
-                  <td className="py-3">
-                    <div className="flex justify-end gap-2">
-                      <Link
-                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 transition-colors hover:bg-slate-50"
-                        to={getPlatformRoutePath(`/finance/periods/${period.id}`)}
-                      >
-                        <Eye aria-hidden="true" className="size-4" />
-                        Открыть
-                      </Link>
-                      <Button
-                        className="min-h-9 px-3 py-1.5"
-                        disabled={period.status === 'locked'}
-                        onClick={() =>
-                          setEditingPeriod({
-                            id: period.id,
-                            periodEnd: period.period_end,
-                            periodStart: period.period_start,
-                          })
-                        }
-                        type="button"
-                        variant="secondary"
-                      >
-                        <Edit3 aria-hidden="true" className="size-4" />
-                        Изменить
-                      </Button>
-                      <Button
-                        className="min-h-9 px-3 py-1.5"
-                        disabled={periodMutations.delete.isPending}
-                        onClick={() => handlePeriodDelete(period.id)}
-                        type="button"
-                        variant="danger"
-                      >
-                        <Trash2 aria-hidden="true" className="size-4" />
-                        Удалить навсегда
-                      </Button>
-                    </div>
-                  </td>
+                  <td className="py-3 pr-3 text-slate-600">{formatDateTime(period.locked_at ?? period.submitted_at)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
-    </section>
-  )
-}
-
-export function PlatformFinancePeriodPage() {
-  const { periodId } = useParams()
-  const period = useFinancialPeriod(periodId ?? null)
-  const mutations = useFinancialPeriodMutations(period.data?.organization_id ?? null)
-
-  const review = (decision: 'approved' | 'clarification_requested' | 'rejected') => {
-    if (!periodId) return
-    mutations.review.mutate({ periodId, decision })
-  }
-
-  return (
-    <section className="grid gap-5">
-      <PageHeader description="Проверка финансового периода организации." title="Период организации" />
-      {period.data ? (
-        <div className="grid gap-3 rounded-md border border-slate-200 bg-white p-4">
-          <p className="font-medium text-slate-950">{period.data.period_start} - {period.data.period_end}</p>
-          <p className="text-sm text-slate-600">прибыль {money(period.data.net_profit_before_platform_share)} · {statusLabel[period.data.status] ?? period.data.status}</p>
-          <div className="flex flex-wrap gap-2">
-            <Button disabled={mutations.review.isPending} onClick={() => review('approved')} type="button">
-              <CheckCircle2 aria-hidden="true" className="size-4" />
-              Одобрить
-            </Button>
-            <Button disabled={mutations.review.isPending} onClick={() => review('clarification_requested')} type="button" variant="secondary">
-              Запросить уточнение
-            </Button>
-            <Button disabled={mutations.review.isPending} onClick={() => review('rejected')} type="button" variant="danger">
-              <XCircle aria-hidden="true" className="size-4" />
-              Отклонить
-            </Button>
-          </div>
-        </div>
-      ) : null}
     </section>
   )
 }
