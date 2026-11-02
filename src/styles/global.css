@@ -307,6 +307,53 @@ button:disabled {
   border-color: #ef4444;
 }
 
+.finance-period-chart {
+  background-color: rgb(255 255 255 / 72%);
+  border-color: rgb(203 213 225 / 85%);
+}
+
+.theme-dark .finance-period-metric {
+  background-color: var(--theme-surface);
+}
+
+.theme-dark .finance-period-metric--revenue {
+  background-image: linear-gradient(90deg, rgb(16 185 129 / 12%), transparent 42%);
+  border-color: #2f765d;
+}
+
+.theme-dark .finance-period-metric--operations {
+  background-image: linear-gradient(90deg, rgb(245 158 11 / 12%), transparent 42%);
+  border-color: #775c2c;
+}
+
+.theme-dark .finance-period-metric--purchases {
+  background-image: linear-gradient(90deg, rgb(249 115 22 / 12%), transparent 42%);
+  border-color: #8a5632;
+}
+
+.theme-dark .finance-period-metric--expenses {
+  background-image: linear-gradient(90deg, rgb(239 68 68 / 12%), transparent 42%);
+  border-color: #884650;
+}
+
+.theme-dark .finance-period-metric--profit {
+  background-image: linear-gradient(90deg, rgb(14 165 233 / 12%), transparent 42%);
+  border-color: #315b70;
+}
+
+.theme-dark .finance-period-chart {
+  background-color: rgb(12 17 24 / 78%);
+  border-color: #3b4654;
+}
+
+.theme-dark .finance-period-chart .text-slate-300 {
+  color: #3f4b5a;
+}
+
+.theme-dark .finance-period-chart .text-slate-500 {
+  color: #cbd5e1;
+}
+
 
 .modal-panel {
   overflow: auto;

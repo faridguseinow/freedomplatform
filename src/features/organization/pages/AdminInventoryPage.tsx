@@ -37,6 +37,7 @@ const documentSchema = z.object({
         new_product_name: z.string().trim().optional(),
         quantity: z.number().min(0.001, 'Количество должно быть больше 0.'),
         unit_cost: z.number().min(0, 'Цена не может быть отрицательной.').optional(),
+        line_total: z.number().min(0, 'inventory.purchaseLineTotalNonNegative').optional(),
         sale_price: z.number().min(0, 'Цена не может быть отрицательной.'),
         comment: z.string().trim().optional(),
       }),
@@ -71,11 +72,15 @@ const documentSchema = z.object({
     })
   }
 
-  if (value.type === 'purchase' && value.items.some((item) => !item.unit_cost || item.unit_cost <= 0)) {
-    context.addIssue({
-      code: 'custom',
-      message: 'Для каждого товара укажите закупочную цену больше 0.',
-      path: ['items'],
+  if (value.type === 'purchase') {
+    value.items.forEach((item, index) => {
+      if (!item.line_total || item.line_total <= 0) {
+        context.addIssue({
+          code: 'custom',
+          message: 'inventory.purchaseLineTotalRequired',
+          path: ['items', index, 'line_total'],
+        })
+      }
     })
   }
 })
@@ -90,7 +95,7 @@ const emptyPurchase: DocumentFormValues = {
   reference: '',
   comment: '',
   post_now: true,
-  items: [{ product_mode: 'existing', product_id: '', new_product_name: '', quantity: 1, unit_cost: 0, sale_price: 0, comment: '' }],
+  items: [{ product_mode: 'existing', product_id: '', new_product_name: '', quantity: 1, unit_cost: 0, line_total: 0, sale_price: 0, comment: '' }],
 }
 
 const formatNumber = (value: number | null | undefined) =>
@@ -100,6 +105,11 @@ const getCurrentPurchaseCost = (product: {
   average_purchase_cost: number
   purchase_price: number | null
 }) => product.average_purchase_cost > 0 ? product.average_purchase_cost : product.purchase_price ?? 0
+
+const calculatePurchaseUnitCost = (lineTotal: number, quantity: number) =>
+  quantity > 0 && Number.isFinite(lineTotal) && Number.isFinite(quantity)
+    ? Number((lineTotal / quantity).toFixed(4))
+    : 0
 
 export function AdminInventoryPage() {
   const { organizationId, user } = useAuth()
@@ -234,7 +244,9 @@ export function AdminInventoryPage() {
   }, [lowOnly, outOnly, recentAdditionByProductId, search, sortBy, stockProducts])
 
   const documentTotal = watchedItems.reduce(
-    (sum, item) => sum + item.quantity * (item.unit_cost ?? 0),
+    (sum, item) => sum + (documentMode === 'purchase'
+      ? item.line_total ?? 0
+      : item.quantity * (item.unit_cost ?? 0)),
     0,
   )
 
@@ -338,8 +350,14 @@ export function AdminInventoryPage() {
         return
       }
 
-      const resolvedItems: Array<{ productId: string; quantity: number; unitCost: number | null; comment: string | null }> = []
+      const resolvedItems: Array<{ productId: string; quantity: number; unitCost: number | null; lineTotal: number; comment: string | null }> = []
       for (const item of values.items) {
+        const lineTotal = values.type === 'purchase'
+          ? item.line_total ?? 0
+          : item.quantity * (item.unit_cost ?? 0)
+        const unitCost = values.type === 'purchase'
+          ? calculatePurchaseUnitCost(lineTotal, item.quantity)
+          : item.unit_cost ?? null
         let productId = item.product_id ?? ''
         if (item.product_mode === 'new') {
           const product = await productMutations.upsert.mutateAsync({
@@ -353,7 +371,7 @@ export function AdminInventoryPage() {
               characteristics: null,
               image_path: null,
               sale_price: item.sale_price,
-              purchase_price: item.unit_cost ?? null,
+              purchase_price: unitCost,
               stock_quantity: 0,
               minimum_stock_quantity: 0,
               average_purchase_cost: 0,
@@ -377,7 +395,8 @@ export function AdminInventoryPage() {
         resolvedItems.push({
           productId,
           quantity: item.quantity,
-          unitCost: item.unit_cost ?? null,
+          unitCost,
+          lineTotal,
           comment: item.comment || null,
         })
       }
@@ -399,7 +418,7 @@ export function AdminInventoryPage() {
           product_id: item.productId,
           quantity: item.quantity,
           unit_cost: item.unitCost,
-          line_total: item.quantity * (item.unitCost ?? 0),
+          line_total: item.lineTotal,
           comment: item.comment,
         })),
       )
@@ -687,7 +706,7 @@ export function AdminInventoryPage() {
             </div>
             <div className="grid gap-3">
               {fields.map((field, index) => (
-                <div className="grid grid-cols-1 items-end gap-2 rounded-md border border-slate-200 p-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(300px,1fr)_80px_105px_105px_80px_40px]" key={field.id}>
+                <div className="grid grid-cols-1 items-end gap-2 rounded-md border border-slate-200 p-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(280px,1fr)_90px_120px_110px_110px_40px]" key={field.id}>
                   <div className="grid min-w-0 gap-2 sm:col-span-2 sm:grid-cols-[140px_minmax(0,1fr)] lg:col-span-1">
                     <label className="grid min-w-0 gap-1.5 text-sm font-medium text-slate-700">
                       <span>{t('Способ')}</span>
@@ -696,6 +715,7 @@ export function AdminInventoryPage() {
                         setValue(`items.${index}.product_id`, '')
                         setValue(`items.${index}.new_product_name`, '')
                         setValue(`items.${index}.unit_cost`, 0)
+                        setValue(`items.${index}.line_total`, 0)
                         setValue(`items.${index}.sale_price`, 0)
                       } })}>
                         <option value="existing">{t('Выбрать из списка')}</option>
@@ -709,7 +729,10 @@ export function AdminInventoryPage() {
                         <span>{t('Выберите товар')}</span>
                         <select className="min-h-11 w-full min-w-0 rounded-md border border-slate-200 bg-white px-3 text-sm" {...register(`items.${index}.product_id`, { onChange: (event) => {
                           const product = products.find((item) => item.id === event.target.value)
-                          setValue(`items.${index}.unit_cost`, product ? getCurrentPurchaseCost(product) : 0, { shouldValidate: true })
+                          const unitCost = product ? getCurrentPurchaseCost(product) : 0
+                          const quantity = watchedItems[index]?.quantity ?? 1
+                          setValue(`items.${index}.unit_cost`, unitCost, { shouldValidate: true })
+                          setValue(`items.${index}.line_total`, Number((quantity * unitCost).toFixed(2)), { shouldValidate: true })
                           setValue(`items.${index}.sale_price`, product?.sale_price ?? 0, { shouldValidate: true })
                         } })}><option value="">Выберите</option>{products.filter((item) => item.track_stock).map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select>
                       </label>
@@ -718,22 +741,38 @@ export function AdminInventoryPage() {
                       <p className="text-xs text-red-700 sm:col-span-2">{t(errors.items[index]?.product_id?.message ?? errors.items[index]?.new_product_name?.message ?? '')}</p>
                     ) : null}
                   </div>
-                  <Input id={`qty_${field.id}`} label="Кол-во" min={1} step="1" type="number" {...register(`items.${index}.quantity`, { valueAsNumber: true })} />
-                  <Input id={`cost_${field.id}`} label={t('Себестоимость')} min={0} step="1" type="number" {...register(`items.${index}.unit_cost`, { valueAsNumber: true })} />
+                  <Input id={`qty_${field.id}`} label="Кол-во" min={0.001} step="0.001" type="number" {...register(`items.${index}.quantity`, { valueAsNumber: true, onChange: (event) => {
+                    if (documentMode !== 'purchase') return
+                    const quantity = Number(event.target.value)
+                    const lineTotal = watchedItems[index]?.line_total ?? 0
+                    setValue(`items.${index}.unit_cost`, calculatePurchaseUnitCost(lineTotal, quantity), { shouldValidate: true })
+                  } })} />
+                  <Input id={`cost_${field.id}`} label={t('inventory.purchaseUnitCost')} min={0} readOnly={documentMode === 'purchase'} step="0.0001" type="number" {...register(`items.${index}.unit_cost`, { valueAsNumber: true })} />
                   <Input className="border-emerald-500 bg-emerald-50/60 font-semibold text-emerald-950 focus:border-emerald-700 focus:bg-white" error={errors.items?.[index]?.sale_price?.message} id={`sale_price_${field.id}`} label={t('Цена')} min={0} step="0.01" type="number" {...register(`items.${index}.sale_price`, { valueAsNumber: true })} />
-                  <div className="grid content-end gap-1.5 text-sm font-medium text-slate-700">
-                    <span>{t('Итого по позиции')}</span>
-                    <div className="flex min-h-11 items-center rounded-md bg-slate-50 px-2 text-slate-900">
-                      {formatNumber((watchedItems[index]?.quantity ?? 0) * (watchedItems[index]?.unit_cost ?? 0))}
+                  {documentMode === 'purchase' ? (
+                    <Input error={errors.items?.[index]?.line_total?.message ? t(errors.items[index]!.line_total!.message!) : undefined} id={`line_total_${field.id}`} label={t('inventory.purchaseLineTotal')} min={0.01} step="0.01" type="number" {...register(`items.${index}.line_total`, { valueAsNumber: true, onChange: (event) => {
+                      const lineTotal = Number(event.target.value)
+                      const quantity = watchedItems[index]?.quantity ?? 0
+                      setValue(`items.${index}.unit_cost`, calculatePurchaseUnitCost(lineTotal, quantity), { shouldValidate: true })
+                    } })} />
+                  ) : (
+                    <div className="grid content-end gap-1.5 text-sm font-medium text-slate-700">
+                      <span>{t('Итого по позиции')}</span>
+                      <div className="flex min-h-11 items-center rounded-md bg-slate-50 px-2 text-slate-900">
+                        {formatNumber((watchedItems[index]?.quantity ?? 0) * (watchedItems[index]?.unit_cost ?? 0))}
+                      </div>
                     </div>
-                  </div>
+                  )}
                   <div className="flex items-end justify-end sm:justify-start"><button aria-label={t('Убрать позицию')} className="inline-flex size-11 items-center justify-center rounded-md text-red-600 hover:bg-red-50" onClick={() => remove(index)} type="button"><Trash2 className="size-4" /></button></div>
                 </div>
               ))}
-              <Button onClick={() => append({ product_mode: 'existing', product_id: '', new_product_name: '', quantity: 1, unit_cost: 0, sale_price: 0, comment: '' })} type="button" variant="secondary"><Plus className="size-4" />Добавить позицию</Button>
+              <Button onClick={() => append({ product_mode: 'existing', product_id: '', new_product_name: '', quantity: 1, unit_cost: 0, line_total: 0, sale_price: 0, comment: '' })} type="button" variant="secondary"><Plus className="size-4" />Добавить позицию</Button>
             </div>
             {documentMode === 'purchase' ? (
-              <p className="text-xs text-slate-500">{t('inventory.duplicatePurchaseHint')}</p>
+              <div className="grid gap-1 text-xs text-slate-500">
+                <p>{t('inventory.purchaseCalculationHint')}</p>
+                <p>{t('inventory.duplicatePurchaseHint')}</p>
+              </div>
             ) : null}
             {errors.items?.message ? <p className="text-sm text-red-700">{t(errors.items.message)}</p> : null}
             <div className="rounded-md bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800">Итого: {formatNumber(documentTotal)} AZN</div>

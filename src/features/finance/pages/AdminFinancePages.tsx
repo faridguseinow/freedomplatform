@@ -1,8 +1,11 @@
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import {
+  ArrowDownRight,
+  ArrowUpRight,
   Banknote,
   Calculator,
   CalendarCheck,
+  ChartNoAxesCombined,
   Edit3,
   Eye,
   HelpCircle,
@@ -14,6 +17,7 @@ import {
   Repeat,
   Save,
   Settings,
+  ShoppingCart,
   Trash2,
   X,
 } from 'lucide-react'
@@ -353,6 +357,198 @@ function StatGrid({
       {items.map(({ description, label, value }) => (
         <MetricCard description={description} key={label} label={label} value={value} />
       ))}
+    </div>
+  )
+}
+
+type PeriodMetric = {
+  Icon: LucideIcon
+  cardClassName: string
+  getValue: (period: FinancialPeriodSummary) => number
+  iconClassName: string
+  label: string
+  positiveWhenUp: boolean
+  sparklineClassName: string
+  toneClassName: string
+}
+
+const periodMetrics: PeriodMetric[] = [
+  {
+    Icon: Banknote,
+    cardClassName: 'finance-period-metric--revenue',
+    getValue: (period) => period.revenue,
+    iconClassName: 'bg-emerald-100 text-emerald-700',
+    label: 'finance.periodMetricRevenue',
+    positiveWhenUp: true,
+    sparklineClassName: 'text-emerald-600',
+    toneClassName: 'border-emerald-200 bg-emerald-50/50',
+  },
+  {
+    Icon: ReceiptText,
+    cardClassName: 'finance-period-metric--operations',
+    getValue: (period) => period.operating_expenses,
+    iconClassName: 'bg-amber-100 text-amber-700',
+    label: 'finance.periodMetricOperatingExpenses',
+    positiveWhenUp: false,
+    sparklineClassName: 'text-amber-600',
+    toneClassName: 'border-amber-200 bg-amber-50/50',
+  },
+  {
+    Icon: ShoppingCart,
+    cardClassName: 'finance-period-metric--purchases',
+    getValue: (period) => period.cogs,
+    iconClassName: 'bg-orange-100 text-orange-700',
+    label: 'finance.periodMetricPurchases',
+    positiveWhenUp: false,
+    sparklineClassName: 'text-orange-600',
+    toneClassName: 'border-orange-200 bg-orange-50/50',
+  },
+  {
+    Icon: Calculator,
+    cardClassName: 'finance-period-metric--expenses',
+    getValue: (period) => period.cogs + period.operating_expenses,
+    iconClassName: 'bg-red-100 text-red-700',
+    label: 'finance.periodMetricTotalExpenses',
+    positiveWhenUp: false,
+    sparklineClassName: 'text-red-600',
+    toneClassName: 'border-red-200 bg-red-50/50',
+  },
+  {
+    Icon: ChartNoAxesCombined,
+    cardClassName: 'finance-period-metric--profit',
+    getValue: (period) => period.net_profit_before_platform_share,
+    iconClassName: 'bg-sky-100 text-sky-700',
+    label: 'finance.periodMetricNetProfit',
+    positiveWhenUp: true,
+    sparklineClassName: 'text-sky-600',
+    toneClassName: 'border-sky-200 bg-sky-50/50',
+  },
+]
+
+type PeriodChartPoint = { label: string; value: number }
+
+function PeriodChart({ className, points }: { className: string; points: PeriodChartPoint[] }) {
+  const width = 720
+  const height = 116
+  const margin = { bottom: 24, left: 66, right: 10, top: 10 }
+  const chartWidth = width - margin.left - margin.right
+  const chartHeight = height - margin.top - margin.bottom
+  const rawMinimum = Math.min(0, ...points.map((point) => point.value))
+  const rawMaximum = Math.max(0, ...points.map((point) => point.value))
+  const minimum = rawMinimum === rawMaximum ? rawMinimum - 1 : rawMinimum
+  const maximum = rawMinimum === rawMaximum ? rawMaximum + 1 : rawMaximum
+  const range = maximum - minimum
+  const steps = Math.max(points.length - 1, 1)
+  const xAt = (index: number) => margin.left + (index / steps) * chartWidth
+  const yAt = (value: number) => margin.top + ((maximum - value) / range) * chartHeight
+  const polyline = points.map((point, index) => `${xAt(index)},${yAt(point.value)}`).join(' ')
+  const ticks = [maximum, (maximum + minimum) / 2, minimum]
+  const zeroY = yAt(0)
+  const formatAxisValue = (value: number) => new Intl.NumberFormat(getCurrentLocale(), {
+    maximumFractionDigits: 1,
+    notation: Math.abs(value) >= 1000 ? 'compact' : 'standard',
+  }).format(value)
+
+  return (
+    <svg aria-label="Period comparison chart" className="h-28 w-full" role="img" viewBox={`0 0 ${width} ${height}`}>
+      <g className="text-slate-300">
+        {ticks.map((tick) => (
+          <line key={tick} stroke="currentColor" strokeWidth="1" x1={margin.left} x2={width - margin.right} y1={yAt(tick)} y2={yAt(tick)} />
+        ))}
+        <line stroke="currentColor" strokeWidth="1" x1={margin.left} x2={margin.left} y1={margin.top} y2={height - margin.bottom} />
+      </g>
+      <line className="text-slate-500" stroke="currentColor" strokeDasharray="4 3" strokeWidth="1.25" x1={margin.left} x2={width - margin.right} y1={zeroY} y2={zeroY} />
+      <g className="text-slate-500" fill="currentColor" fontSize="9">
+        {ticks.map((tick) => (
+          <text dominantBaseline="middle" key={tick} textAnchor="end" x={margin.left - 8} y={yAt(tick)}>{formatAxisValue(tick)}</text>
+        ))}
+        {points.map((point, index) => (
+          <text key={`${point.label}-${index}`} textAnchor={index === 0 ? 'start' : index === points.length - 1 ? 'end' : 'middle'} x={xAt(index)} y={height - 6}>{point.label}</text>
+        ))}
+      </g>
+      <polyline className={className} fill="none" points={polyline} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" />
+      {points.map((point, index) => (
+        <circle className={className} cx={xAt(index)} cy={yAt(point.value)} fill="currentColor" key={`${point.label}-${point.value}-${index}`} r="3">
+          <title>{point.label}: {money(point.value)}</title>
+        </circle>
+      ))}
+    </svg>
+  )
+}
+
+function PeriodComparisonGrid({
+  currentPeriod,
+  periods,
+  summary,
+}: {
+  currentPeriod: FinancialPeriodRow
+  periods: FinancialPeriodRow[]
+  summary: FinancialPeriodSummary
+}) {
+  const { t } = useI18n()
+  const validPeriods = periods
+    .filter((period) => period.status !== 'cancelled')
+    .sort((first, second) => first.period_start.localeCompare(second.period_start))
+  const currentIndex = validPeriods.findIndex((period) => period.id === currentPeriod.id)
+  const historyEnd = currentIndex >= 0 ? currentIndex + 1 : validPeriods.length
+  const history = validPeriods.slice(Math.max(0, historyEnd - 8), historyEnd)
+  const previousPeriod = currentIndex > 0 ? validPeriods[currentIndex - 1] : null
+  const formatPercent = (value: number) => new Intl.NumberFormat(getCurrentLocale(), {
+    maximumFractionDigits: 1,
+    signDisplay: 'exceptZero',
+  }).format(value)
+
+  return (
+    <div className="grid gap-3">
+      {periodMetrics.map((metric) => {
+        const currentValue = metric.getValue(summary)
+        const previousValue = previousPeriod ? metric.getValue(previousPeriod) : null
+        const change = previousValue === null || previousValue === 0
+          ? previousValue === 0 && currentValue === 0 ? 0 : null
+          : ((currentValue - previousValue) / Math.abs(previousValue)) * 100
+        const isUp = (change ?? 0) > 0
+        const isDown = (change ?? 0) < 0
+        const isPositive = change === 0 || (isUp && metric.positiveWhenUp) || (isDown && !metric.positiveWhenUp)
+        const chartPoints = history.length
+          ? history.map((period) => ({
+            label: `${period.period_start.slice(5, 7)}.${period.period_start.slice(2, 4)}`,
+            value: period.id === currentPeriod.id ? currentValue : metric.getValue(period),
+          }))
+          : [{
+            label: `${currentPeriod.period_start.slice(5, 7)}.${currentPeriod.period_start.slice(2, 4)}`,
+            value: currentValue,
+          }]
+        const ChangeIcon = isDown ? ArrowDownRight : ArrowUpRight
+
+        return (
+          <article className={cn('finance-period-metric grid min-w-0 gap-4 rounded-lg border p-4 shadow-sm md:grid-cols-[minmax(190px,240px)_minmax(0,1fr)] md:items-center', metric.toneClassName, metric.cardClassName)} key={metric.label}>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', metric.iconClassName)}>
+                  <metric.Icon aria-hidden="true" className="size-4" />
+                </span>
+                <p className="min-w-0 text-xs font-semibold uppercase leading-4 text-slate-600">
+                  {t(metric.label)}
+                </p>
+              </div>
+              <div className="mt-3 min-w-0">
+                <p className="truncate text-lg font-semibold text-slate-950">{money(currentValue)}</p>
+                {change === null ? (
+                  <p className="mt-1 text-xs text-slate-500">{t('finance.noPreviousPeriod')}</p>
+                ) : (
+                  <p className={cn('mt-1 flex items-center gap-0.5 text-xs font-semibold', isPositive ? 'text-emerald-700' : 'text-red-700')}>
+                    {change !== 0 ? <ChangeIcon aria-hidden="true" className="size-3.5" /> : null}
+                    {formatPercent(change)}% · {t('finance.vsPreviousPeriod')}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="finance-period-chart min-w-0 rounded-md border px-2 pt-1">
+              <PeriodChart className={metric.sparklineClassName} points={chartPoints} />
+            </div>
+          </article>
+        )
+      })}
     </div>
   )
 }
@@ -1873,6 +2069,7 @@ export function AdminFinancePeriodsPage() {
 export function AdminFinancePeriodDetailPage() {
   const { periodId } = useParams()
   const period = useFinancialPeriod(periodId ?? null)
+  const periods = useFinancialPeriods(period.data?.organization_id ?? null)
   const liveSummary = useFinancePeriodSummary(
     period.data?.organization_id ?? null,
     period.data?.period_start ?? '',
@@ -1882,7 +2079,13 @@ export function AdminFinancePeriodDetailPage() {
   return (
     <section className="grid gap-5">
       <PageHeader description="Детальный финансовый период организации." title="Финансовый период" />
-      {period.data ? <StatGrid summary={liveSummary.data ?? period.data} /> : null}
+      {period.data ? (
+        <PeriodComparisonGrid
+          currentPeriod={period.data}
+          periods={periods.data ?? []}
+          summary={liveSummary.data ?? period.data}
+        />
+      ) : null}
     </section>
   )
 }
