@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Clock3,
   CreditCard,
+  HandCoins,
   Hourglass,
   Loader2,
   Pause,
@@ -47,6 +48,7 @@ import {
 } from '../../orders/employeeOrdersApi'
 import { formatOrderDisplayNumber } from '../../orders/orderDisplay'
 import { useCurrentEmployeeShift } from '../../shifts/shiftsApi'
+import { useDebtMutations } from '../../debts/debtsApi'
 import {
   buildWorkspaceLayout,
   isTablePlace,
@@ -312,6 +314,7 @@ export function EmployeeWorkspacePage() {
   const servicesQuery = useEmployeeServices({ organizationId })
   const combosQuery = useEmployeeCombos({ organizationId })
   const orderMutations = useEmployeeOrderMutations(organizationId)
+  const debtMutations = useDebtMutations(organizationId)
   const currentShiftQuery = useCurrentEmployeeShift(organizationId)
   const canObserveWithoutShift =
     role === USER_ROLES.organizationAdmin || role === USER_ROLES.platformOwner
@@ -322,6 +325,11 @@ export function EmployeeWorkspacePage() {
   const [pickerTab, setPickerTab] = useState<PickerTab>('products')
   const [paymentChoiceOrderId, setPaymentChoiceOrderId] = useState<string | null>(null)
   const [isSplitPaymentOpen, setIsSplitPaymentOpen] = useState(false)
+  const [isDebtModalOpen, setIsDebtModalOpen] = useState(false)
+  const [debtCustomerName, setDebtCustomerName] = useState('')
+  const [debtCustomerPhone, setDebtCustomerPhone] = useState('')
+  const [debtDueOn, setDebtDueOn] = useState('')
+  const [debtComment, setDebtComment] = useState('')
   const [itemPaymentItemId, setItemPaymentItemId] = useState<string | null>(null)
   const [itemPaymentQuantity, setItemPaymentQuantity] = useState(1)
   const [orderCloseAction, setOrderCloseAction] = useState<OrderCloseAction | null>(null)
@@ -589,6 +597,11 @@ export function EmployeeWorkspacePage() {
     setSearch('')
     setPaymentChoiceOrderId(null)
     setIsSplitPaymentOpen(false)
+    setIsDebtModalOpen(false)
+    setDebtCustomerName('')
+    setDebtCustomerPhone('')
+    setDebtDueOn('')
+    setDebtComment('')
     setItemPaymentItemId(null)
     setOrderCloseAction(null)
     setIsTransferOpen(false)
@@ -852,6 +865,30 @@ export function EmployeeWorkspacePage() {
     })
   }
 
+  const openDebtForm = () => {
+    if (!selectedOrder) return
+    setDebtCustomerName(selectedOrder.customer_label ?? '')
+    setDebtCustomerPhone('')
+    setDebtDueOn('')
+    setDebtComment(orderComment.trim())
+    setTipAmount('')
+    setIsDebtModalOpen(true)
+  }
+
+  const submitDebt = () => {
+    if (!selectedOrder || !debtCustomerName.trim() || !debtCustomerPhone.trim()) return
+    void runAction(async () => {
+      await debtMutations.create.mutateAsync({
+        orderId: selectedOrder.id,
+        customerName: debtCustomerName.trim(),
+        customerPhone: debtCustomerPhone.trim(),
+        dueOn: debtDueOn || null,
+        comment: debtComment.trim() || null,
+      })
+      closeOrder()
+    })
+  }
+
   const openItemPayment = (item: EmployeeOrderItemRow) => {
     const unpaidQuantity = Math.max(0, Number(item.quantity) - Number(item.paid_quantity ?? 0))
     if (!selectedOrderId || selectedOrder?.status !== 'open' || unpaidQuantity <= 0) return
@@ -974,7 +1011,8 @@ export function EmployeeWorkspacePage() {
     orderMutations.completePayment.isPending ||
     orderMutations.completePaymentWithTip.isPending ||
     orderMutations.completeSplitPayment.isPending ||
-    orderMutations.prepayOrder.isPending
+    orderMutations.prepayOrder.isPending ||
+    debtMutations.create.isPending
 
   return (
     <section className="flex min-h-[calc(100svh-1rem)] flex-col gap-3">
@@ -1410,6 +1448,14 @@ export function EmployeeWorkspacePage() {
                                   <CreditCard className="size-4" /> Картой
                                 </Button>
                               </div>
+                              <Button
+                                disabled={isWorkspaceReadOnly || isClosingOrder || selectedOrder.unpaid_amount <= 0}
+                                onClick={openDebtForm}
+                                type="button"
+                                variant="secondary"
+                              >
+                                <HandCoins className="size-4" /> {t('debt.writeButton')}
+                              </Button>
                               <button
                                 className="text-left text-xs font-semibold text-slate-600 underline-offset-2 hover:text-slate-950 hover:underline"
                                 onClick={() => setIsSplitPaymentOpen((isOpen) => !isOpen)}
@@ -2308,6 +2354,89 @@ export function EmployeeWorkspacePage() {
                     variant={orderCloseAction === 'cancel' ? 'danger' : 'primary'}
                   >
                     {orderCloseAction === 'finish-empty' ? 'Завершить' : 'Отменить'}
+                  </Button>
+                </div>
+              </section>
+            </Modal>
+          ) : null}
+
+          {isDebtModalOpen ? (
+            <Modal className="z-[70] bg-slate-950/55" onClose={() => setIsDebtModalOpen(false)}>
+              <section className="grid w-full max-w-lg gap-4 rounded-xl bg-white p-5 shadow-xl">
+                <div className="grid gap-1">
+                  <h4 className="text-lg font-semibold text-slate-950">{t('debt.formTitle')}</h4>
+                  <p className="text-sm leading-5 text-slate-600">{t('debt.formDescription')}</p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                    <span>{t('debt.customerName')}</span>
+                    <input
+                      autoFocus
+                      className="min-h-11 rounded-md border border-slate-200 px-3 text-sm text-slate-950 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                      onChange={(event) => setDebtCustomerName(event.target.value)}
+                      required
+                      value={debtCustomerName}
+                    />
+                  </label>
+                  <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                    <span>{t('debt.customerPhone')}</span>
+                    <input
+                      className="min-h-11 rounded-md border border-slate-200 px-3 text-sm text-slate-950 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                      inputMode="tel"
+                      onChange={(event) => setDebtCustomerPhone(event.target.value)}
+                      required
+                      type="tel"
+                      value={debtCustomerPhone}
+                    />
+                  </label>
+                  <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                    <span>{t('debt.amount')}</span>
+                    <input
+                      className="min-h-11 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-950"
+                      readOnly
+                      value={formatAzn(selectedOrder.unpaid_amount)}
+                    />
+                  </label>
+                  <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                    <span>{t('debt.incurredOn')}</span>
+                    <input
+                      className="min-h-11 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-950"
+                      readOnly
+                      value={new Intl.DateTimeFormat(getCurrentLocale()).format(new Date())}
+                    />
+                  </label>
+                  <label className="grid gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
+                    <span>{t('debt.dueOn')}</span>
+                    <input
+                      className="min-h-11 rounded-md border border-slate-200 px-3 text-sm text-slate-950 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                      min={new Date().toISOString().slice(0, 10)}
+                      onChange={(event) => setDebtDueOn(event.target.value)}
+                      type="date"
+                      value={debtDueOn}
+                    />
+                  </label>
+                  <label className="grid gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
+                    <span>{t('debt.comment')}</span>
+                    <textarea
+                      className="min-h-24 resize-none rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-950 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                      onChange={(event) => setDebtComment(event.target.value)}
+                      value={debtComment}
+                    />
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Button disabled={debtMutations.create.isPending} onClick={() => setIsDebtModalOpen(false)} type="button" variant="secondary">
+                    {t('employeeShift.cancelAction')}
+                  </Button>
+                  <Button
+                    disabled={debtMutations.create.isPending || debtCustomerName.trim().length < 2 || debtCustomerPhone.trim().length < 5}
+                    onClick={submitDebt}
+                    type="button"
+                  >
+                    {debtMutations.create.isPending ? <Loader2 className="size-4 animate-spin" /> : <HandCoins className="size-4" />}
+                    {t('debt.save')}
                   </Button>
                 </div>
               </section>

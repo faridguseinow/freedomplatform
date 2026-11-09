@@ -20,6 +20,7 @@ import {
 } from '../../orders/paymentsApi'
 import { useAdminOpenOrdersCount } from '../../orders/ordersApi'
 import { useAdminShifts } from '../../shifts/shiftsApi'
+import { useCustomerDebts } from '../../debts/debtsApi'
 import { useCombos } from '../catalog/comboApi'
 import { useInventoryBalances } from '../catalog/inventoryApi'
 import { usePlaces, useProducts, useServices } from '../catalog/catalogApi'
@@ -92,6 +93,7 @@ export function AdminDashboardPage() {
   const servicesQuery = useServices({ organizationId })
   const combosQuery = useCombos(organizationId)
   const inventoryQuery = useInventoryBalances(organizationId)
+  const debtsQuery = useCustomerDebts(organizationId)
   const [productReportRange, setProductReportRange] = useState<'today' | 'all' | 'period'>('today')
   const [productReportStart, setProductReportStart] = useState(todayDate())
   const [productReportEnd, setProductReportEnd] = useState(todayDate())
@@ -142,6 +144,7 @@ export function AdminDashboardPage() {
   const openShifts = shifts.filter((shift) => shift.status === 'open' || shift.status === 'closing').length
   const timedPlaces = places.filter((place) => place.has_timer).length
   const lowStock = inventory.filter((item) => item.stock_quantity <= item.minimum_stock_quantity).length
+  const totalDebt = (debtsQuery.data ?? []).reduce((sum, debt) => sum + Number(debt.balance_amount), 0)
   const isLoading =
     openOrdersCountQuery.isLoading ||
     shiftsQuery.isLoading ||
@@ -150,6 +153,7 @@ export function AdminDashboardPage() {
     servicesQuery.isLoading ||
     combosQuery.isLoading ||
     inventoryQuery.isLoading ||
+    debtsQuery.isLoading ||
     paymentSummaryQuery.isLoading ||
     revenueBreakdownQuery.isLoading ||
     usageHoursQuery.isLoading ||
@@ -164,6 +168,7 @@ export function AdminDashboardPage() {
     servicesQuery.error ??
     combosQuery.error ??
     inventoryQuery.error ??
+    debtsQuery.error ??
     paymentSummaryQuery.error ??
     revenueBreakdownQuery.error ??
     usageHoursQuery.error ??
@@ -290,12 +295,13 @@ export function AdminDashboardPage() {
             <h3 className="text-lg font-semibold text-slate-950">{t("ui.rabochee_sostoyanie_135cf32")}</h3>
             <LayoutDashboard className="size-5 text-emerald-700" />
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-6">
             <StatCard label="Места" to={buildAdminPath('/admin/places')} value={`${places.length} / ${t("ui.taymer_831d20c")} ${timedPlaces}`} />
             <StatCard label="Товары" to={buildAdminPath('/admin/products')} value={products.length} />
             <StatCard label="Услуги" to={buildAdminPath('/admin/services')} value={services.length} />
             <StatCard label="Комбо" to={buildAdminPath('/admin/combos')} value={combos.length} />
             <StatCard label="Низкий остаток" to={buildAdminPath('/admin/inventory?filter=low-stock')} tone={lowStock ? 'danger' : 'default'} value={lowStock} />
+            <StatCard label="debt.totalOutstanding" to={buildAdminPath('/admin/debts')} tone={totalDebt ? 'danger' : 'default'} value={formatMoney(totalDebt)} />
           </div>
       </section>
 

@@ -62,6 +62,8 @@ export type PaymentMethod = 'cash' | 'card_transfer'
 
 export type PaymentStatus = 'pending' | 'completed' | 'cancelled' | 'refunded'
 
+export type CustomerDebtStatus = 'open' | 'partial' | 'paid' | 'written_off'
+
 export type AdjustmentRequestStatus = 'pending' | 'approved' | 'rejected' | 'expired' | 'cancelled'
 
 export type AdjustmentRequestType =
@@ -651,6 +653,39 @@ export type PaymentRow = {
   cancellation_reason: string | null
   created_at: string
   updated_at: string
+}
+
+export type CustomerDebtRow = {
+  id: string
+  organization_id: string
+  order_id: string
+  order_number_snapshot: number
+  customer_name: string
+  customer_phone: string
+  original_amount: number
+  paid_amount: number
+  balance_amount: number
+  status: CustomerDebtStatus
+  incurred_on: string
+  due_on: string | null
+  comment: string | null
+  created_by: string
+  created_at: string
+  paid_at: string | null
+  updated_at: string
+}
+
+export type CustomerDebtPaymentRow = {
+  id: string
+  organization_id: string
+  debt_id: string
+  payment_id: string
+  amount: number
+  method: PaymentMethod
+  shift_id: string | null
+  comment: string | null
+  received_by: string
+  received_at: string
 }
 
 export type AuditLogRow = {
@@ -1330,6 +1365,18 @@ export type Database = {
           Pick<PaymentRow, 'organization_id' | 'order_id' | 'method' | 'amount' | 'received_by'>,
         Partial<PaymentRow>
       >
+      customer_debts: TableDefinition<
+        CustomerDebtRow,
+        Partial<CustomerDebtRow> &
+          Pick<CustomerDebtRow, 'organization_id' | 'order_id' | 'order_number_snapshot' | 'customer_name' | 'customer_phone' | 'original_amount' | 'balance_amount' | 'incurred_on' | 'created_by'>,
+        Partial<Omit<CustomerDebtRow, 'id' | 'organization_id' | 'order_id' | 'created_by' | 'created_at'>>
+      >
+      customer_debt_payments: TableDefinition<
+        CustomerDebtPaymentRow,
+        Partial<CustomerDebtPaymentRow> &
+          Pick<CustomerDebtPaymentRow, 'organization_id' | 'debt_id' | 'payment_id' | 'amount' | 'method' | 'received_by'>,
+        never
+      >
       audit_logs: TableDefinition<
         AuditLogRow,
         Partial<AuditLogRow> & Pick<AuditLogRow, 'action' | 'entity_type'>,
@@ -1432,6 +1479,42 @@ export type Database = {
       finance_dashboard_summary: { Row: FinanceDashboardSummaryRow; Relationships: [] }
     }
     Functions: {
+      create_customer_debt: {
+        Args: {
+          target_order_id: string
+          target_customer_name: string
+          target_customer_phone: string
+          target_due_on?: string | null
+          target_comment?: string | null
+        }
+        Returns: CustomerDebtRow
+      }
+      record_customer_debt_payment: {
+        Args: {
+          target_debt_id: string
+          target_amount: number
+          target_method: PaymentMethod
+          target_comment?: string | null
+        }
+        Returns: CustomerDebtRow
+      }
+      update_customer_debt: {
+        Args: {
+          target_debt_id: string
+          target_customer_name: string
+          target_customer_phone: string
+          target_due_on?: string | null
+          target_comment?: string | null
+        }
+        Returns: CustomerDebtRow
+      }
+      delete_customer_debt: {
+        Args: {
+          target_debt_id: string
+          target_reason: string
+        }
+        Returns: string
+      }
       resolve_organization_login: {
         Args: {
           target_slug: string

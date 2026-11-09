@@ -1,4 +1,4 @@
-import { Box, Building2, Loader2, LockKeyhole, Settings, ShieldCheck, Warehouse } from 'lucide-react'
+import { Box, Building2, HandCoins, Loader2, LockKeyhole, Settings, ShieldCheck, Warehouse } from 'lucide-react'
 import type { ChangeEvent } from 'react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -23,6 +23,12 @@ const mobileManagementLinks = [
     description: 'Остатки, документы и движение товаров.',
     path: '/admin/inventory',
     icon: Warehouse,
+  },
+  {
+    label: 'Долги',
+    description: 'debt.settingsDescription',
+    path: '/admin/debts',
+    icon: HandCoins,
   },
 ]
 

@@ -59,6 +59,7 @@ const sectionLabels: Record<string, string> = {
   '/admin/inventory/documents': 'Документы склада',
   '/admin/combos': 'Комбо',
   '/admin/orders': 'Заказы',
+  '/admin/debts': 'Долги',
   '/admin/adjustment-requests': 'Исправления',
   '/admin/shifts': 'Смены',
   '/admin/shift-templates': 'Шаблоны смен',
@@ -94,6 +95,10 @@ const actionLabels: Record<string, string> = {
   'payment.prepaid': 'принял предоплату',
   'payment.tip_recorded': 'записал чаевые',
   'payment.refused': 'оформил отказ от оплаты',
+  'debt.created': 'activity.action.debtCreated',
+  'debt.payment_received': 'activity.action.debtPaymentReceived',
+  'debt.updated': 'activity.action.debtUpdated',
+  'debt.deleted': 'activity.action.debtDeleted',
   'shift.opened': 'открыл смену',
   'shift.closed': 'закрыл смену',
   'shift.cash_shortage': 'зафиксировал недостачу',
@@ -142,6 +147,7 @@ const entityLabels: Record<string, string> = {
   order: 'заказ',
   order_item: 'позиция заказа',
   order_adjustment_request: 'запрос исправления',
+  customer_debt: 'долг клиента',
   timed_session: 'сессия',
   employee_shift: 'смена',
   shift_handover: 'передача смены',
@@ -159,7 +165,7 @@ function getActivityCategory(action: string, source: ActivityEvent['source']): A
   if (source === 'finance' || action.startsWith('finance.')) return 'finance'
   if (action.startsWith('place.')) return 'places'
   if (action.startsWith('order.') || action.startsWith('adjustment.')) return 'orders'
-  if (action.startsWith('payment.')) return 'payments'
+  if (action.startsWith('payment.') || action.startsWith('debt.')) return 'payments'
   if (action.startsWith('session.')) return 'sessions'
   if (action.startsWith('shift.') || action.startsWith('operational_day.')) return 'shifts'
   if (action.startsWith('admin.')) return 'admin'
@@ -171,6 +177,7 @@ function getActivityArea(action: string, source: ActivityEvent['source']): Activ
   if (
     action.startsWith('order.') ||
     action.startsWith('payment.') ||
+    action.startsWith('debt.') ||
     action.startsWith('session.') ||
     action.startsWith('shift.')
   ) return 'workspace'

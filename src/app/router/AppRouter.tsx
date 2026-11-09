@@ -93,6 +93,11 @@ const AdminOrdersPage = lazy(() =>
     default: module.AdminOrdersPage,
   })),
 )
+const AdminDebtsPage = lazy(() =>
+  import('../../features/organization/pages/AdminDebtsPage').then((module) => ({
+    default: module.AdminDebtsPage,
+  })),
+)
 const AdminOrderDetailPage = lazy(() =>
   import('../../features/organization/pages/AdminOrderDetailPage').then((module) => ({
     default: module.AdminOrderDetailPage,
@@ -266,6 +271,7 @@ const organizationRoutes = (rootPath: string) => (
           <Route element={lazyPage(<AdminCombosPage />)} path="combos" />
           <Route element={lazyPage(<AdminOrdersPage />)} path="orders" />
           <Route element={lazyPage(<AdminOrderDetailPage />)} path="orders/:orderId" />
+          <Route element={lazyPage(<AdminDebtsPage />)} path="debts" />
           <Route element={lazyPage(<AdminActivityPage />)} path="activity" />
           <Route element={lazyPage(<AdminShiftsPage />)} path="shifts" />
           <Route element={lazyPage(<AdminShiftDetailPage />)} path="shifts/:shiftId" />

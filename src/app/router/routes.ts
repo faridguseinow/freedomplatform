@@ -7,6 +7,7 @@ import {
   Eye,
   Landmark,
   Gift,
+  HandCoins,
   LayoutDashboard,
   MapPin,
   Package,
@@ -112,6 +113,12 @@ export const adminNavItems: NavItem[] = [
     path: '/admin/orders',
     icon: ReceiptText,
     mobileOrder: 2,
+  },
+  {
+    label: 'Долги',
+    path: '/admin/debts',
+    icon: HandCoins,
+    mobile: false,
   },
   {
     label: 'Финансы',

@@ -98,7 +98,7 @@ export function AdminOrdersPage() {
           </span>
         </label>
         <div className="flex flex-wrap items-end gap-2">
-          {(['all', 'open', 'waiting_payment', 'paid', 'payment_refused', 'moved', 'cancelled'] as const).map((item) => (
+          {(['all', 'open', 'waiting_payment', 'paid', 'unpaid', 'payment_refused', 'moved', 'cancelled'] as const).map((item) => (
             <button
               className={cn(
                 'min-h-10 rounded-md border px-3 text-sm font-medium',
