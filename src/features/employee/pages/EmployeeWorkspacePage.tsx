@@ -1032,9 +1032,9 @@ export function EmployeeWorkspacePage() {
         </div>
       ) : null}
 
-      <section className="h-auto shrink-0 overflow-visible rounded-lg bg-slate-100 p-2 shadow-sm ring-1 ring-slate-200 md:h-[640px] md:overflow-hidden md:p-3">
+      <section className="h-auto shrink-0 overflow-visible rounded-lg bg-slate-100 p-2 shadow-sm ring-1 ring-slate-200 md:h-[620px] md:overflow-hidden md:p-3">
         <div
-          className="grid w-full min-w-0 grid-cols-2 content-start auto-rows-auto gap-2 md:auto-rows-[200px] md:[grid-template-columns:repeat(12,minmax(0,1fr))] md:[grid-template-rows:repeat(3,200px)]"
+          className="grid w-full min-w-0 grid-cols-2 content-start auto-rows-auto gap-2 md:auto-rows-[143px] md:[grid-template-columns:repeat(6,minmax(0,1fr))] md:[grid-template-rows:repeat(4,143px)]"
         >
           {placeLayout.map((slot) => {
             const place = slot.place
@@ -1092,11 +1092,11 @@ export function EmployeeWorkspacePage() {
                 } as CSSProperties}
                 tabIndex={canOpenPlace ? 0 : undefined}
               >
-                <div className="grid gap-2">
+                <div className="grid gap-1.5">
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <CatalogImage alt={place.name} className="size-9 rounded-full" imagePath={place.image_path} />
-                      <h3 className="line-clamp-2 min-w-0 break-words text-sm font-semibold leading-tight text-slate-950">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <CatalogImage alt={place.name} className="size-8 rounded-full" imagePath={place.image_path} />
+                      <h3 className="line-clamp-2 min-w-0 break-words text-xs font-semibold leading-tight text-slate-950 sm:text-sm">
                         {place.name}
                       </h3>
                     </div>
@@ -1108,7 +1108,7 @@ export function EmployeeWorkspacePage() {
                     />
                   </div>
 
-                  <div className="grid gap-1 text-xs text-slate-600">
+                  <div className="grid gap-0.5 text-[11px] leading-4 text-slate-600 sm:text-xs">
                     {vipEquipmentSummary ? (
                       <span className="font-semibold text-emerald-800">{vipEquipmentSummary}</span>
                     ) : null}

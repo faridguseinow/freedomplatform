@@ -2,14 +2,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Archive,
   Edit3,
+  GripVertical,
   Loader2,
   MapPin,
-  Maximize2,
+  MoreVertical,
   Plus,
   RotateCcw,
   Save,
   Search,
-  SquareDashedMousePointer,
   X,
 } from 'lucide-react'
 import { type PointerEvent, useEffect, useMemo, useRef, useState } from 'react'
@@ -28,8 +28,12 @@ import { cn } from '../../../lib/utils/cn'
 import {
   buildWorkspaceLayout,
   getPlaceDisplayLabel,
-  getWorkspaceSizeLabel,
   WORKSPACE_COLUMNS,
+  WORKSPACE_MIN_ROWS,
+  toWorkspaceDisplayCoordinate,
+  toWorkspaceDisplaySpan,
+  toWorkspaceStorageCoordinate,
+  toWorkspaceStorageSpan,
 } from '../../places/workspaceLayout'
 import { cacheWorkspacePlaces } from '../../places/workspacePlacesCache'
 import {
@@ -103,12 +107,23 @@ const BOARD_ROW_HEIGHT = 96
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 
-type DragState = {
+type BoardInteractionState = {
+  mode: 'drag' | 'resize'
   placeId: string
-  offsetX: number
-  offsetY: number
+  pointerId: number
+  originClientX: number
+  originClientY: number
+  deltaX: number
+  deltaY: number
+  startX: number
+  startY: number
+  startW: number
+  startH: number
   targetX: number
   targetY: number
+  targetW: number
+  targetH: number
+  isValid: boolean
 }
 
 type WorkspaceDefaults = Pick<PlaceFormValues, 'workspace_x' | 'workspace_y' | 'workspace_w' | 'workspace_h' | 'sort_order'>
@@ -151,7 +166,8 @@ export function AdminPlacesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [boardError, setBoardError] = useState<string | null>(null)
-  const [dragState, setDragState] = useState<DragState | null>(null)
+  const [interaction, setInteraction] = useState<BoardInteractionState | null>(null)
+  const [workspaceMenuId, setWorkspaceMenuId] = useState<string | null>(null)
 
   const { control, formState: { errors, isSubmitting }, handleSubmit, register, reset } = useForm<PlaceFormValues>({
     resolver: zodResolver(placeSchema),
@@ -183,6 +199,17 @@ export function AdminPlacesPage() {
     [places],
   )
   const workspaceLayout = useMemo(() => buildWorkspaceLayout(workspacePlaces), [workspacePlaces])
+  const workspaceRows = useMemo(() => {
+    const savedRows = workspacePlaces.reduce(
+      (maximum, place) => Math.max(maximum, (place.workspace_y ?? 1) + (place.workspace_h ?? 2) - 1),
+      WORKSPACE_MIN_ROWS,
+    )
+    if (!interaction) return savedRows
+    const interactionRows = interaction.mode === 'drag'
+      ? interaction.targetY + interaction.startH - 1
+      : interaction.startY + interaction.targetH - 1
+    return Math.max(savedRows, interactionRows)
+  }, [interaction, workspacePlaces])
   const placeCategories = useMemo(
     () => (categoriesQuery.data ?? []).filter((item) => item.type === 'place' && item.status !== 'archived'),
     [categoriesQuery.data],
@@ -219,9 +246,9 @@ export function AdminPlacesPage() {
   const getNextWorkspaceDefaults = (): WorkspaceDefaults => {
     const occupied = new Set<string>()
     workspacePlaces.forEach((place) => {
-      const x = place.workspace_x ?? 1
+      const x = toWorkspaceDisplayCoordinate(place.workspace_x ?? 1)
       const y = place.workspace_y ?? 1
-      const w = place.workspace_w ?? 2
+      const w = toWorkspaceDisplaySpan(place.workspace_w ?? 2)
       const h = place.workspace_h ?? 2
       for (let row = y; row < y + h; row += 1) {
         for (let col = x; col < x + w; col += 1) {
@@ -230,14 +257,14 @@ export function AdminPlacesPage() {
       }
     })
 
-    for (let row = 1; row <= Math.max(6, workspacePlaces.length + 2); row += 1) {
-      for (let col = 1; col <= WORKSPACE_COLUMNS - 1; col += 1) {
-        if (!occupied.has(`${col}:${row}`) && !occupied.has(`${col + 1}:${row}`)) {
+    for (let row = 1; row <= Math.max(WORKSPACE_MIN_ROWS, workspacePlaces.length + 2); row += 1) {
+      for (let col = 1; col <= WORKSPACE_COLUMNS; col += 1) {
+        if (!occupied.has(`${col}:${row}`)) {
           return {
             sort_order: workspacePlaces.length,
             workspace_h: 2,
-            workspace_w: 2,
-            workspace_x: col,
+            workspace_w: toWorkspaceStorageSpan(1),
+            workspace_x: toWorkspaceStorageCoordinate(col),
             workspace_y: row,
           }
         }
@@ -247,7 +274,7 @@ export function AdminPlacesPage() {
     return {
       sort_order: workspacePlaces.length,
       workspace_h: 2,
-      workspace_w: 2,
+      workspace_w: toWorkspaceStorageSpan(1),
       workspace_x: 1,
       workspace_y: Math.max(1, workspacePlaces.length + 1),
     }
@@ -333,80 +360,141 @@ export function AdminPlacesPage() {
     }
   }
 
-  const resizePlace = (place: PlaceRow, axis: 'w' | 'h', delta: number) => {
-    const currentW = place.workspace_w ?? 2
-    const currentH = place.workspace_h ?? 2
-    const currentX = place.workspace_x ?? 1
-    const nextW = axis === 'w' ? clamp(currentW + delta, 1, WORKSPACE_COLUMNS - currentX + 1) : currentW
-    const nextH = axis === 'h' ? Math.max(1, currentH + delta) : currentH
-
-    void savePlaceLayout(place, {
-      workspace_x: currentX,
-      workspace_y: place.workspace_y ?? 1,
-      workspace_w: nextW,
-      workspace_h: nextH,
-    })
-  }
-
-  const getDragTarget = (event: PointerEvent, place: PlaceRow, offsetX: number, offsetY: number) => {
+  const getBoardMetrics = () => {
     const board = boardRef.current
     if (!board) return null
 
     const rect = board.getBoundingClientRect()
-    const width = place.workspace_w ?? 2
     const availableWidth = rect.width - BOARD_PADDING * 2 - BOARD_GAP * (WORKSPACE_COLUMNS - 1)
     const cellWidth = availableWidth / WORKSPACE_COLUMNS
-    const left = event.clientX - rect.left - BOARD_PADDING - offsetX
-    const top = event.clientY - rect.top - BOARD_PADDING - offsetY
-    const targetX = clamp(Math.round(left / (cellWidth + BOARD_GAP)) + 1, 1, WORKSPACE_COLUMNS - width + 1)
-    const targetY = Math.max(1, Math.round(top / (BOARD_ROW_HEIGHT + BOARD_GAP)) + 1)
-
-    return { targetX, targetY }
+    return {
+      stepX: cellWidth + BOARD_GAP,
+      stepY: BOARD_ROW_HEIGHT + BOARD_GAP,
+    }
   }
 
-  const startDrag = (event: PointerEvent<HTMLElement>, place: PlaceRow) => {
+  const isPlacementAvailable = (placeId: string, x: number, y: number, w: number, h: number) =>
+    workspacePlaces.every((other) => {
+      if (other.id === placeId || !other.workspace_x || !other.workspace_y) return true
+      const otherX = toWorkspaceDisplayCoordinate(other.workspace_x)
+      const otherY = other.workspace_y
+      const otherW = toWorkspaceDisplaySpan(other.workspace_w ?? 2)
+      const otherH = other.workspace_h ?? 2
+      return x + w <= otherX || otherX + otherW <= x || y + h <= otherY || otherY + otherH <= y
+    })
+
+  const calculateInteraction = (event: PointerEvent, current: BoardInteractionState) => {
+    const metrics = getBoardMetrics()
+    if (!metrics) return current
+
+    const rawDeltaX = event.clientX - current.originClientX
+    const rawDeltaY = event.clientY - current.originClientY
+
+    if (current.mode === 'drag') {
+      const minDeltaX = -(current.startX - 1) * metrics.stepX
+      const maxDeltaX = (WORKSPACE_COLUMNS - current.startX - current.startW + 1) * metrics.stepX
+      const minDeltaY = -(current.startY - 1) * metrics.stepY
+      const deltaX = clamp(rawDeltaX, minDeltaX, maxDeltaX)
+      const deltaY = Math.max(minDeltaY, rawDeltaY)
+      const targetX = clamp(
+        current.startX + Math.round(deltaX / metrics.stepX),
+        1,
+        WORKSPACE_COLUMNS - current.startW + 1,
+      )
+      const targetY = Math.max(1, current.startY + Math.round(deltaY / metrics.stepY))
+
+      return {
+        ...current,
+        deltaX,
+        deltaY,
+        targetX,
+        targetY,
+        isValid: isPlacementAvailable(current.placeId, targetX, targetY, current.startW, current.startH),
+      }
+    }
+
+    const minDeltaX = -(current.startW - 1) * metrics.stepX
+    const maxDeltaX = (WORKSPACE_COLUMNS - current.startX - current.startW + 1) * metrics.stepX
+    const minDeltaY = -(current.startH - 1) * metrics.stepY
+    const deltaX = clamp(rawDeltaX, minDeltaX, maxDeltaX)
+    const deltaY = Math.max(minDeltaY, rawDeltaY)
+    const targetW = clamp(
+      current.startW + Math.round(deltaX / metrics.stepX),
+      1,
+      WORKSPACE_COLUMNS - current.startX + 1,
+    )
+    const targetH = Math.max(1, current.startH + Math.round(deltaY / metrics.stepY))
+
+    return {
+      ...current,
+      deltaX,
+      deltaY,
+      targetW,
+      targetH,
+      isValid: isPlacementAvailable(current.placeId, current.startX, current.startY, targetW, targetH),
+    }
+  }
+
+  const startInteraction = (
+    event: PointerEvent<HTMLElement>,
+    place: PlaceRow,
+    mode: BoardInteractionState['mode'],
+  ) => {
     if (layoutSchemaQuery.data === false) {
-      setBoardError('Для drag-and-drop нужно применить миграцию workspace layout в Supabase.')
+      setBoardError(t('places.layoutUnavailable'))
       return
     }
 
     event.preventDefault()
-    const target = getDragTarget(event, place, 0, 0)
-    const cardRect = event.currentTarget.getBoundingClientRect()
-    const offsetX = event.clientX - cardRect.left
-    const offsetY = event.clientY - cardRect.top
-
     event.currentTarget.setPointerCapture(event.pointerId)
     setBoardError(null)
-    setDragState({
+    setWorkspaceMenuId(null)
+    const startX = toWorkspaceDisplayCoordinate(place.workspace_x ?? 1)
+    const startY = place.workspace_y ?? 1
+    const startW = toWorkspaceDisplaySpan(place.workspace_w ?? 2)
+    const startH = place.workspace_h ?? 2
+    setInteraction({
+      mode,
       placeId: place.id,
-      offsetX,
-      offsetY,
-      targetX: target?.targetX ?? place.workspace_x ?? 1,
-      targetY: target?.targetY ?? place.workspace_y ?? 1,
+      pointerId: event.pointerId,
+      originClientX: event.clientX,
+      originClientY: event.clientY,
+      deltaX: 0,
+      deltaY: 0,
+      startX,
+      startY,
+      startW,
+      startH,
+      targetX: startX,
+      targetY: startY,
+      targetW: startW,
+      targetH: startH,
+      isValid: true,
     })
   }
 
-  const moveDrag = (event: PointerEvent, place: PlaceRow) => {
-    if (!dragState || dragState.placeId !== place.id) return
-    const target = getDragTarget(event, place, dragState.offsetX, dragState.offsetY)
-    if (!target) return
-
-    setDragState((current) =>
-      current && current.placeId === place.id
-        ? { ...current, targetX: target.targetX, targetY: target.targetY }
-        : current,
-    )
+  const moveInteraction = (event: PointerEvent, place: PlaceRow) => {
+    setInteraction((current) => {
+      if (!current || current.placeId !== place.id || current.pointerId !== event.pointerId) return current
+      return calculateInteraction(event, current)
+    })
   }
 
-  const finishDrag = (event: PointerEvent<HTMLElement>, place: PlaceRow) => {
-    if (!dragState || dragState.placeId !== place.id) return
+  const finishInteraction = (event: PointerEvent<HTMLElement>, place: PlaceRow) => {
+    if (!interaction || interaction.placeId !== place.id || interaction.pointerId !== event.pointerId) return
+    const finished = calculateInteraction(event, interaction)
     event.currentTarget.releasePointerCapture(event.pointerId)
-    const { targetX, targetY } = dragState
-    setDragState(null)
+    setInteraction(null)
 
-    if (targetX === place.workspace_x && targetY === place.workspace_y) return
-    void savePlaceLayout(place, { workspace_x: targetX, workspace_y: targetY })
+    if (!finished.isValid) {
+      setBoardError(t('places.layoutCollision'))
+      return
+    }
+
+    const patch = finished.mode === 'drag'
+      ? { workspace_x: toWorkspaceStorageCoordinate(finished.targetX), workspace_y: finished.targetY }
+      : { workspace_w: toWorkspaceStorageSpan(finished.targetW), workspace_h: finished.targetH }
+    void savePlaceLayout(place, patch)
   }
 
   const archivePlaceFromBoard = (place: PlaceRow) => {
@@ -463,7 +551,7 @@ export function AdminPlacesPage() {
             <div className="grid gap-1">
               <h3 className="text-lg font-semibold text-slate-950">Рабочая схема</h3>
               <p className="max-w-3xl text-sm leading-6 text-slate-600">
-                Перетащите карточку мышкой на нужную клетку. Размер меняется кнопками W/H или через форму места.
+                {t('places.layoutHint')}
               </p>
             </div>
             <div className="grid gap-2">
@@ -480,18 +568,21 @@ export function AdminPlacesPage() {
           </div>
 
           <div
-            className="relative grid min-h-[520px] auto-rows-[96px] gap-3 overflow-auto rounded-lg bg-slate-100 p-3"
+            className="relative grid auto-rows-[96px] gap-3 overflow-auto rounded-lg bg-slate-100 p-3"
             ref={boardRef}
             style={{
-              backgroundImage:
-                'linear-gradient(to right, rgba(148, 163, 184, 0.22) 1px, transparent 1px), linear-gradient(to bottom, rgba(148, 163, 184, 0.22) 1px, transparent 1px)',
-              backgroundPosition: `${BOARD_PADDING}px ${BOARD_PADDING}px`,
-              backgroundSize: `calc((100% - ${BOARD_PADDING * 2}px + ${BOARD_GAP}px) / ${WORKSPACE_COLUMNS}) ${BOARD_ROW_HEIGHT + BOARD_GAP}px`,
+              backgroundImage: 'radial-gradient(circle, rgba(100, 116, 139, 0.42) 1px, transparent 1.5px)',
+              backgroundPosition: '9px 9px',
+              backgroundSize: '18px 18px',
               gridTemplateColumns: `repeat(${WORKSPACE_COLUMNS}, minmax(0, 1fr))`,
+              minHeight: Math.max(
+                WORKSPACE_MIN_ROWS * (BOARD_ROW_HEIGHT + BOARD_GAP) + BOARD_PADDING * 2,
+                workspaceRows * (BOARD_ROW_HEIGHT + BOARD_GAP) + BOARD_PADDING * 2,
+              ),
             }}
           >
             {!workspaceLayout.length ? (
-              <div className="col-span-12 grid min-h-80 place-items-center rounded-lg border border-dashed border-slate-300 bg-white/70 p-6 text-center">
+              <div className="col-span-6 grid min-h-80 place-items-center rounded-lg border border-dashed border-slate-300 bg-white/70 p-6 text-center">
                 <div className="grid gap-3">
                   <MapPin className="mx-auto size-7 text-slate-400" />
                   <div>
@@ -507,80 +598,89 @@ export function AdminPlacesPage() {
 
             {workspaceLayout.map((slot) => {
               const place = slot.place
-              const width = place.workspace_w ?? (slot.shape === 'wide' ? 3 : 2)
-              const height = place.workspace_h ?? (slot.shape === 'compact' ? 1 : 2)
-              const isDragging = dragState?.placeId === place.id
-              const dragStyle = isDragging
-                ? {
-                    gridColumn: `${dragState.targetX} / span ${width}`,
-                    gridRow: `${dragState.targetY} / span ${height}`,
-                    zIndex: 20,
-                  }
+              const activeInteraction = interaction?.placeId === place.id ? interaction : null
+              const interactionStyle = activeInteraction
+                ? activeInteraction.mode === 'drag'
+                  ? { transform: `translate3d(${activeInteraction.deltaX}px, ${activeInteraction.deltaY}px, 0)`, zIndex: 20 }
+                  : { width: `calc(100% + ${activeInteraction.deltaX}px)`, height: `calc(100% + ${activeInteraction.deltaY}px)`, zIndex: 20 }
                 : {}
 
               return (
                 <article
                   className={cn(
-                    'grid cursor-grab content-between gap-3 rounded-lg border bg-white p-3 shadow-sm transition-shadow active:cursor-grabbing',
-                    'select-none touch-none',
-                    isDragging
-                      ? 'border-emerald-500 opacity-90 shadow-xl ring-2 ring-emerald-600'
-                      : 'border-slate-200 hover:border-emerald-300 hover:shadow-md',
+                    'relative grid min-h-0 min-w-0 content-between overflow-visible rounded-lg border bg-white p-2 shadow-sm',
+                    'select-none touch-none will-change-transform',
+                    activeInteraction?.isValid === false
+                      ? 'border-red-500 shadow-xl ring-2 ring-red-500/70'
+                      : activeInteraction
+                        ? 'border-emerald-500 shadow-xl ring-2 ring-emerald-600/70'
+                        : 'border-slate-200 transition-[border-color,box-shadow] hover:border-emerald-300 hover:shadow-md',
                   )}
                   key={slot.key}
-                  onPointerCancel={(event) => {
-                    if (isDragging) {
-                      event.currentTarget.releasePointerCapture(event.pointerId)
-                      setDragState(null)
-                    }
-                  }}
-                  onPointerDown={(event) => startDrag(event, place)}
-                  onPointerMove={(event) => moveDrag(event, place)}
-                  onPointerUp={(event) => finishDrag(event, place)}
-                  style={{ ...slot.style, ...dragStyle }}
+                  style={{ ...slot.style, ...interactionStyle }}
                 >
-                  <div className="min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex min-w-0 items-start gap-2">
-                        <CatalogImage alt={place.name} className="size-8 rounded-full" imagePath={place.image_path} />
-                        <SquareDashedMousePointer className="mt-1 size-4 shrink-0 text-slate-400" />
-                        <h4 className="break-words text-sm font-semibold leading-tight text-slate-950">
-                          {getPlaceDisplayLabel(place, place.name)}
-                        </h4>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <button
-                          aria-label="Редактировать место"
-                          className="inline-flex size-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100"
-                          onClick={() => openEdit(place)}
-                          onPointerDown={(event) => event.stopPropagation()}
-                          type="button"
-                        >
-                          <Edit3 className="size-3.5" />
-                        </button>
-                        <button
-                          aria-label={t('places.archivePlace')}
-                          className="inline-flex size-7 items-center justify-center rounded-md text-red-600 hover:bg-red-50"
-                          onClick={() => archivePlaceFromBoard(place)}
-                          onPointerDown={(event) => event.stopPropagation()}
-                          type="button"
-                        >
-                          <Archive className="size-3.5" />
-                        </button>
-                      </div>
+                  <div className="flex min-w-0 items-start gap-1">
+                    <button
+                      aria-label={t('places.movePlace', { name: place.name })}
+                      className="inline-flex h-7 w-5 shrink-0 cursor-grab touch-none items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 active:cursor-grabbing"
+                      disabled={layoutSchemaQuery.data === false}
+                      onPointerCancel={(event) => {
+                        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+                        setInteraction(null)
+                      }}
+                      onPointerDown={(event) => startInteraction(event, place, 'drag')}
+                      onPointerMove={(event) => moveInteraction(event, place)}
+                      onPointerUp={(event) => finishInteraction(event, place)}
+                      type="button"
+                    >
+                      <GripVertical className="size-4" />
+                    </button>
+                    <div className="min-w-0 flex-1 pt-1">
+                      <h4 className="truncate text-xs font-semibold leading-5 text-slate-950 sm:text-sm">
+                        {getPlaceDisplayLabel(place, place.name)}
+                      </h4>
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {getWorkspaceSizeLabel(place)} · X {place.workspace_x ?? 'авто'} · Y {place.workspace_y ?? 'авто'} · {width}x{height}
-                    </p>
-                  </div>
+                    <div className="relative shrink-0">
+                      <button
+                        aria-expanded={workspaceMenuId === place.id}
+                        aria-label={t('places.cardActions')}
+                        className="inline-flex size-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100"
+                        onClick={() => setWorkspaceMenuId((current) => current === place.id ? null : place.id)}
+                        type="button"
+                      >
+                        <MoreVertical className="size-4" />
+                      </button>
+                      {workspaceMenuId === place.id ? (
+                        <div className="absolute right-0 top-8 z-30 grid min-w-40 gap-1 rounded-md border border-slate-200 bg-white p-1 shadow-xl">
+                          <button className="flex min-h-8 items-center gap-2 rounded px-2 text-left text-xs text-slate-700 hover:bg-slate-100" onClick={() => { setWorkspaceMenuId(null); openEdit(place) }} type="button">
+                            <Edit3 className="size-3.5" /> {t('places.editPlace')}
+                          </button>
+                          <button className="flex min-h-8 items-center gap-2 rounded px-2 text-left text-xs text-slate-700 hover:bg-slate-100 disabled:opacity-40" disabled={layoutSchemaQuery.data === false} onClick={() => { setWorkspaceMenuId(null); void savePlaceLayout(place, { workspace_x: null, workspace_y: null, workspace_w: null, workspace_h: null }) }} type="button">
+                            <RotateCcw className="size-3.5" /> {t('places.resetLayout')}
+                          </button>
+                          <button className="flex min-h-8 items-center gap-2 rounded px-2 text-left text-xs text-red-700 hover:bg-red-50" onClick={() => { setWorkspaceMenuId(null); archivePlaceFromBoard(place) }} type="button">
+                            <Archive className="size-3.5" /> {t('places.archivePlace')}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                    </div>
 
-                  <div className="grid gap-2">
-                    <div className="grid grid-cols-5 gap-1" onPointerDown={(event) => event.stopPropagation()}>
-                      <button className="inline-flex min-h-7 items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50" disabled={layoutSchemaQuery.data === false} onClick={() => resizePlace(place, 'w', -1)} type="button">W-</button>
-                      <button className="inline-flex min-h-7 items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50" disabled={layoutSchemaQuery.data === false} onClick={() => resizePlace(place, 'w', 1)} type="button">W+</button>
-                      <button className="inline-flex min-h-7 items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50" disabled={layoutSchemaQuery.data === false} onClick={() => resizePlace(place, 'h', -1)} type="button">H-</button>
-                      <button className="inline-flex min-h-7 items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50" disabled={layoutSchemaQuery.data === false} onClick={() => resizePlace(place, 'h', 1)} type="button"><Maximize2 className="size-3.5" /></button>
-                      <button className="inline-flex min-h-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50" disabled={layoutSchemaQuery.data === false} onClick={() => savePlaceLayout(place, { workspace_x: null, workspace_y: null, workspace_w: null, workspace_h: null })} type="button"><RotateCcw className="size-3.5" /></button>
+                  <div className="contents">
+                    <div className="contents">
+                      <button
+                        aria-label={t('places.resizePlace', { name: place.name })}
+                        className="absolute bottom-0 right-0 size-6 cursor-se-resize touch-none rounded-tl-md border-l border-t border-slate-200 bg-slate-50/95 after:absolute after:bottom-1 after:right-1 after:size-2 after:border-b-2 after:border-r-2 after:border-slate-500 hover:bg-emerald-50"
+                        disabled={layoutSchemaQuery.data === false}
+                        onPointerCancel={(event) => {
+                          if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+                          setInteraction(null)
+                        }}
+                        onPointerDown={(event) => startInteraction(event, place, 'resize')}
+                        onPointerMove={(event) => moveInteraction(event, place)}
+                        onPointerUp={(event) => finishInteraction(event, place)}
+                        type="button"
+                      />
                     </div>
                   </div>
                 </article>
@@ -600,10 +700,10 @@ export function AdminPlacesPage() {
       ) : null}
 
       {visiblePlaces.length ? (
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4">
           {visiblePlaces.map((place) => (
-            <article className="grid gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-sm sm:gap-3 sm:p-4" key={place.id}>
-              <CatalogImage alt={place.name} className="h-24 w-full sm:h-32" imagePath={place.image_path} />
+            <article className="grid gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-sm sm:p-3" key={place.id}>
+              <CatalogImage alt={place.name} className="h-16 w-full sm:h-20" imagePath={place.image_path} />
               <div className="grid gap-1 sm:flex sm:items-start sm:justify-between sm:gap-3">
                 <div className="min-w-0">
                   <h3 className="truncate text-sm font-semibold text-slate-950 sm:text-base">{place.name}</h3>
@@ -611,15 +711,15 @@ export function AdminPlacesPage() {
                 </div>
                 <span className={cn('w-fit rounded-md px-2 py-0.5 text-[11px] font-medium sm:py-1 sm:text-xs', statusClass[place.status])}>{statusLabel[place.status]}</span>
               </div>
-              <dl className="grid grid-cols-2 gap-1 text-xs sm:gap-2 sm:text-sm">
+              <dl className="grid grid-cols-2 gap-1 text-[11px] sm:text-xs">
                 <div><dt className="text-xs uppercase text-slate-500">Таймер</dt><dd>{place.has_timer ? 'Да' : 'Нет'}</dd></div>
                 <div><dt className="text-xs uppercase text-slate-500">Тариф</dt><dd>{place.hourly_rate ?? '-'}</dd></div>
                 <div className="hidden sm:block"><dt className="text-xs uppercase text-slate-500">Минимум</dt><dd>{place.minimum_minutes ?? '-'}</dd></div>
                 <div className="hidden sm:block"><dt className="text-xs uppercase text-slate-500">Шаг</dt><dd>{place.billing_step_minutes ?? '-'}</dd></div>
               </dl>
-              <div className="flex flex-wrap gap-2">
-                <Button className="min-h-9 w-full px-2 text-xs sm:min-h-10 sm:w-auto sm:px-4 sm:text-sm" onClick={() => openEdit(place)} type="button" variant="secondary"><Edit3 className="size-4" />Редактировать</Button>
-                <Button onClick={() => archivePlaceFromBoard(place)} type="button" variant="danger">
+              <div className="grid grid-cols-2 gap-1.5">
+                <Button className="min-h-8 px-2 text-xs" onClick={() => openEdit(place)} type="button" variant="secondary"><Edit3 className="size-3.5" />Редактировать</Button>
+                <Button className="min-h-8 px-2 text-xs" onClick={() => archivePlaceFromBoard(place)} type="button" variant="danger">
                   <Archive className="size-4" />{t('places.archivePlace')}
                 </Button>
               </div>

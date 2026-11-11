@@ -21,7 +21,22 @@ export type WorkspaceLayoutSlot<TPlace extends WorkspacePlaceLike> = {
   style: CSSProperties
 }
 
-export const WORKSPACE_COLUMNS = 12
+export const WORKSPACE_STORAGE_COLUMNS = 12
+export const WORKSPACE_COLUMNS = 6
+export const WORKSPACE_MIN_ROWS = 4
+export const WORKSPACE_COLUMN_SCALE = WORKSPACE_STORAGE_COLUMNS / WORKSPACE_COLUMNS
+
+export const toWorkspaceDisplayCoordinate = (value: number) =>
+  Math.floor((Math.max(1, value) - 1) / WORKSPACE_COLUMN_SCALE) + 1
+
+export const toWorkspaceStorageCoordinate = (value: number) =>
+  (Math.max(1, value) - 1) * WORKSPACE_COLUMN_SCALE + 1
+
+export const toWorkspaceDisplaySpan = (value: number) =>
+  Math.max(1, Math.ceil(Math.max(1, value) / WORKSPACE_COLUMN_SCALE))
+
+export const toWorkspaceStorageSpan = (value: number) =>
+  Math.min(WORKSPACE_STORAGE_COLUMNS, Math.max(1, value) * WORKSPACE_COLUMN_SCALE)
 
 export const normalizePlaceName = (value: string) =>
   value
@@ -94,14 +109,17 @@ export const buildWorkspaceLayout = <TPlace extends WorkspacePlaceLike>(
     .map((place) => {
       const shape = getWorkspaceShape(place)
       const fallbackSize = getDefaultWorkspaceSize(place)
-      const x = place.workspace_x
+      const x = place.workspace_x ? toWorkspaceDisplayCoordinate(place.workspace_x) : null
       const y = place.workspace_y
-      const w = Math.min(WORKSPACE_COLUMNS, Math.max(1, place.workspace_w ?? fallbackSize.w))
+      const w = Math.min(
+        WORKSPACE_COLUMNS,
+        toWorkspaceDisplaySpan(place.workspace_w ?? fallbackSize.w),
+      )
       const h = Math.max(1, place.workspace_h ?? fallbackSize.h)
       const style: CSSProperties =
         x && y
           ? {
-              gridColumn: `${Math.min(WORKSPACE_COLUMNS, Math.max(1, x))} / span ${w}`,
+              gridColumn: `${Math.min(WORKSPACE_COLUMNS - w + 1, Math.max(1, x))} / span ${w}`,
               gridRow: `${Math.max(1, y)} / span ${h}`,
             }
           : {
