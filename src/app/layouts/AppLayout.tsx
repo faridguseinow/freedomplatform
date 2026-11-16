@@ -1,10 +1,12 @@
-import { ArrowLeft, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Settings, UserRound } from 'lucide-react'
+import { ArrowLeft, HandCoins, Loader2, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Settings, UserRound, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { CatalogImage } from '../../components/common/CatalogImage'
 import { LanguageSwitcher } from '../../components/common/LanguageSwitcher'
 import { ThemeToggle } from '../../components/common/ThemeToggle'
 import { Button } from '../../components/ui/Button'
+import { Modal } from '../../components/ui/Modal'
+import { useEmployeeDebtNames } from '../../features/debts/debtsApi'
 import { EmployeeLockScreen } from '../../features/employee/components/EmployeeLockScreen'
 import { useAuth } from '../../hooks/useAuth'
 import { useI18n } from '../../lib/i18n/I18nContext'
@@ -46,6 +48,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
     return window.localStorage.getItem(sidebarStorageKey) === '1'
   })
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const [isDebtNamesOpen, setIsDebtNamesOpen] = useState(false)
 
   const host = getCurrentAppHost()
   const normalizedPath =
@@ -61,6 +64,10 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
   const productAreaLabel = t(productArea)
   const isPlatformArea = productArea === 'Freedom Platform'
   const isEmployeeArea = productArea === 'Рабочее место'
+  const debtNamesQuery = useEmployeeDebtNames(
+    currentOrganization?.id ?? null,
+    isEmployeeArea && isDebtNamesOpen,
+  )
 
   const displayName = profile?.full_name || user?.email || 'Пользователь'
   const mobileNavItems = navItems
@@ -205,6 +212,21 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                 {sidebarCollapsed ? null : <span className="truncate">{t(item.label)}</span>}
               </NavLink>
             ))}
+            {isEmployeeArea ? (
+              <button
+                aria-label={t('debt.employeeListButton')}
+                className={[
+                  'flex min-h-10 items-center rounded-md text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950',
+                  sidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3',
+                ].join(' ')}
+                onClick={() => setIsDebtNamesOpen(true)}
+                title={sidebarCollapsed ? t('debt.employeeListButton') : undefined}
+                type="button"
+              >
+                <HandCoins aria-hidden="true" className="size-4 shrink-0" />
+                {sidebarCollapsed ? null : <span className="truncate">{t('debt.employeeListButton')}</span>}
+              </button>
+            ) : null}
           </nav>
 
           {hideHeader ? (
@@ -488,9 +510,44 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
         </div>
       ) : null}
 
+      {isEmployeeArea && isDebtNamesOpen ? (
+        <Modal ariaLabel={t('debt.employeeListTitle')} onClose={() => setIsDebtNamesOpen(false)}>
+          <section className="grid max-h-[min(80svh,36rem)] w-full max-w-md grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
+            <header className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <HandCoins aria-hidden="true" className="size-5 shrink-0 text-emerald-700" />
+                <h2 className="truncate text-lg font-semibold text-slate-950">{t('debt.employeeListTitle')}</h2>
+              </div>
+              <button aria-label={t('Закрыть')} className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setIsDebtNamesOpen(false)} type="button">
+                <X aria-hidden="true" className="size-4" />
+              </button>
+            </header>
+            <div className="min-h-0 overflow-y-auto p-3">
+              {debtNamesQuery.isLoading ? (
+                <div className="grid min-h-28 place-items-center text-slate-500">
+                  <Loader2 aria-hidden="true" className="size-5 animate-spin" />
+                </div>
+              ) : debtNamesQuery.isError ? (
+                <p className="rounded-md bg-red-50 px-3 py-3 text-sm text-red-800">{t('debt.employeeListError')}</p>
+              ) : debtNamesQuery.data?.length ? (
+                <ul className="grid gap-2">
+                  {debtNamesQuery.data.map((name) => (
+                    <li className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-900" key={name}>
+                      {name}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="px-3 py-8 text-center text-sm text-slate-500">{t('debt.employeeListEmpty')}</p>
+              )}
+            </div>
+          </section>
+        </Modal>
+      ) : null}
+
       <nav
         className="fixed inset-x-0 bottom-0 z-30 grid border-t border-slate-200 bg-white px-2 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-1 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] md:hidden"
-        style={{ gridTemplateColumns: `repeat(${mobileNavItems.length + (isEmployeeArea ? 1 : 0)}, minmax(0, 1fr))` }}
+        style={{ gridTemplateColumns: `repeat(${mobileNavItems.length + (isEmployeeArea ? 2 : 0)}, minmax(0, 1fr))` }}
         aria-label={`${productAreaLabel}: ${t("ui.mobilnaya_navigatsiya_09a11d6")}`}
       >
         {mobileNavItems.map((item) => {
@@ -512,6 +569,21 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
             </NavLink>
           )
         })}
+        {isEmployeeArea ? (
+          <button
+            aria-expanded={isDebtNamesOpen}
+            aria-label={t('debt.employeeListButton')}
+            className={[
+              'grid min-h-14 place-items-center gap-0.5 rounded-md px-1 py-1 text-[11px] font-medium',
+              isDebtNamesOpen ? 'text-emerald-800' : 'text-slate-500',
+            ].join(' ')}
+            onClick={() => setIsDebtNamesOpen(true)}
+            type="button"
+          >
+            <HandCoins aria-hidden="true" className="size-5" />
+            <span className="max-w-full truncate">{t('debt.employeeListButton')}</span>
+          </button>
+        ) : null}
         {isEmployeeArea ? (
           <button
             aria-expanded={isUserMenuOpen}

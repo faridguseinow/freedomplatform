@@ -22,6 +22,32 @@ export function useCustomerDebts(organizationId: string | null) {
   })
 }
 
+export function useEmployeeDebtNames(organizationId: string | null, enabled = true) {
+  return useQuery({
+    enabled: enabled && Boolean(organizationId),
+    queryKey: ['employee-debt-names', organizationId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('customer_label')
+        .eq('organization_id', organizationId!)
+        .eq('status', 'unpaid')
+        .not('customer_label', 'is', null)
+        .order('customer_label')
+
+      if (error) throw new Error(error.message)
+
+      return Array.from(
+        new Set(
+          (data ?? [])
+            .map((order) => order.customer_label?.trim())
+            .filter((name): name is string => Boolean(name)),
+        ),
+      )
+    },
+  })
+}
+
 export function useDebtMutations(organizationId: string | null) {
   const queryClient = useQueryClient()
 
