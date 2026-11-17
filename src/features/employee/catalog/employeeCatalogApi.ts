@@ -94,6 +94,32 @@ export function useEmployeeProducts({ organizationId }: EmployeeCatalogParams) {
   })
 }
 
+export function useEmployeeProductSalesRanking({ organizationId }: EmployeeCatalogParams) {
+  return useQuery({
+    enabled: Boolean(organizationId),
+    queryKey: ['employee', 'catalog', 'product-sales-ranking', organizationId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('employee_order_items')
+        .select('product_id,paid_quantity')
+        .eq('organization_id', organizationId!)
+        .eq('item_type', 'product')
+        .eq('status', 'active')
+        .not('product_id', 'is', null)
+        .gt('paid_quantity', 0)
+        .limit(10000)
+
+      if (error) throw new Error(error.message)
+
+      return (data ?? []).reduce<Record<string, number>>((ranking, item) => {
+        if (!item.product_id) return ranking
+        ranking[item.product_id] = (ranking[item.product_id] ?? 0) + Number(item.paid_quantity ?? 0)
+        return ranking
+      }, {})
+    },
+  })
+}
+
 export function useEmployeeServices({ organizationId }: EmployeeCatalogParams) {
   return useQuery({
     enabled: Boolean(organizationId),

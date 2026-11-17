@@ -36,6 +36,7 @@ import { cn } from '../../../lib/utils/cn'
 import { USER_ROLES } from '../../../types/roles'
 import {
   useEmployeeCombos,
+  useEmployeeProductSalesRanking,
   useEmployeeProducts,
   useEmployeeServices,
 } from '../catalog/employeeCatalogApi'
@@ -311,6 +312,7 @@ export function EmployeeWorkspacePage() {
   const { language, t } = useI18n()
   const workspaceQuery = useEmployeeWorkspaceData(organizationId)
   const productsQuery = useEmployeeProducts({ organizationId })
+  const productSalesRankingQuery = useEmployeeProductSalesRanking({ organizationId })
   const servicesQuery = useEmployeeServices({ organizationId })
   const combosQuery = useEmployeeCombos({ organizationId })
   const orderMutations = useEmployeeOrderMutations(organizationId)
@@ -555,9 +557,14 @@ export function EmployeeWorkspacePage() {
     }
   }, [isWorkspaceReadOnly, nowMs, orderMutations.completeSession, places, runAction])
 
-  const filteredProducts = (productsQuery.data ?? []).filter((item) =>
-    [item.name, item.sku, item.characteristics].filter(Boolean).join(' ').toLowerCase().includes(search.toLowerCase()),
-  )
+  const productSalesRanking = productSalesRankingQuery.data ?? {}
+  const filteredProducts = (productsQuery.data ?? [])
+    .filter((item) =>
+      [item.name, item.sku, item.characteristics].filter(Boolean).join(' ').toLowerCase().includes(search.toLowerCase()),
+    )
+    .sort((first, second) =>
+      (productSalesRanking[second.id] ?? 0) - (productSalesRanking[first.id] ?? 0),
+    )
   const filteredServices = (servicesQuery.data ?? [])
     .filter((item) => item.pricing_type === 'fixed')
     .filter((item) =>

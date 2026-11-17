@@ -37,7 +37,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
   const location = useLocation()
   const navigate = useNavigate()
   const { clearOrganizationView, currentOrganization, profile, role, signOut, user } = useAuth()
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
   const sidebarProfileMenuRef = useRef<HTMLDivElement | null>(null)
   const headerProfileMenuRef = useRef<HTMLDivElement | null>(null)
   const mobileProfileMenuRef = useRef<HTMLDivElement | null>(null)
@@ -531,9 +531,12 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                 <p className="rounded-md bg-red-50 px-3 py-3 text-sm text-red-800">{t('debt.employeeListError')}</p>
               ) : debtNamesQuery.data?.length ? (
                 <ul className="grid gap-2">
-                  {debtNamesQuery.data.map((name) => (
-                    <li className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-900" key={name}>
-                      {name}
+                  {debtNamesQuery.data.map((customer) => (
+                    <li className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-900" key={customer.name.toLocaleLowerCase()}>
+                      <span className="min-w-0 truncate">{customer.name}</span>
+                      <span className="shrink-0 text-emerald-700">
+                        {new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(customer.amount)} AZN
+                      </span>
                     </li>
                   ))}
                 </ul>

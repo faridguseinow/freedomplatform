@@ -29,7 +29,7 @@ export function useEmployeeDebtNames(organizationId: string | null, enabled = tr
     queryFn: async () => {
       const { data, error } = await supabase
         .from('orders')
-        .select('customer_label')
+        .select('customer_label,unpaid_amount')
         .eq('organization_id', organizationId!)
         .eq('status', 'unpaid')
         .not('customer_label', 'is', null)
@@ -37,13 +37,19 @@ export function useEmployeeDebtNames(organizationId: string | null, enabled = tr
 
       if (error) throw new Error(error.message)
 
-      return Array.from(
-        new Set(
-          (data ?? [])
-            .map((order) => order.customer_label?.trim())
-            .filter((name): name is string => Boolean(name)),
-        ),
-      )
+      const customers = new Map<string, { name: string; amount: number }>()
+      for (const order of data ?? []) {
+        const name = order.customer_label?.trim()
+        if (!name) continue
+        const key = name.toLocaleLowerCase()
+        const current = customers.get(key)
+        customers.set(key, {
+          name: current?.name ?? name,
+          amount: (current?.amount ?? 0) + Number(order.unpaid_amount ?? 0),
+        })
+      }
+
+      return Array.from(customers.values())
     },
   })
 }
