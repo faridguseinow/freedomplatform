@@ -6,7 +6,7 @@ import { LanguageSwitcher } from '../../components/common/LanguageSwitcher'
 import { ThemeToggle } from '../../components/common/ThemeToggle'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
-import { useEmployeeDebtNames } from '../../features/debts/debtsApi'
+import { useEmployeeDebtSummary } from '../../features/debts/debtsApi'
 import { EmployeeLockScreen } from '../../features/employee/components/EmployeeLockScreen'
 import { useAuth } from '../../hooks/useAuth'
 import { useI18n } from '../../lib/i18n/I18nContext'
@@ -31,6 +31,19 @@ const isActivePath = (currentPath: string, item: NavItem) => {
   }
 
   return currentPath === item.path || currentPath.startsWith(`${item.path}/`)
+}
+
+const getLocalDateKey = () => {
+  const date = new Date()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
+const formatDateKey = (value: string | null) => {
+  if (!value) return '—'
+  const [year, month, day] = value.split('-')
+  return year && month && day ? `${day}.${month}.${year}` : value
 }
 
 export function AppLayout({ fullWidthContent = false, hideHeader = false, navItems, productArea }: AppLayoutProps) {
@@ -64,10 +77,11 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
   const productAreaLabel = t(productArea)
   const isPlatformArea = productArea === 'Freedom Platform'
   const isEmployeeArea = productArea === 'Рабочее место'
-  const debtNamesQuery = useEmployeeDebtNames(
+  const debtSummaryQuery = useEmployeeDebtSummary(
     currentOrganization?.id ?? null,
     isEmployeeArea && isDebtNamesOpen,
   )
+  const todayDateKey = getLocalDateKey()
 
   const displayName = profile?.full_name || user?.email || 'Пользователь'
   const mobileNavItems = navItems
@@ -512,7 +526,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
 
       {isEmployeeArea && isDebtNamesOpen ? (
         <Modal ariaLabel={t('debt.employeeListTitle')} onClose={() => setIsDebtNamesOpen(false)}>
-          <section className="grid max-h-[min(80svh,36rem)] w-full max-w-md grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
+          <section className="grid max-h-[min(80svh,36rem)] w-full max-w-3xl grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
             <header className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
               <div className="flex min-w-0 items-center gap-2">
                 <HandCoins aria-hidden="true" className="size-5 shrink-0 text-emerald-700" />
@@ -523,23 +537,40 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
               </button>
             </header>
             <div className="min-h-0 overflow-y-auto p-3">
-              {debtNamesQuery.isLoading ? (
+              {debtSummaryQuery.isLoading ? (
                 <div className="grid min-h-28 place-items-center text-slate-500">
                   <Loader2 aria-hidden="true" className="size-5 animate-spin" />
                 </div>
-              ) : debtNamesQuery.isError ? (
+              ) : debtSummaryQuery.isError ? (
                 <p className="rounded-md bg-red-50 px-3 py-3 text-sm text-red-800">{t('debt.employeeListError')}</p>
-              ) : debtNamesQuery.data?.length ? (
-                <ul className="grid gap-2">
-                  {debtNamesQuery.data.map((customer) => (
-                    <li className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-900" key={customer.name.toLocaleLowerCase()}>
-                      <span className="min-w-0 truncate">{customer.name}</span>
-                      <span className="shrink-0 text-emerald-700">
-                        {new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(customer.amount)} AZN
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+              ) : debtSummaryQuery.data?.length ? (
+                <div className="overflow-x-auto rounded-md border border-slate-200">
+                  <table className="w-full min-w-[40rem] border-collapse text-left text-sm">
+                    <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-600">
+                      <tr>
+                        <th className="px-3 py-2.5 font-semibold" scope="col">{t('debt.customer')}</th>
+                        <th className="whitespace-nowrap px-3 py-2.5 font-semibold" scope="col">{t('debt.incurredOn')}</th>
+                        <th className="whitespace-nowrap px-3 py-2.5 font-semibold" scope="col">{t('debt.dueOn')}</th>
+                        <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold" scope="col">{t('debt.amount')}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {debtSummaryQuery.data.map((debt) => {
+                        const isOverdue = Boolean(debt.due_on && debt.due_on < todayDateKey)
+                        return (
+                          <tr className={isOverdue ? 'bg-red-100 text-red-950' : 'bg-white text-slate-900'} key={debt.debt_id}>
+                            <td className="max-w-64 truncate px-3 py-3 font-semibold">{debt.customer_name}</td>
+                            <td className="whitespace-nowrap px-3 py-3">{formatDateKey(debt.incurred_on)}</td>
+                            <td className={`whitespace-nowrap px-3 py-3 ${isOverdue ? 'font-semibold text-red-800' : ''}`}>{formatDateKey(debt.due_on)}</td>
+                            <td className={`whitespace-nowrap px-3 py-3 text-right font-semibold ${isOverdue ? 'text-red-800' : 'text-emerald-700'}`}>
+                              {new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(Number(debt.balance_amount))} AZN
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
                 <p className="px-3 py-8 text-center text-sm text-slate-500">{t('debt.employeeListEmpty')}</p>
               )}

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase/client'
-import type { CustomerDebtRow, PaymentMethod } from '../../lib/supabase/database.types'
+import type { CustomerDebtRow, EmployeeDebtSummaryRow, PaymentMethod } from '../../lib/supabase/database.types'
 
 const debtSelect =
   'id,organization_id,order_id,order_number_snapshot,customer_name,customer_phone,original_amount,paid_amount,balance_amount,status,incurred_on,due_on,comment,created_by,created_at,paid_at,updated_at'
@@ -22,34 +22,17 @@ export function useCustomerDebts(organizationId: string | null) {
   })
 }
 
-export function useEmployeeDebtNames(organizationId: string | null, enabled = true) {
+export function useEmployeeDebtSummary(organizationId: string | null, enabled = true) {
   return useQuery({
     enabled: enabled && Boolean(organizationId),
-    queryKey: ['employee-debt-names', organizationId],
+    queryKey: ['employee-debt-summary', organizationId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('customer_label,unpaid_amount')
-        .eq('organization_id', organizationId!)
-        .eq('status', 'unpaid')
-        .not('customer_label', 'is', null)
-        .order('customer_label')
+      const { data, error } = await supabase.rpc('get_employee_debt_summary', {
+        target_organization_id: organizationId!,
+      })
 
       if (error) throw new Error(error.message)
-
-      const customers = new Map<string, { name: string; amount: number }>()
-      for (const order of data ?? []) {
-        const name = order.customer_label?.trim()
-        if (!name) continue
-        const key = name.toLocaleLowerCase()
-        const current = customers.get(key)
-        customers.set(key, {
-          name: current?.name ?? name,
-          amount: (current?.amount ?? 0) + Number(order.unpaid_amount ?? 0),
-        })
-      }
-
-      return Array.from(customers.values())
+      return (data ?? []) as EmployeeDebtSummaryRow[]
     },
   })
 }

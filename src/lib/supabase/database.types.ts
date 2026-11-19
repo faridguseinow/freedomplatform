@@ -688,6 +688,14 @@ export type CustomerDebtPaymentRow = {
   received_at: string
 }
 
+export type EmployeeDebtSummaryRow = {
+  debt_id: string
+  customer_name: string
+  incurred_on: string
+  due_on: string | null
+  balance_amount: number
+}
+
 export type AuditLogRow = {
   id: string
   organization_id: string | null
@@ -1479,6 +1487,12 @@ export type Database = {
       finance_dashboard_summary: { Row: FinanceDashboardSummaryRow; Relationships: [] }
     }
     Functions: {
+      get_employee_debt_summary: {
+        Args: {
+          target_organization_id: string
+        }
+        Returns: EmployeeDebtSummaryRow[]
+      }
       create_customer_debt: {
         Args: {
           target_order_id: string
