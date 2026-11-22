@@ -461,9 +461,24 @@ export function EmployeeWorkspacePage() {
     return result
   }, [comboItems, combosQuery.data])
   const selectedOrderPlace = selectedOrder?.place_id ? placesById.get(selectedOrder.place_id) ?? null : null
-  const transferTargets = places.filter((place) =>
-    place.status === 'active' && place.id !== selectedOrder?.place_id,
-  )
+  const transferTargets = useMemo(() => {
+    const placeNameCollator = new Intl.Collator(language, {
+      numeric: true,
+      sensitivity: 'base',
+    })
+
+    return places
+      .filter((place) => place.status === 'active' && place.id !== selectedOrder?.place_id)
+      .sort((first, second) => {
+        const firstName = normalizePlaceName(first.name)
+        const secondName = normalizePlaceName(second.name)
+        const firstIsBilliard = first.type === 'billiard' || firstName.includes('bilyard') || firstName.includes('billiard')
+        const secondIsBilliard = second.type === 'billiard' || secondName.includes('bilyard') || secondName.includes('billiard')
+
+        if (firstIsBilliard !== secondIsBilliard) return firstIsBilliard ? 1 : -1
+        return placeNameCollator.compare(first.name, second.name)
+      })
+  }, [language, places, selectedOrder?.place_id])
   const ordersWithoutPlace = orders.filter((order) => !order.place_id && order.status !== 'paid')
   const transferTargetOrders = ordersWithoutPlace.filter(
     (order) => order.id !== selectedOrder?.id && order.status === 'open',
@@ -1140,7 +1155,7 @@ export function EmployeeWorkspacePage() {
                       <span className="font-medium text-orange-700">{sessionGraceNotice}</span>
                     ) : null}
                     {hasSessionLimitAlert ? (
-                      <span className="font-semibold text-red-800">
+                      <span className="text-[9px] font-semibold leading-[11px] text-red-800 sm:text-[10px]">
                         {t('session.limitEndedAcknowledge')}
                       </span>
                     ) : sessionLimitInfo ? (
@@ -1163,7 +1178,7 @@ export function EmployeeWorkspacePage() {
                 {customerLabel ? (
                   <div
                     className={cn(
-                      '-mx-2 -mb-2 mt-2 flex min-h-8 items-center justify-center border-t-2 px-2 pt-1 text-center text-sm font-semibold text-slate-800',
+                      '-mx-2 -mb-2 mt-1 flex min-h-6 items-center justify-center border-t-2 px-2 py-0.5 text-center text-[10px] font-semibold leading-3 text-slate-800 sm:text-[11px]',
                       place.active_order_status === 'waiting_payment'
                         ? 'border-orange-400/50'
                         : hasActiveOrder || hasActiveSession
@@ -2138,7 +2153,7 @@ export function EmployeeWorkspacePage() {
                     return (
                       <button
                         className={cn(
-                          'grid min-h-16 gap-2 rounded-lg border p-3 text-left transition-colors',
+                          'grid min-h-16 gap-2 rounded-lg border p-3 pb-4 text-left transition-colors',
                           isOccupied
                             ? 'border-red-800 bg-red-950/35 text-red-100'
                             : 'border-emerald-800 bg-emerald-950/30 text-emerald-100',
