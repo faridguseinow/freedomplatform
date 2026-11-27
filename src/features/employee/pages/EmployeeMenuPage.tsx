@@ -13,6 +13,32 @@ import {
 import { formatAzn } from './helpers/format'
 import { CatalogImage } from '../../../components/common/CatalogImage'
 
+type MenuItem = {
+  id: string
+  name: string
+  price: number | null
+  type: 'product' | 'service' | 'combo'
+  imagePath: string | null
+  categoryId: string | null
+  sortOrder: number
+  stockQuantity?: number | null
+  trackStock?: boolean | null
+  unitName?: string | null
+  availableQuantity?: number | null
+  componentsNames?: string[]
+}
+
+type ComboPreviewEntry = Record<string, unknown>
+
+const readPreviewName = (entry: ComboPreviewEntry) => {
+  const name =
+    entry.name || entry.name_snapshot || entry.product_name || entry.service_name || entry.component_name
+  return name ? String(name) : null
+}
+
+const readPreviewQuantity = (entry: ComboPreviewEntry) =>
+  entry.quantity ?? entry.qty ?? entry.count ?? entry.amount ?? entry.component_quantity ?? null
+
 const formatQuantity = (value: number | null | undefined) => {
   if (value === null || value === undefined) return null
   return new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 3 }).format(value)
@@ -42,12 +68,12 @@ export function EmployeeMenuPage() {
   if (error) return <div className="p-4 text-red-600">{t("ui.oshibka_zagruzki_menyu_a06d4a0")}</div>
 
   // Build items with category association and image_path
-  const items = [
-    ...products.map((p: any) => ({
+  const items: MenuItem[] = [
+    ...products.map((p) => ({
       id: `p-${p.id}`,
       name: p.name,
       price: p.sale_price,
-      type: 'product',
+      type: 'product' as const,
       imagePath: p.image_path ?? null,
       categoryId: p.category_id ?? null,
       stockQuantity: p.stock_quantity ?? null,
@@ -55,31 +81,36 @@ export function EmployeeMenuPage() {
       unitName: p.unit_name ?? null,
       sortOrder: p.sort_order ?? 0,
     })),
-    ...services.map((s: any) => ({
+    ...services.map((s) => ({
       id: `s-${s.id}`,
       name: s.name,
       price: s.fixed_price ?? s.hourly_rate ?? null,
-      type: 'service',
+      type: 'service' as const,
       imagePath: s.image_path ?? null,
       categoryId: s.category_id ?? null,
       sortOrder: s.sort_order ?? 0,
     })),
-    ...combos.map((c: any) => {
+    ...combos.map((c) => {
       // try to parse component_preview to an array of component names with quantities
       let componentsNames: string[] = []
       try {
-        const raw = Array.isArray(c.component_preview) ? c.component_preview : JSON.parse(c.component_preview ?? '[]')
+        const preview = c.component_preview
+        const raw = Array.isArray(preview)
+          ? preview
+          : typeof preview === 'string'
+            ? JSON.parse(preview)
+            : []
         if (Array.isArray(raw)) {
           componentsNames = raw
-            .map((x: any) => {
-              const name = x.name || x.name_snapshot || x.product_name || x.service_name || x.component_name
-              const qty = x.quantity ?? x.qty ?? x.count ?? x.amount ?? x.component_quantity ?? null
+            .map((x: ComboPreviewEntry) => {
+              const name = readPreviewName(x)
+              const qty = readPreviewQuantity(x)
               if (!name) return null
-              return qty ? `${name} ×${qty}` : String(name)
+              return qty ? `${name} ×${String(qty)}` : name
             })
-            .filter(Boolean) as string[]
+            .filter((name): name is string => Boolean(name))
         }
-      } catch (e) {
+      } catch {
         componentsNames = []
       }
 
@@ -87,24 +118,23 @@ export function EmployeeMenuPage() {
         id: `c-${c.id}`,
         name: c.name,
         price: c.sale_price,
-        type: 'combo',
+        type: 'combo' as const,
         imagePath: c.image_path ?? null,
         categoryId: c.category_id ?? null,
         availableQuantity: c.available_quantity ?? null,
         sortOrder: 0,
-        componentPreview: c.component_preview ?? null,
         componentsNames,
       }
     }),
   ]
 
   // Group items by category id
-  const categoriesMap: Record<string, any> = {}
-  categories.forEach((cat: any) => {
+  const categoriesMap: Record<string, (typeof categories)[number]> = {}
+  categories.forEach((cat) => {
     categoriesMap[cat.id] = cat
   })
 
-  const itemsByCategory: Record<string, any[]> = {}
+  const itemsByCategory: Record<string, MenuItem[]> = {}
   items.forEach((it) => {
     const key = it.categoryId ?? 'uncategorized'
     if (!itemsByCategory[key]) itemsByCategory[key] = []
@@ -117,7 +147,7 @@ export function EmployeeMenuPage() {
   })
 
   // Ensure there's a combo category: if none of the fetched categories has type 'combo'
-  const hasComboCategory = categories.some((c: any) => c.type === 'combo')
+  const hasComboCategory = categories.some((c) => String(c.type) === 'combo')
   const comboCategoryKey = hasComboCategory ? null : 'combos'
 
   // If combos are uncategorized and there's no combo category, group them under virtual 'combos' category
@@ -131,7 +161,7 @@ export function EmployeeMenuPage() {
   }
 
   // Determine render order of categories: follow categories array, then virtual combos, then uncategorized last
-  const orderedCategoryKeys = categories.map((c: any) => String(c.id))
+  const orderedCategoryKeys = categories.map((c) => String(c.id))
   if (comboCategoryKey) orderedCategoryKeys.push(comboCategoryKey)
   if (itemsByCategory['uncategorized'] && itemsByCategory['uncategorized'].length) orderedCategoryKeys.push('uncategorized')
 
@@ -159,7 +189,7 @@ export function EmployeeMenuPage() {
               </div>
 
               <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-                {list.map((it: any) => {
+                {list.map((it) => {
                   const isCombo = it.type === 'combo'
                   const isExpanded = Boolean(expandedIds[it.id])
                   const stockQuantity = it.type === 'combo' ? it.availableQuantity : it.stockQuantity
