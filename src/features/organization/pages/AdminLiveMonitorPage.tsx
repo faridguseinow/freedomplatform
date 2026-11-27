@@ -1,3 +1,4 @@
+import { getCurrentCurrencyCode } from '../../../lib/money/currency'
 import { ReceiptText, Sofa, Timer, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { CatalogImage } from '../../../components/common/CatalogImage'
@@ -27,7 +28,7 @@ const placeTypeLabel: Record<PlaceType, string> = {
 const formatMoney = (value: number | null | undefined) =>
   new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
 
-const formatAzn = (value: number | null | undefined) => `${formatMoney(value)} AZN`
+const formatAzn = (value: number | null | undefined) => `${formatMoney(value)} ${getCurrentCurrencyCode()}`
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return '-'

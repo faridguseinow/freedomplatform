@@ -1,3 +1,4 @@
+import { getCurrentCurrencyCode } from '../../../lib/money/currency'
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Archive, Edit3, Gift, Loader2, Plus, RotateCcw, Save, X } from 'lucide-react'
@@ -290,15 +291,15 @@ export function AdminCombosPage() {
                     <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4">
                       <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
                         <dt className="text-[11px] font-semibold uppercase text-slate-500">{t('Обычная цена')}</dt>
-                        <dd className="mt-1 font-semibold text-slate-950">{formatNumber(basePrice)} AZN</dd>
+                        <dd className="mt-1 font-semibold text-slate-950">{formatNumber(basePrice)} {getCurrentCurrencyCode()}</dd>
                       </div>
                       <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
                         <dt className="text-[11px] font-semibold uppercase text-emerald-700">{t('Цена комбо')}</dt>
-                        <dd className="mt-1 font-semibold text-emerald-950">{formatNumber(combo.sale_price)} AZN</dd>
+                        <dd className="mt-1 font-semibold text-emerald-950">{formatNumber(combo.sale_price)} {getCurrentCurrencyCode()}</dd>
                       </div>
                       <div className="rounded-md border border-cyan-200 bg-cyan-50 px-3 py-2">
                         <dt className="text-[11px] font-semibold uppercase text-cyan-700">{t('Выгода')}</dt>
-                        <dd className="mt-1 font-semibold text-cyan-950">{formatNumber(discount)} AZN</dd>
+                        <dd className="mt-1 font-semibold text-cyan-950">{formatNumber(discount)} {getCurrentCurrencyCode()}</dd>
                       </div>
                       <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
                         <dt className="text-[11px] font-semibold uppercase text-slate-500">{t('Скидка')}</dt>

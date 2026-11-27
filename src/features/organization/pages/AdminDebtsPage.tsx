@@ -1,3 +1,4 @@
+import { getCurrentCurrencyCode } from '../../../lib/money/currency'
 import { Banknote, CreditCard, HandCoins, Loader2, Pencil, Search, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -14,7 +15,7 @@ import { useCustomerDebts, useDebtMutations } from '../../debts/debtsApi'
 type DebtFilter = CustomerDebtStatus | 'all'
 
 const formatMoney = (value: number) =>
-  `${new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value)} AZN`
+  `${new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value)} ${getCurrentCurrencyCode()}`
 
 const formatDate = (value: string | null) =>
   value ? new Intl.DateTimeFormat(getCurrentLocale()).format(new Date(`${value}T00:00:00`)) : '—'

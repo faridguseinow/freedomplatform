@@ -1,3 +1,4 @@
+import { getCurrentCurrencyCode } from '../../../lib/money/currency'
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { formatNumericTime } from '../../../lib/i18n/dateTime'
 import {
@@ -66,7 +67,7 @@ const SESSION_LIMIT_ALARM_REPEAT_MS = 5_000
 const formatMoney = (value: number | null | undefined) =>
   new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
 
-const formatAzn = (value: number | null | undefined) => `${formatMoney(value)} AZN`
+const formatAzn = (value: number | null | undefined) => `${formatMoney(value)} ${getCurrentCurrencyCode()}`
 const formatOrderItemAddedAt = (value: string) => formatNumericTime(value)
 const parseMoneyInput = (value: string) => Number(value.replace(',', '.'))
 

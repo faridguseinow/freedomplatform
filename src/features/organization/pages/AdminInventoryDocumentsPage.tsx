@@ -1,3 +1,4 @@
+import { getCurrentCurrencyCode } from '../../../lib/money/currency'
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { Ban, ChevronDown, FileText, Loader2, ShoppingBasket, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -44,8 +45,8 @@ function PurchaseDocumentItems({ documentId }: { documentId: string }) {
             <div className="grid gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm sm:grid-cols-[minmax(0,1fr)_110px_130px_120px] sm:items-center" key={item.id}>
               <p className="font-medium text-slate-950">{product?.name ?? t('Удалённый товар')}</p>
               <p className="text-slate-600"><span className="sm:hidden">{t('Количество')}: </span>{formatNumber(item.quantity)} {formatUnitName(product?.unit_name, language)}</p>
-              <p className="text-slate-600"><span className="sm:hidden">{t('Себестоимость')}: </span>{formatNumber(item.unit_cost)} AZN</p>
-              <p className="font-semibold text-slate-950 sm:text-right"><span className="sm:hidden">{t('Сумма')}: </span>{formatNumber(item.line_total)} AZN</p>
+              <p className="text-slate-600"><span className="sm:hidden">{t('Себестоимость')}: </span>{formatNumber(item.unit_cost)} {getCurrentCurrencyCode()}</p>
+              <p className="font-semibold text-slate-950 sm:text-right"><span className="sm:hidden">{t('Сумма')}: </span>{formatNumber(item.line_total)} {getCurrentCurrencyCode()}</p>
             </div>
           )
         })}
@@ -141,7 +142,7 @@ export function AdminInventoryDocumentsPage() {
                   <p className="mt-1 text-sm text-slate-500">{formatDate(document.document_date)}</p>
                 </div>
                 <div className="flex items-center justify-between gap-3 sm:justify-end">
-                  <span className="text-base font-semibold text-slate-950">{formatNumber(document.total_amount)} AZN</span>
+                  <span className="text-base font-semibold text-slate-950">{formatNumber(document.total_amount)} {getCurrentCurrencyCode()}</span>
                   <ChevronDown className={cn('size-5 text-slate-500 transition-transform', expandedDocumentId === document.id && 'rotate-180')} />
                 </div>
               </button>
@@ -177,7 +178,7 @@ export function AdminInventoryDocumentsPage() {
             </div>
             <div className="flex items-start gap-2 lg:justify-end">
               <span className="min-h-10 rounded-md border border-slate-200 px-4 py-2 text-sm font-medium text-slate-900">
-                {formatNumber(document.total_amount)} AZN
+                {formatNumber(document.total_amount)} {getCurrentCurrencyCode()}
               </span>
               {document.status === 'draft' ? (
                 <Button
