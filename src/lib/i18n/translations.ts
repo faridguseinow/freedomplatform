@@ -8,7 +8,7 @@ export const languageLabels: Record<SystemLanguage, string> = {
   en: 'English',
 }
 
-export const supportedLanguages: SystemLanguage[] = ['ru', 'az']
+export const supportedLanguages: SystemLanguage[] = ['ru', 'az', 'en']
 
 export const demoLanguages: SystemLanguage[] = ['az', 'ru', 'en']
 

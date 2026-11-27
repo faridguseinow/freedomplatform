@@ -2,6 +2,7 @@ import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import az from './locales/az.json'
 import manualAz from './locales/manual.az.json'
+import manualEn from './locales/manual.en.json'
 import manualRu from './locales/manual.ru.json'
 import en from './locales/en.json'
 import ru from './locales/ru.json'
@@ -11,7 +12,7 @@ void i18n.use(initReactI18next).init({
   resources: {
     ru: { translation: { ...ru, ...manualRu } },
     az: { translation: { ...az, ...manualAz } },
-    en: { translation: en },
+    en: { translation: { ...en, ...manualEn } },
   },
   lng: getStoredSystemLanguage(),
   fallbackLng: 'ru',

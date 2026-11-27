@@ -11,17 +11,18 @@ const en = JSON.parse(fs.readFileSync(path.join(localesRoot, 'en.json'), 'utf8')
 const sourceMap = JSON.parse(fs.readFileSync(path.join(localesRoot, 'source-map.json'), 'utf8'))
 Object.assign(ru, JSON.parse(fs.readFileSync(path.join(localesRoot, 'manual.ru.json'), 'utf8')))
 Object.assign(az, JSON.parse(fs.readFileSync(path.join(localesRoot, 'manual.az.json'), 'utf8')))
+Object.assign(en, JSON.parse(fs.readFileSync(path.join(localesRoot, 'manual.en.json'), 'utf8')))
 Object.assign(sourceMap, JSON.parse(fs.readFileSync(path.join(localesRoot, 'manual-source-map.json'), 'utf8')))
 const errors = []
-const requiredEnglishKeys = [
-  'ui.nazad_f6dab07',
-  'ui.yazyk_ed3f0e5',
-  'ui.yazyk_interfeysa_d9396e7',
-  ...Object.keys(ru).filter((key) => key.startsWith('auth.demo.')),
-]
+const placeholders = (value) => (String(value ?? '').match(/{{\s*\w+\s*}}/g) ?? []).map((item) => item.replace(/\s/g, '')).sort().join(',')
 
-for (const key of requiredEnglishKeys) {
-  if (!String(en[key] ?? '').trim()) errors.push(`Missing English demo value: ${key}`)
+for (const key of Object.keys(ru)) {
+  if (!String(en[key] ?? '').trim()) errors.push(`Missing English value: ${key}`)
+  else if (/[А-Яа-яЁё]/.test(String(en[key]))) errors.push(`Cyrillic leaked into English value: ${key}`)
+  else if (placeholders(en[key]) !== placeholders(ru[key])) errors.push(`English placeholders differ from Russian: ${key}`)
+}
+for (const key of Object.keys(en)) {
+  if (!(key in ru)) errors.push(`English key is absent from the Russian catalog: ${key}`)
 }
 const allowedAzerbaijaniLiterals = new Set([
   'Azərbaycan dili',
