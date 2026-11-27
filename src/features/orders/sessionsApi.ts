@@ -4,12 +4,16 @@ import { supabase } from '../../lib/supabase/client'
 export function useSessionMutations(organizationId: string | null) {
   const queryClient = useQueryClient()
   const invalidate = async (orderId?: string | null) => {
-    await queryClient.invalidateQueries({ queryKey: ['employee', 'workspace', organizationId] })
-    await queryClient.invalidateQueries({ queryKey: ['admin', 'orders', organizationId] })
-    if (orderId) {
-      await queryClient.invalidateQueries({ queryKey: ['employee', 'order-items', orderId] })
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'order-detail', orderId] })
-    }
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['employee', 'workspace', organizationId] }),
+      queryClient.invalidateQueries({ queryKey: ['admin', 'orders', organizationId] }),
+      ...(orderId
+        ? [
+            queryClient.invalidateQueries({ queryKey: ['employee', 'order-items', orderId] }),
+            queryClient.invalidateQueries({ queryKey: ['admin', 'order-detail', orderId] }),
+          ]
+        : []),
+    ])
   }
 
   return {

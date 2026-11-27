@@ -226,13 +226,18 @@ export function useEmployeeOrderSessions(orderId: string | null) {
 
 export function useEmployeeOrderMutations(organizationId: string | null) {
   const queryClient = useQueryClient()
+  // Refetch in parallel: sequential awaits cost one network round trip each.
   const invalidate = async (orderId?: string | null) => {
-    await queryClient.invalidateQueries({ queryKey: ['employee', 'workspace', organizationId] })
-    if (orderId) {
-      await queryClient.invalidateQueries({ queryKey: ['employee', 'order-items', orderId] })
-      await queryClient.invalidateQueries({ queryKey: ['employee', 'order-sessions', orderId] })
-    }
-    await queryClient.invalidateQueries({ queryKey: ['admin', 'orders', organizationId] })
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['employee', 'workspace', organizationId] }),
+      ...(orderId
+        ? [
+            queryClient.invalidateQueries({ queryKey: ['employee', 'order-items', orderId] }),
+            queryClient.invalidateQueries({ queryKey: ['employee', 'order-sessions', orderId] }),
+          ]
+        : []),
+      queryClient.invalidateQueries({ queryKey: ['admin', 'orders', organizationId] }),
+    ])
   }
 
   return {
