@@ -1,3 +1,5 @@
+import { HelpLink } from '../../help/components/HelpLink'
+import { getCurrentCurrencyCode } from '../../../lib/money/currency'
 import { Banknote, CreditCard, HandCoins, Loader2, Pencil, Search, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -14,7 +16,7 @@ import { useCustomerDebts, useDebtMutations } from '../../debts/debtsApi'
 type DebtFilter = CustomerDebtStatus | 'all'
 
 const formatMoney = (value: number) =>
-  `${new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value)} AZN`
+  `${new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value)} ${getCurrentCurrencyCode()}`
 
 const formatDate = (value: string | null) =>
   value ? new Intl.DateTimeFormat(getCurrentLocale()).format(new Date(`${value}T00:00:00`)) : '—'
@@ -152,7 +154,7 @@ export function AdminDebtsPage() {
   return (
     <section className="grid gap-5">
       <header className="grid gap-1">
-        <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">{t('debt.pageTitle')}</h2>
+        <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">{t('debt.pageTitle')}<HelpLink section="debts" /></h2>
         <p className="text-sm text-slate-600">{t('debt.pageDescription')}</p>
       </header>
 

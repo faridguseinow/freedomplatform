@@ -1,3 +1,5 @@
+import { HelpLink } from '../../help/components/HelpLink'
+import { getCurrentCurrencyCode } from '../../../lib/money/currency'
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import {
   ArrowDownRight,
@@ -215,7 +217,7 @@ function PageHeader({
       <div className="grid gap-2">
         <h2 className="text-2xl font-semibold tracking-normal text-slate-950 sm:text-3xl">
           {t(title)}
-        </h2>
+        <HelpLink section="finance" /></h2>
         <p className="max-w-3xl text-sm leading-6 text-slate-600">{t(description)}</p>
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
@@ -2097,7 +2099,7 @@ export function AdminFinanceSettingsPage() {
   const mutation = useFinanceSettingsMutation(organizationId)
   const periods = useFinancialPeriods(organizationId)
   const currentDate = useCurrentDate()
-  const reportingCurrency = settings.data?.reporting_currency_code || 'AZN'
+  const reportingCurrency = settings.data?.reporting_currency_code || getCurrentCurrencyCode()
   const cycle = getCurrentFinancialCycle(periods.data ?? [], currentDate)
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -2162,7 +2164,7 @@ export function AdminFinanceSettingsPage() {
             label={t("ui.valyuta_otcheta_59de5ee")}
             maxLength={3}
             name="reporting_currency_code"
-            placeholder="AZN"
+            placeholder={getCurrentCurrencyCode()}
           />
           <label className="flex min-h-11 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700">
             <input defaultChecked={settings.data?.require_large_expense_approval ?? false} name="require_large_expense_approval" type="checkbox" />

@@ -1,3 +1,5 @@
+import { HelpLink } from '../../help/components/HelpLink'
+import { getCurrentCurrencyCode } from '../../../lib/money/currency'
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Archive, ArrowDownUp, History, Loader2, Minus, Plus, Save, Search, ShoppingBasket, Trash2, X } from 'lucide-react'
@@ -479,7 +481,7 @@ export function AdminInventoryPage() {
     <section className="grid gap-5">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="grid gap-2">
-          <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">Склад</h2>
+          <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">Склад<HelpLink section="inventory" /></h2>
           <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
             Остатки товаров, складские документы и история движений.
           </p>
@@ -586,8 +588,8 @@ export function AdminInventoryPage() {
                   </div>
                   <dl className="grid gap-3 text-sm sm:grid-cols-3">
                     <div><dt className="text-xs uppercase tracking-wide text-slate-500">{t('Осталось')}</dt><dd className="mt-1 text-lg font-semibold text-slate-950">{formatNumber(product.stock_quantity)} {formatUnitName(product.unit_name, language)}</dd></div>
-                    <div><dt className="text-xs uppercase tracking-wide text-slate-500">{t('inventory.averagePurchaseCost')}</dt><dd className="mt-1 font-semibold text-slate-900">{formatNumber(getCurrentPurchaseCost(product))} AZN</dd></div>
-                    <div><dt className="text-xs uppercase tracking-wide text-slate-500">{t('Цена продажи')}</dt><dd className="mt-1 font-semibold text-slate-900">{formatNumber(product.sale_price)} AZN</dd></div>
+                    <div><dt className="text-xs uppercase tracking-wide text-slate-500">{t('inventory.averagePurchaseCost')}</dt><dd className="mt-1 font-semibold text-slate-900">{formatNumber(getCurrentPurchaseCost(product))} {getCurrentCurrencyCode()}</dd></div>
+                    <div><dt className="text-xs uppercase tracking-wide text-slate-500">{t('Цена продажи')}</dt><dd className="mt-1 font-semibold text-slate-900">{formatNumber(product.sale_price)} {getCurrentCurrencyCode()}</dd></div>
                   </dl>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-[minmax(220px,1fr)_auto] xl:min-w-[390px]">
@@ -660,7 +662,7 @@ export function AdminInventoryPage() {
               <p className="font-medium text-slate-950">#{document.document_number} · {stockDocumentTypeLabel[document.type]}</p>
               <p className="text-slate-500">{document.status} · {new Date(document.document_date).toLocaleDateString(getCurrentLocale())}</p>
             </div>
-            <p className="font-medium text-slate-900">{formatNumber(document.total_amount)} AZN</p>
+            <p className="font-medium text-slate-900">{formatNumber(document.total_amount)} {getCurrentCurrencyCode()}</p>
           </article>
         ))}
       </section>
@@ -775,7 +777,7 @@ export function AdminInventoryPage() {
               </div>
             ) : null}
             {errors.items?.message ? <p className="text-sm text-red-700">{t(errors.items.message)}</p> : null}
-            <div className="rounded-md bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800">Итого: {formatNumber(documentTotal)} AZN</div>
+            <div className="rounded-md bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800">Итого: {formatNumber(documentTotal)} {getCurrentCurrencyCode()}</div>
             {formError ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{formError}</div> : null}
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button onClick={discardAndCloseDocument} type="button" variant="secondary">Отмена</Button>

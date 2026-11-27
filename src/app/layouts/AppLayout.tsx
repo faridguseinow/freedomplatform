@@ -1,3 +1,4 @@
+import { getCurrentCurrencyCode, setCurrentCurrencyCode } from '../../lib/money/currency'
 import { ArrowLeft, HandCoins, Loader2, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Settings, UserRound, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
@@ -51,6 +52,8 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
   const navigate = useNavigate()
   const { clearOrganizationView, currentOrganization, profile, role, signOut, user } = useAuth()
   const { locale, t } = useI18n()
+  // Money helpers read the active organization's currency synchronously during render.
+  setCurrentCurrencyCode(currentOrganization?.currency_code)
   const sidebarProfileMenuRef = useRef<HTMLDivElement | null>(null)
   const headerProfileMenuRef = useRef<HTMLDivElement | null>(null)
   const mobileProfileMenuRef = useRef<HTMLDivElement | null>(null)
@@ -563,7 +566,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                             <td className="whitespace-nowrap px-3 py-3">{formatDateKey(debt.incurred_on)}</td>
                             <td className={`whitespace-nowrap px-3 py-3 ${isOverdue ? 'font-semibold text-red-800' : ''}`}>{formatDateKey(debt.due_on)}</td>
                             <td className={`whitespace-nowrap px-3 py-3 text-right font-semibold ${isOverdue ? 'text-red-800' : 'text-emerald-700'}`}>
-                              {new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(Number(debt.balance_amount))} AZN
+                              {new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(Number(debt.balance_amount))} {getCurrentCurrencyCode()}
                             </td>
                           </tr>
                         )

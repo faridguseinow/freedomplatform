@@ -1,3 +1,4 @@
+import { HelpLink } from '../../help/components/HelpLink'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Archive, Edit3, Loader2, Plus, RotateCcw, Save, Tags, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -164,7 +165,7 @@ export function AdminCategoriesPage() {
     <section className="grid gap-5">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="grid gap-2">
-          <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">Категории</h2>
+          <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">Категории<HelpLink section="catalog" /></h2>
           <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
             Группы для товаров, услуг и мест. Категория необязательна для элементов каталога.
           </p>

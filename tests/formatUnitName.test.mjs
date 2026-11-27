@@ -13,3 +13,9 @@ test('localizes item units embedded in inventory comments', () => {
   assert.equal(formatUnitsInText('26 шт. -> 13 шт.. Причина', 'az'), '26 ədəd -> 13 ədəd Причина')
   assert.equal(formatUnitsInText('26 ədəd -> 13 ədəd', 'ru'), '26 шт. -> 13 шт.')
 })
+
+test('localizes item units for English', () => {
+  assert.equal(formatUnitName('шт.', 'en'), 'pcs')
+  assert.equal(formatUnitName('pcs', 'az'), 'ədəd')
+  assert.equal(formatUnitsInText('26 шт. -> 13 шт.', 'en'), '26 pcs -> 13 pcs')
+})

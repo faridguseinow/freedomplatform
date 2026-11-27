@@ -1,3 +1,4 @@
+import { HelpLink } from '../../help/components/HelpLink'
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import {
   AlertTriangle,
@@ -300,7 +301,7 @@ export function EmployeeShiftPage() {
           }}
         >
           <header className="min-w-0 self-center lg:pb-1">
-            <h2 className="text-xl font-semibold text-slate-950">Открыть смену</h2>
+            <h2 className="text-xl font-semibold text-slate-950">Открыть смену<HelpLink audience="employee" section="openShift" /></h2>
             <p className="mt-1 truncate text-sm leading-5 text-slate-600">
               {currentOrganization?.name ?? 'Организация'} · {new Date().toLocaleString(getCurrentLocale())}
             </p>
@@ -389,7 +390,7 @@ export function EmployeeShiftPage() {
       <header className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xl font-semibold text-slate-950 sm:text-2xl">Моя смена</h2>
+            <h2 className="text-xl font-semibold text-slate-950 sm:text-2xl">Моя смена<HelpLink audience="employee" section="closeShift" /></h2>
             <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold uppercase text-emerald-800">
               Открыта
             </span>

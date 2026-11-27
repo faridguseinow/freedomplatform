@@ -34,3 +34,9 @@ test('English URL language is supported', () => {
     assert.equal(getStoredSystemLanguage(), 'en')
   })
 })
+
+test('a device without a saved language opens in Azerbaijani', () => {
+  withBrowserLanguage('', null, () => {
+    assert.equal(getStoredSystemLanguage(), 'az')
+  })
+})

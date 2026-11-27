@@ -1,3 +1,4 @@
+import { HelpLink } from '../../help/components/HelpLink'
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Archive, Edit3, History, Loader2, Plus, RotateCcw, Save, Search, Trash2, X } from 'lucide-react'
@@ -390,7 +391,7 @@ export function AdminProductsPage() {
     <section className="grid gap-5">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="grid gap-2">
-          <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">Товары</h2>
+          <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">Товары<HelpLink section="catalog" /></h2>
           <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
             Каталог продаж с ценами и изображениями. Остатки меняются через складские документы.
           </p>

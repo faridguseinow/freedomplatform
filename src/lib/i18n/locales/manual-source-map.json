@@ -114,5 +114,6 @@
   "Фактические оплаты Freedom Platform из расходов организаций и финансовые показатели.": "platformOverview.description",
   "Оплата платформе показывается только по платежам, которые организации внесли в расходы.": "platformOverview.paymentsSourceDescription",
   "Долги": "debt.nav",
-  "долг клиента": "debt.entity"
+  "долг клиента": "debt.entity",
+  "Справка": "help.nav"
 }

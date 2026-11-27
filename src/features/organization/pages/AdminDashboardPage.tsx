@@ -21,6 +21,7 @@ import {
 import { useAdminOpenOrdersCount } from '../../orders/ordersApi'
 import { useAdminShifts } from '../../shifts/shiftsApi'
 import { useCustomerDebts } from '../../debts/debtsApi'
+import { SetupChecklist } from '../../help/components/SetupChecklist'
 import { useCombos } from '../catalog/comboApi'
 import { useInventoryBalances } from '../catalog/inventoryApi'
 import { usePlaces, useProducts, useServices } from '../catalog/catalogApi'
@@ -203,6 +204,8 @@ export function AdminDashboardPage() {
           </Link>
         </div>
       </header>
+
+      <SetupChecklist />
 
       {firstError ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">

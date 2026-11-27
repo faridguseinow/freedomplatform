@@ -1,3 +1,5 @@
+import { HelpLink } from '../../help/components/HelpLink'
+import { getCurrentCurrencyCode } from '../../../lib/money/currency'
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { formatNumericTime } from '../../../lib/i18n/dateTime'
 import {
@@ -66,7 +68,7 @@ const SESSION_LIMIT_ALARM_REPEAT_MS = 5_000
 const formatMoney = (value: number | null | undefined) =>
   new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
 
-const formatAzn = (value: number | null | undefined) => `${formatMoney(value)} AZN`
+const formatAzn = (value: number | null | undefined) => `${formatMoney(value)} ${getCurrentCurrencyCode()}`
 const formatOrderItemAddedAt = (value: string) => formatNumericTime(value)
 const parseMoneyInput = (value: string) => Number(value.replace(',', '.'))
 
@@ -650,7 +652,7 @@ export function EmployeeWorkspacePage() {
       <section className="grid content-start gap-3">
         <div className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm lg:flex-row lg:items-center lg:justify-between">
           <header className="min-w-0">
-            <h2 className="text-xl font-semibold text-slate-950">Рабочая панель</h2>
+            <h2 className="text-xl font-semibold text-slate-950">Рабочая панель<HelpLink audience="employee" section="workspace" /></h2>
             <p className="mt-1 text-sm leading-5 text-amber-900">
               Для продаж, сессий и оплат нужна открытая смена.
             </p>

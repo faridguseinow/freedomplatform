@@ -228,6 +228,16 @@ const EmployeeShiftPage = lazy(() =>
     default: module.EmployeeShiftPage,
   })),
 )
+const AdminHelpPage = lazy(() =>
+  import('../../features/help/pages/HelpPage').then((module) => ({
+    default: module.AdminHelpPage,
+  })),
+)
+const EmployeeHelpPage = lazy(() =>
+  import('../../features/help/pages/HelpPage').then((module) => ({
+    default: module.EmployeeHelpPage,
+  })),
+)
 const EmployeeMenuPage = lazy(() =>
   import('../../features/employee/pages/EmployeeMenuPage').then((module) => ({
     default: module.default,
@@ -278,6 +288,7 @@ const organizationRoutes = (rootPath: string) => (
           <Route element={lazyPage(<AdminShiftTemplatesPage />)} path="shift-templates" />
           <Route element={lazyPage(<AdminOperationalDaysPage />)} path="operational-days" />
           <Route element={lazyPage(<AdminNotificationSettingsPage />)} path="notification-settings" />
+          <Route element={lazyPage(<AdminHelpPage />)} path="help" />
           <Route element={<FinanceAccessGuard />}>
             <Route element={lazyPage(<AdminFinancePage />)} path="finance" />
             <Route element={lazyPage(<AdminFinanceIncomePage />)} path="finance/income" />
@@ -299,6 +310,7 @@ const organizationRoutes = (rootPath: string) => (
           <Route element={lazyPage(<EmployeeWorkspacePage />)} path="workspace" />
           <Route element={lazyPage(<EmployeeShiftPage />)} path="shift" />
           <Route element={lazyPage(<EmployeeMenuPage />)} path="menu" />
+          <Route element={lazyPage(<EmployeeHelpPage />)} path="help" />
         </Route>
       </Route>
     </Route>

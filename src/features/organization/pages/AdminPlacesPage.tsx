@@ -1,3 +1,4 @@
+import { HelpLink } from '../../help/components/HelpLink'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Archive,
@@ -511,7 +512,7 @@ export function AdminPlacesPage() {
     <section className="grid gap-5">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="grid gap-2">
-          <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">Места</h2>
+          <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">Места<HelpLink section="places" /></h2>
           <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">Столы, кабинеты, игровые зоны и другие места обслуживания.</p>
         </div>
         <Button onClick={() => openCreate()} type="button"><Plus className="size-4" />Создать место</Button>

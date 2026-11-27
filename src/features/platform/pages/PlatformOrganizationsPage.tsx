@@ -229,7 +229,7 @@ export function PlatformOrganizationsPage() {
       description: '',
       logo_path: '',
       logo_file: undefined,
-      default_locale: 'ru',
+      default_locale: 'az',
       timezone: 'Asia/Baku',
       currency_code: 'AZN',
       admin_user_id: '',

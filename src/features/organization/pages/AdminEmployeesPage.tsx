@@ -1,3 +1,4 @@
+import { HelpLink } from '../../help/components/HelpLink'
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -489,7 +490,7 @@ export function AdminEmployeesPage() {
         <div className="grid gap-2">
           <h2 className="text-2xl font-semibold tracking-normal text-slate-950 sm:text-3xl">
             Сотрудники
-          </h2>
+          <HelpLink section="employees" /></h2>
           <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
             Управление сотрудниками и их доступом к организации.
           </p>
