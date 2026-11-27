@@ -5,9 +5,11 @@ import type { PaymentMethod, PaymentRow, PlaceType } from '../../lib/supabase/da
 export function usePaymentMutations(organizationId: string | null) {
   const queryClient = useQueryClient()
   const invalidate = async (orderId: string) => {
-    await queryClient.invalidateQueries({ queryKey: ['employee', 'workspace', organizationId] })
-    await queryClient.invalidateQueries({ queryKey: ['admin', 'orders', organizationId] })
-    await queryClient.invalidateQueries({ queryKey: ['admin', 'order-detail', orderId] })
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['employee', 'workspace', organizationId] }),
+      queryClient.invalidateQueries({ queryKey: ['admin', 'orders', organizationId] }),
+      queryClient.invalidateQueries({ queryKey: ['admin', 'order-detail', orderId] }),
+    ])
   }
 
   return {
