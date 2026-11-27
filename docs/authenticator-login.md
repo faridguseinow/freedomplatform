@@ -26,9 +26,12 @@
 - Через SQL (например, в Supabase SQL editor):
 
 ```sql
-update public.organizations set mfa_required = true where slug = 'theliga';
--- откат
-update public.organizations set mfa_required = false where slug = 'theliga';
+-- в SQL editor нет пользователя, поэтому старый триггер организаций нужно отключить на время запроса
+begin;
+alter table public.organizations disable trigger organizations_restricted_update;
+update public.organizations set mfa_required = true where slug = 'theliga'; -- откат: false
+alter table public.organizations enable trigger organizations_restricted_update;
+commit;
 ```
 
 ## Порядок развёртывания

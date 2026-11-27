@@ -1,29 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2, RotateCcw, ShieldCheck, ShieldOff } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '../../../components/ui/Button'
 import { useI18n } from '../../../lib/i18n/I18nContext'
+import { resetUserMfa, updateOrganizationMfaRequired } from '../mfaApi'
 import {
-  fetchOrganizationMfaRequired,
-  resetUserMfa,
-  updateOrganizationMfaRequired,
-} from '../mfaApi'
-
-const mfaRequirementQueryKey = (organizationId: string) => [
-  'organizations',
-  organizationId,
-  'mfa-required',
-]
-
-export function useOrganizationMfaRequired(organizationId: string | null | undefined) {
-  return useQuery({
-    enabled: Boolean(organizationId),
-    queryKey: mfaRequirementQueryKey(organizationId ?? ''),
-    queryFn: () => fetchOrganizationMfaRequired(organizationId!),
-    retry: false,
-    staleTime: 60_000,
-  })
-}
+  mfaRequirementQueryKey,
+  useOrganizationMfaRequired,
+} from '../useOrganizationMfaRequired'
 
 /** Platform owner switch for the per-organization authenticator requirement. */
 export function OrganizationMfaSettingCard({ organizationId }: { organizationId: string }) {
