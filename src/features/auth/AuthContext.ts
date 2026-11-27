@@ -13,6 +13,12 @@ export type SignInCredentials = {
   password: string
 }
 
+export type MfaStatus = 'not-required' | 'challenge' | 'enroll' | 'verified'
+
+export const MFA_REQUIRED = 'mfa_required' as const
+
+export type SignInResult = AppRole | typeof MFA_REQUIRED | null
+
 export type DemoRole = Extract<AppRole, 'organization_admin' | 'employee'>
 
 export type OrganizationLoginBrand = Pick<
@@ -42,13 +48,15 @@ export type AuthContextValue = {
   isLoading: boolean
   authError: string | null
   profileError: string | null
-  signIn: (credentials: SignInCredentials) => Promise<AppRole | null>
+  mfaStatus: MfaStatus
+  signIn: (credentials: SignInCredentials) => Promise<SignInResult>
   signInDemo: (role: DemoRole) => Promise<AppRole | null>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<ProfileRow | null>
   refreshAccessContext: () => Promise<AppRole | null>
   selectOrganizationBySlug: (slug: string) => AppRole | null
   clearOrganizationView: () => void
+  completeMfa: () => Promise<AppRole | null>
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)
