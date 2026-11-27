@@ -1,3 +1,4 @@
+import { HelpLink } from '../../help/components/HelpLink'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Archive, Box, Edit3, Loader2, Plus, RotateCcw, Save, Search, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -183,7 +184,7 @@ export function AdminServicesPage() {
     <section className="grid gap-5">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="grid gap-2">
-          <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">Услуги</h2>
+          <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">Услуги<HelpLink section="catalog" /></h2>
           <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">Фиксированные и почасовые услуги организации.</p>
         </div>
         <Button onClick={openCreate} type="button"><Plus className="size-4" />Создать услугу</Button>

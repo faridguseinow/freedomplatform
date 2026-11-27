@@ -1,3 +1,4 @@
+import { HelpLink } from '../../help/components/HelpLink'
 import { getCurrentCurrencyCode } from '../../../lib/money/currency'
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -247,7 +248,7 @@ export function AdminCombosPage() {
     <section className="grid gap-5">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="grid gap-2">
-          <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">Комбо</h2>
+          <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">Комбо<HelpLink section="catalog" /></h2>
           <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
             Наборы из товаров и услуг с автоматической проверкой складской доступности.
           </p>

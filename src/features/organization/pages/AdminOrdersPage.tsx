@@ -1,3 +1,4 @@
+import { HelpLink } from '../../help/components/HelpLink'
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { Eye, Loader2, ReceiptText, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -77,7 +78,7 @@ export function AdminOrdersPage() {
   return (
     <section className="grid gap-5">
       <header className="grid gap-2">
-        <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">{t("ui.zakazy_22ac845")}</h2>
+        <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">{t("ui.zakazy_22ac845")}<HelpLink section="orders" /></h2>
         <p className="max-w-3xl text-sm leading-6 text-slate-600">
           {t("ui.istoriya_prodazh_neoplachennye_zakazy_otkazy_ot_opla_0843ca8")}
         </p>

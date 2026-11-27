@@ -2,6 +2,7 @@ import {
   Activity,
   BriefcaseBusiness,
   Building2,
+  CircleHelp,
   Box,
   Clock3,
   Eye,
@@ -144,6 +145,12 @@ export const adminNavItems: NavItem[] = [
     icon: Settings,
     mobileOrder: 5,
   },
+  {
+    label: 'Справка',
+    path: '/admin/help',
+    icon: CircleHelp,
+    mobile: false,
+  },
 ]
 
 export const employeeNavItems: NavItem[] = [
@@ -162,6 +169,11 @@ export const employeeNavItems: NavItem[] = [
     label: 'Меню',
     path: '/employee/menu',
     icon: Package,
+  },
+  {
+    label: 'Справка',
+    path: '/employee/help',
+    icon: CircleHelp,
   },
 ]
 

@@ -1,3 +1,4 @@
+import { HelpLink } from '../../help/components/HelpLink'
 import { getCurrentCurrencyCode } from '../../../lib/money/currency'
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import {
@@ -216,7 +217,7 @@ function PageHeader({
       <div className="grid gap-2">
         <h2 className="text-2xl font-semibold tracking-normal text-slate-950 sm:text-3xl">
           {t(title)}
-        </h2>
+        <HelpLink section="finance" /></h2>
         <p className="max-w-3xl text-sm leading-6 text-slate-600">{t(description)}</p>
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}

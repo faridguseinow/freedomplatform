@@ -1,3 +1,4 @@
+import { HelpLink } from '../../help/components/HelpLink'
 import { getCurrentCurrencyCode } from '../../../lib/money/currency'
 import { ReceiptText, Sofa, Timer, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -162,7 +163,7 @@ export function AdminLiveMonitorPage() {
       <header className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold text-slate-950">{t("ui.mesta_onlayn_e379342")}</h1>
+            <h1 className="text-2xl font-semibold text-slate-950">{t("ui.mesta_onlayn_e379342")}<HelpLink section="monitoring" /></h1>
             <p className="mt-1 text-sm text-slate-600">
               {activeShift ? `${t("ui.otkryta_87c42ed")} · ${formatDateTime(activeShift.opened_at)}` : t("ui.smena_ne_otkryta_a04a370")}
             </p>

@@ -1,3 +1,4 @@
+import { HelpLink } from '../../help/components/HelpLink'
 import { Box, MapPin, Package, Tags } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../hooks/useAuth'
@@ -40,7 +41,7 @@ export function AdminCatalogPage() {
       <header className="grid gap-2">
         <h2 className="text-2xl font-semibold tracking-normal text-slate-950 sm:text-3xl">
           Каталог
-        </h2>
+        <HelpLink section="catalog" /></h2>
         <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
           Конструктор организации: места обслуживания, товары, услуги и категории.
         </p>

@@ -1,3 +1,4 @@
+import { HelpLink } from '../../help/components/HelpLink'
 import { Box, Building2, HandCoins, Loader2, LockKeyhole, Settings, ShieldCheck, Warehouse } from 'lucide-react'
 import type { ChangeEvent } from 'react'
 import { useState } from 'react'
@@ -94,7 +95,7 @@ export function AdminSettingsPage() {
       <header className="grid gap-2">
         <h2 className="text-2xl font-semibold tracking-normal text-slate-950 sm:text-3xl">
           Настройки организации
-        </h2>
+        <HelpLink section="settings" /></h2>
         <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
           Базовые параметры текущей организации. Редактирование будет расширено следующим этапом.
         </p>
