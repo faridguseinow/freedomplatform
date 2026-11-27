@@ -8,7 +8,7 @@ export const languageLabels: Record<SystemLanguage, string> = {
   en: 'English',
 }
 
-export const supportedLanguages: SystemLanguage[] = ['ru', 'az', 'en']
+export const supportedLanguages: SystemLanguage[] = ['az', 'ru', 'en']
 
 export const demoLanguages: SystemLanguage[] = ['az', 'ru', 'en']
 
@@ -24,12 +24,15 @@ export function isSystemLanguage(value: unknown): value is SystemLanguage {
   return typeof value === 'string' && demoLanguages.includes(value as SystemLanguage)
 }
 
+/** Language for a device where nobody has chosen one yet. Most users speak Azerbaijani. */
+export const DEFAULT_SYSTEM_LANGUAGE: SystemLanguage = 'az'
+
 export function getStoredSystemLanguage(): SystemLanguage {
-  if (!hasDom()) return 'ru'
+  if (!hasDom()) return DEFAULT_SYSTEM_LANGUAGE
   const requested = new URLSearchParams(window.location.search).get('lang')
   if (isSystemLanguage(requested)) return requested
   const stored = window.localStorage.getItem(SYSTEM_LANGUAGE_STORAGE_KEY)
-  return isSystemLanguage(stored) ? stored : 'ru'
+  return isSystemLanguage(stored) ? stored : DEFAULT_SYSTEM_LANGUAGE
 }
 
 export function saveStoredSystemLanguage(language: SystemLanguage) {
