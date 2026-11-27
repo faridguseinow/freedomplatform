@@ -23,6 +23,7 @@ import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
 import { Modal } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
+import { ResetUserMfaSection } from '../../auth/components/OrganizationMfaControls'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import { supabase } from '../../../lib/supabase/client'
 import type {
@@ -1021,6 +1022,10 @@ export function AdminEmployeesPage() {
                 </div>
               ) : null}
             </section>
+
+            {selectedEmployee.role === 'employee' ? (
+              <ResetUserMfaSection organizationId={organizationId} userId={selectedEmployee.user_id} />
+            ) : null}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Input

@@ -166,6 +166,8 @@ export type OrganizationRow = {
   created_at: string
   updated_at: string
   archived_at: string | null
+  /** Selected explicitly where needed; most queries leave it out. */
+  mfa_required?: boolean
 }
 
 export type PlatformUserRoleRow = {
@@ -1528,6 +1530,10 @@ export type Database = {
           target_reason: string
         }
         Returns: string
+      }
+      get_my_mfa_requirement: {
+        Args: Record<string, never>
+        Returns: boolean
       }
       resolve_organization_login: {
         Args: {

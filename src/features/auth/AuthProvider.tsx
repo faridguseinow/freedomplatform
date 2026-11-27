@@ -19,12 +19,16 @@ import { getCurrentAppHost, getRouteOrganizationSlug } from '../../lib/routing/a
 import { USER_ROLES } from '../../types/roles'
 import {
   AuthContext,
+  MFA_REQUIRED,
   type AuthContextValue,
   type DemoRole,
   type HostOrganizationState,
+  type MfaStatus,
   type OrganizationLoginBrand,
   type SignInCredentials,
+  type SignInResult,
 } from './AuthContext'
+import { resolveMfaStatus } from './mfaApi'
 
 const profileSelect =
   'id,email,full_name,avatar_path,preferred_locale,is_active,created_at,updated_at'
@@ -91,6 +95,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   )
   const [isLoading, setIsLoading] = useState(true)
   const [authError, setAuthError] = useState<string | null>(null)
+  const [mfaStatus, setMfaStatus] = useState<MfaStatus>('not-required')
+  const mfaStatusRef = useRef<MfaStatus>('not-required')
   const currentUserIdRef = useRef<string | null>(null)
   const demoSignInRef = useRef(false)
 
@@ -99,6 +105,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [session?.user.id])
 
   const clearAccess = useCallback(() => {
+    mfaStatusRef.current = 'not-required'
+    setMfaStatus('not-required')
     setProfile(null)
     setRole(null)
     setOrganizationId(null)
@@ -126,7 +134,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setAvailableOrganizations(context.availableOrganizations)
   }, [])
 
-  const loadAccessContext = useCallback(async (userId: string) => {
+  const updateMfaStatus = useCallback((nextStatus: MfaStatus) => {
+    mfaStatusRef.current = nextStatus
+    setMfaStatus(nextStatus)
+  }, [])
+
+  const loadOrganizationAccess = useCallback(async (userId: string) => {
     const { data: nextProfile, error: profileLoadError } = await supabase
       .from('profiles')
       .select(profileSelect)
@@ -268,6 +281,23 @@ export function AuthProvider({ children }: PropsWithChildren) {
     } satisfies AccessContext
   }, [])
 
+  // Organizations with mfa_required hide their data until the session passed
+  // the authenticator check (aal2), so resolve that before loading access.
+  const loadAccessContext = useCallback(
+    async (userId: string) => {
+      const nextMfaStatus = await resolveMfaStatus()
+      updateMfaStatus(nextMfaStatus)
+
+      if (nextMfaStatus === 'challenge' || nextMfaStatus === 'enroll') {
+        setAuthError(null)
+        return null
+      }
+
+      return loadOrganizationAccess(userId)
+    },
+    [loadOrganizationAccess, updateMfaStatus],
+  )
+
   const applySession = useCallback(
     async (nextSession: Session | null) => {
       setSession(nextSession)
@@ -387,6 +417,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           event === 'SIGNED_IN' ||
           event === 'INITIAL_SESSION' ||
           event === 'TOKEN_REFRESHED' ||
+          event === 'MFA_CHALLENGE_VERIFIED' ||
           currentUserId !== nextUserId
 
         if (!shouldReloadAccess) {
@@ -473,7 +504,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [role])
 
   const signIn = useCallback(
-    async ({ login, password }: SignInCredentials) => {
+    async ({ login, password }: SignInCredentials): Promise<SignInResult> => {
       setIsLoading(true)
       setAuthError(null)
       clearAccess()
@@ -492,6 +523,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const context = data.user ? await loadAccessContext(data.user.id) : null
       applyAccessContext(context)
       setIsLoading(false)
+
+      if (!context && (mfaStatusRef.current === 'challenge' || mfaStatusRef.current === 'enroll')) {
+        return MFA_REQUIRED
+      }
 
       return context?.role ?? null
     },
@@ -534,7 +569,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
         setSession(data.session)
         currentUserIdRef.current = data.user.id
-        const context = await loadAccessContext(data.user.id)
+        const context = await loadOrganizationAccess(data.user.id)
         applyAccessContext(context)
 
         return context?.role ?? null
@@ -543,7 +578,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setIsLoading(false)
       }
     },
-    [applyAccessContext, clearAccess, loadAccessContext],
+    [applyAccessContext, clearAccess, loadOrganizationAccess],
   )
 
   useEffect(() => {
@@ -575,6 +610,22 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
   }, [session?.user.app_metadata.demo_account, session?.user.id])
 
+  const completeMfa = useCallback(async () => {
+    const { data, error } = await supabase.auth.getSession()
+    const nextUserId = data.session?.user.id
+
+    if (error || !nextUserId) {
+      return null
+    }
+
+    setIsLoading(true)
+    setSession(data.session)
+    const context = await loadAccessContext(nextUserId)
+    applyAccessContext(context)
+    setIsLoading(false)
+    return context?.role ?? null
+  }, [applyAccessContext, loadAccessContext])
+
   const signOut = useCallback(async () => {
     setIsLoading(true)
     await supabase.auth.signOut()
@@ -599,6 +650,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       isLoading,
       authError,
       profileError: authError,
+      mfaStatus,
       signIn,
       signInDemo,
       signOut,
@@ -606,8 +658,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
       refreshAccessContext,
       selectOrganizationBySlug,
       clearOrganizationView,
+      completeMfa,
     }),
     [
+      completeMfa,
+      mfaStatus,
       authError,
       availableOrganizations,
       clearOrganizationView,

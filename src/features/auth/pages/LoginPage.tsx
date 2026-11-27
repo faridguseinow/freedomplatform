@@ -21,7 +21,7 @@ import { useAuth } from '../../../hooks/useAuth'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import { getCurrentAppHost } from '../../../lib/routing/appHost'
 import { getRoleHomePath, USER_ROLES } from '../../../types/roles'
-import type { DemoRole, OrganizationLoginBrand } from '../AuthContext'
+import { MFA_REQUIRED, type DemoRole, type OrganizationLoginBrand } from '../AuthContext'
 
 const loginSchema = z.object({
   login: z.string().trim().min(3, 'Введите логин или email.'),
@@ -118,6 +118,9 @@ export function LoginPage() {
 
     try {
       const nextRole = await signIn(values)
+
+      // The authenticator screen replaces the app until the code is verified.
+      if (nextRole === MFA_REQUIRED) return
 
       if (!nextRole) {
         navigate(
