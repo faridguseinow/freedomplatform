@@ -1,5 +1,6 @@
 import { AppProviders } from './app/providers/AppProviders'
 import { AppRouter } from './app/router/AppRouter'
+import { MfaGate } from './features/auth/pages/MfaPage'
 import { publicEnv } from './lib/env'
 import { EnvironmentErrorPage } from './pages/EnvironmentErrorPage'
 
@@ -10,7 +11,9 @@ function App() {
 
   return (
     <AppProviders>
-      <AppRouter />
+      <MfaGate>
+        <AppRouter />
+      </MfaGate>
     </AppProviders>
   )
 }
