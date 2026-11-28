@@ -5,10 +5,29 @@ import type {
   EmployeeOrderItemRow,
   EmployeeOrderRow,
   EmployeeWorkspacePlaceRow,
+  OrderItemRow,
   PaymentMethod,
   TimedSessionRow,
 } from '../../lib/supabase/database.types'
 import { readCachedWorkspacePlaces, toEmptyEmployeeWorkspacePlace } from '../places/workspacePlacesCache'
+import { toServerError } from '../../lib/errors/serverErrors'
+
+export const OPTIMISTIC_ITEM_PREFIX = 'optimistic-'
+
+export const isOptimisticOrderItem = (item: { id: string }) => item.id.startsWith(OPTIMISTIC_ITEM_PREFIX)
+
+// Временный ключ строки сохраняется и после ответа сервера, чтобы строка не мигала при замене id.
+const renderKeyByItemId = new Map<string, string>()
+export const getOrderItemRenderKey = (item: { id: string }) => renderKeyByItemId.get(item.id) ?? item.id
+
+/** Данные из каталога, чтобы показать позицию сразу, до ответа сервера. */
+export type OrderItemPreview = {
+  id: string
+  itemType: 'product' | 'service' | 'combo'
+  name: string
+  unitPrice: number | null
+  imagePath: string | null
+}
 
 export const employeeOrderSelect =
   'id,organization_id,order_number,place_id,current_place_name_snapshot,status,customer_label,comment,subtotal,total_amount,paid_amount,unpaid_amount,opened_by,opened_at,closed_at,payment_refusal_comment,created_at,updated_at'
@@ -107,9 +126,9 @@ export function useEmployeeWorkspaceData(
           .eq('item_type', 'combo'),
       ])
 
-      if (ordersResult.error) throw new Error(ordersResult.error.message)
-      if (sessionsResult.error) throw new Error(sessionsResult.error.message)
-      if (comboItemsResult.error) throw new Error(comboItemsResult.error.message)
+      if (ordersResult.error) throw toServerError(ordersResult.error)
+      if (sessionsResult.error) throw toServerError(sessionsResult.error)
+      if (comboItemsResult.error) throw toServerError(comboItemsResult.error)
 
       const orders = ordersResult.data as EmployeeOrderRow[]
       const sessions = sessionsResult.data ?? []
@@ -145,7 +164,7 @@ export function useEmployeeWorkspaceData(
             .eq('status', 'active')
             .order('sort_order', { ascending: true })
 
-          if (fallbackPlacesResult.error) throw new Error(fallbackPlacesResult.error.message)
+          if (fallbackPlacesResult.error) throw toServerError(fallbackPlacesResult.error)
           places = fallbackPlacesResult.data.map((place) => toWorkspacePlace(place, orders, sessions))
         } else {
           const employeePlacesResult = await supabase
@@ -161,7 +180,7 @@ export function useEmployeeWorkspaceData(
             if (cachedPlaces.length) {
               places = cachedPlaces.map((place) => toWorkspacePlace(toEmptyEmployeeWorkspacePlace(place), orders, sessions))
             } else {
-              throw new Error(placesResult.error?.message ?? directPlacesResult.error.message)
+              throw toServerError(placesResult.error ?? directPlacesResult.error)
             }
           } else {
             places = employeePlacesResult.data.map((place) => toWorkspacePlace(place, orders, sessions))
@@ -201,7 +220,7 @@ export function useEmployeeOrderItems(
         .eq('order_id', orderId!)
         .order('added_at', { ascending: true })
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as EmployeeOrderItemRow[]
     },
   })
@@ -218,7 +237,7 @@ export function useEmployeeOrderSessions(orderId: string | null) {
         .eq('order_id', orderId!)
         .order('started_at', { ascending: true })
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as TimedSessionRow[]
     },
   })
@@ -226,13 +245,121 @@ export function useEmployeeOrderSessions(orderId: string | null) {
 
 export function useEmployeeOrderMutations(organizationId: string | null) {
   const queryClient = useQueryClient()
+  // Все обновления после действия идут параллельно, а не по очереди.
   const invalidate = async (orderId?: string | null) => {
-    await queryClient.invalidateQueries({ queryKey: ['employee', 'workspace', organizationId] })
-    if (orderId) {
-      await queryClient.invalidateQueries({ queryKey: ['employee', 'order-items', orderId] })
-      await queryClient.invalidateQueries({ queryKey: ['employee', 'order-sessions', orderId] })
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['employee', 'workspace', organizationId] }),
+      orderId ? queryClient.invalidateQueries({ queryKey: ['employee', 'order-items', orderId] }) : null,
+      orderId ? queryClient.invalidateQueries({ queryKey: ['employee', 'order-sessions', orderId] }) : null,
+      queryClient.invalidateQueries({ queryKey: ['admin', 'orders', organizationId] }),
+    ])
+  }
+
+  /*
+   * Оптимистичное добавление позиции: строка сразу появляется в составе заказа,
+   * а сумма заказа сразу пересчитывается. Сервер сохраняет позицию в фоне;
+   * при ошибке кэш откатывается, а потом данные сверяются с сервером.
+   */
+  type OptimisticContext = {
+    itemsKey: readonly unknown[]
+    workspaceKey: readonly unknown[]
+    previousItems: EmployeeOrderItemRow[] | undefined
+    previousWorkspace: unknown
+    tempId: string
+  } | null
+
+  const addOptimisticItem = async (
+    orderId: string,
+    quantity: number,
+    preview: OrderItemPreview | undefined,
+  ): Promise<OptimisticContext> => {
+    if (!preview) return null
+    const itemsKey = ['employee', 'order-items', orderId] as const
+    const workspaceKey = ['employee', 'workspace', organizationId] as const
+    await Promise.all([
+      queryClient.cancelQueries({ queryKey: itemsKey }),
+      queryClient.cancelQueries({ queryKey: workspaceKey }),
+    ])
+    const previousItems = queryClient.getQueryData<EmployeeOrderItemRow[]>(itemsKey)
+    const previousWorkspace = queryClient.getQueryData(workspaceKey)
+    const now = new Date().toISOString()
+    const tempId = `${OPTIMISTIC_ITEM_PREFIX}${crypto.randomUUID()}`
+    const lineTotal = (preview.unitPrice ?? 0) * quantity
+    const tempItem: EmployeeOrderItemRow = {
+      id: tempId,
+      organization_id: organizationId ?? '',
+      order_id: orderId,
+      item_type: preview.itemType,
+      status: 'active',
+      product_id: preview.itemType === 'product' ? preview.id : null,
+      service_id: preview.itemType === 'service' ? preview.id : null,
+      combo_id: preview.itemType === 'combo' ? preview.id : null,
+      timed_session_id: null,
+      name_snapshot: preview.name,
+      description_snapshot: null,
+      image_path_snapshot: preview.imagePath,
+      quantity,
+      unit_price: preview.unitPrice ?? 0,
+      total_price: lineTotal,
+      metadata: null,
+      added_by: '',
+      added_at: now,
+      removed_at: null,
+      removal_reason: null,
+      created_at: now,
+      updated_at: now,
+      paid_quantity: 0,
+      paid_amount: 0,
     }
-    await queryClient.invalidateQueries({ queryKey: ['admin', 'orders', organizationId] })
+
+    queryClient.setQueryData<EmployeeOrderItemRow[]>(itemsKey, (current) => [...(current ?? []), tempItem])
+    queryClient.setQueryData(workspaceKey, (current: unknown) => {
+      if (!current || typeof current !== 'object') return current
+      const data = current as { orders?: EmployeeOrderRow[]; places?: EmployeeWorkspacePlaceRow[] }
+      return {
+        ...data,
+        orders: data.orders?.map((order) =>
+          order.id === orderId
+            ? {
+                ...order,
+                subtotal: (order.subtotal ?? 0) + lineTotal,
+                total_amount: (order.total_amount ?? 0) + lineTotal,
+                unpaid_amount: (order.unpaid_amount ?? 0) + lineTotal,
+              }
+            : order,
+        ),
+        places: data.places?.map((place) =>
+          place.active_order_id === orderId
+            ? {
+                ...place,
+                active_order_total: (place.active_order_total ?? 0) + lineTotal,
+                active_order_item_count: (place.active_order_item_count ?? 0) + 1,
+              }
+            : place,
+        ),
+      }
+    })
+
+    return { itemsKey, workspaceKey, previousItems, previousWorkspace, tempId }
+  }
+
+  const rollbackOptimisticItem = (context: OptimisticContext | undefined) => {
+    if (!context) return
+    queryClient.setQueryData(context.itemsKey, context.previousItems)
+    queryClient.setQueryData(context.workspaceKey, context.previousWorkspace)
+  }
+
+  const confirmOptimisticItem = (item: OrderItemRow, context: OptimisticContext | undefined) => {
+    if (context) {
+      renderKeyByItemId.set(item.id, context.tempId)
+      queryClient.setQueryData<EmployeeOrderItemRow[]>(context.itemsKey, (current) =>
+        current?.map((row) =>
+          row.id === context.tempId ? { ...(item as unknown as EmployeeOrderItemRow), paid_quantity: 0, paid_amount: 0 } : row,
+        ),
+      )
+    }
+    // Сверка с сервером в фоне: кнопка не ждёт перезагрузки списков.
+    void invalidate(item.order_id)
   }
 
   return {
@@ -251,7 +378,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
           target_customer_label: customerLabel ?? null,
           target_comment: comment ?? null,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (order) => invalidate(order.id),
@@ -265,7 +392,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
             target_order_id: orderId,
             target_customer_label: customerLabel ?? null,
           })
-          if (error) throw new Error(error.message)
+          if (error) throw toServerError(error)
           return data
         } catch (rpcErr) {
           const msg = rpcErr instanceof Error ? rpcErr.message : String(rpcErr)
@@ -278,7 +405,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
               .select()
               .single()
 
-            if (error) throw new Error(error.message)
+            if (error) throw toServerError(error)
             return data
           }
 
@@ -305,7 +432,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
           target_equipment_time: equipmentTime ?? null,
           target_equipment_price: equipmentPrice ?? null,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: () => invalidate(),
@@ -319,16 +446,24 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
         orderId: string
         productId: string
         quantity: number
+        preview?: OrderItemPreview | undefined
       }) => {
         const { data, error } = await supabase.rpc('add_product_to_order', {
           target_order_id: orderId,
           target_product_id: productId,
           target_quantity: quantity,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
-      onSuccess: (item) => invalidate(item.order_id),
+      onMutate: ({ orderId, preview, quantity }) => addOptimisticItem(orderId, quantity, preview),
+      onError: (_error, _variables, context) => {
+        rollbackOptimisticItem(context)
+      },
+      onSuccess: (item, _variables, context) => confirmOptimisticItem(item, context),
+      onSettled: (_item, error, { orderId }) => {
+        if (error) void invalidate(orderId)
+      },
     }),
     addService: useMutation({
       mutationFn: async ({
@@ -339,16 +474,24 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
         orderId: string
         serviceId: string
         quantity: number
+        preview?: OrderItemPreview | undefined
       }) => {
         const { data, error } = await supabase.rpc('add_service_to_order', {
           target_order_id: orderId,
           target_service_id: serviceId,
           target_quantity: quantity,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
-      onSuccess: (item) => invalidate(item.order_id),
+      onMutate: ({ orderId, preview, quantity }) => addOptimisticItem(orderId, quantity, preview),
+      onError: (_error, _variables, context) => {
+        rollbackOptimisticItem(context)
+      },
+      onSuccess: (item, _variables, context) => confirmOptimisticItem(item, context),
+      onSettled: (_item, error, { orderId }) => {
+        if (error) void invalidate(orderId)
+      },
     }),
     addCombo: useMutation({
       mutationFn: async ({
@@ -359,16 +502,24 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
         orderId: string
         comboId: string
         quantity: number
+        preview?: OrderItemPreview | undefined
       }) => {
         const { data, error } = await supabase.rpc('add_combo_to_order', {
           target_order_id: orderId,
           target_combo_id: comboId,
           target_quantity: quantity,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
-      onSuccess: (item) => invalidate(item.order_id),
+      onMutate: ({ orderId, preview, quantity }) => addOptimisticItem(orderId, quantity, preview),
+      onError: (_error, _variables, context) => {
+        rollbackOptimisticItem(context)
+      },
+      onSuccess: (item, _variables, context) => confirmOptimisticItem(item, context),
+      onSettled: (_item, error, { orderId }) => {
+        if (error) void invalidate(orderId)
+      },
     }),
     startSession: useMutation({
       mutationFn: async ({
@@ -385,7 +536,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
           target_order_id: orderId ?? null,
           target_planned_minutes: plannedMinutes ?? null,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (session) => invalidate(session.order_id),
@@ -402,7 +553,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
           target_session_id: sessionId,
           target_added_minutes: addedMinutes,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (session) => invalidate(session.order_id),
@@ -412,7 +563,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
         const { data, error } = await supabase.rpc('complete_timed_session', {
           target_session_id: sessionId,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (session) => invalidate(session.order_id),
@@ -423,7 +574,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
           target_order_id: orderId,
           target_place_id: placeId,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: async (order, { orderId }) => {
@@ -443,7 +594,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
           source_order_id: orderId,
           destination_order_id: destinationOrderId,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: async (order, { orderId }) => {
@@ -456,7 +607,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
         const { data, error } = await supabase.rpc('pause_timed_session', {
           target_session_id: sessionId,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (session) => invalidate(session.order_id),
@@ -466,7 +617,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
         const { data, error } = await supabase.rpc('resume_timed_session', {
           target_session_id: sessionId,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (session) => invalidate(session.order_id),
@@ -476,7 +627,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
         const { data, error } = await supabase.rpc('set_order_waiting_payment', {
           target_order_id: orderId,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (order) => invalidate(order.id),
@@ -487,7 +638,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
           target_order_id: orderId,
           target_method: method,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (order) => invalidate(order.id),
@@ -507,7 +658,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
           target_items: items,
           target_method: method,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (order) => invalidate(order.id),
@@ -527,7 +678,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
           target_method: method,
           target_comment: comment ?? null,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (order) => invalidate(order.id),
@@ -550,7 +701,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
           target_tip_amount: tipAmount,
           target_comment: comment ?? null,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (order) => invalidate(order.id),
@@ -576,7 +727,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
           target_tip_amount: tipAmount,
           target_comment: comment ?? null,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (order) => invalidate(order.id),
@@ -587,7 +738,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
           target_order_id: orderId,
           target_comment: comment,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (order) => invalidate(order.id),
@@ -598,7 +749,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
           target_order_id: orderId,
           target_comment: comment ?? null,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (order) => invalidate(order.id),
@@ -609,7 +760,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
           target_order_id: orderId,
           target_reason: reason,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (order) => invalidate(order.id),
@@ -635,7 +786,7 @@ export function useEmployeeOrderMutations(organizationId: string | null) {
           target_reason: reason,
           target_requested_quantity: requestedQuantity ?? null,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (request) => invalidate(request.order_id),

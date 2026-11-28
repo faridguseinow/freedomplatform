@@ -4,6 +4,7 @@ import type {
   FinancePaymentMethod,
   PlatformSharePaymentRow,
 } from '../../lib/supabase/database.types'
+import { ServerError, toServerError } from '../../lib/errors/serverErrors'
 
 export const platformSharePaymentSelect =
   'id,organization_id,accrual_id,billing_period_start,billing_period_end,amount,payment_method,payment_date,reference,document_path,marked_sent_by,confirmed_received_by,marked_sent_at,confirmed_received_at,status,comment,created_at,updated_at'
@@ -20,7 +21,7 @@ export function usePlatformSharePayments(organizationId?: string | null) {
       if (organizationId) query = query.eq('organization_id', organizationId)
 
       const { data, error } = await query
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as PlatformSharePaymentRow[]
     },
   })
@@ -51,7 +52,7 @@ export function usePlatformShareMutations(organizationId: string | null) {
         reference?: string | null
         comment?: string | null
       }) => {
-        if (!organizationId) throw new Error('Organization is required.')
+        if (!organizationId) throw new ServerError('Organization is required.')
         const { data, error } = await supabase.rpc('report_platform_period_payment', {
           target_organization_id: organizationId,
           target_period_start: periodStart,
@@ -63,7 +64,7 @@ export function usePlatformShareMutations(organizationId: string | null) {
           target_comment: comment ?? null,
         })
 
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data as PlatformSharePaymentRow
       },
       onSuccess: invalidate,
@@ -84,7 +85,7 @@ export function usePlatformShareMutations(organizationId: string | null) {
           target_period_end: periodEnd,
         })
 
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data as PlatformSharePaymentRow
       },
       onSuccess: invalidate,

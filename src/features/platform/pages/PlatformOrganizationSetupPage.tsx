@@ -19,6 +19,7 @@ import { supabase } from '../../../lib/supabase/client'
 import type { OrganizationReadiness } from '../../../lib/supabase/database.types'
 import { usePlatformOrganizations } from '../platformApi'
 import { getPlatformRoutePath } from '../../../lib/routing/appHost'
+import { toServerError } from '../../../lib/errors/serverErrors'
 
 const checklistItems: Array<{
   key: keyof OrganizationReadiness
@@ -104,7 +105,7 @@ export function PlatformOrganizationSetupPage() {
         target_organization_id: organizationId!,
       })
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as OrganizationReadiness
     },
   })

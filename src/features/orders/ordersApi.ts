@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase/client'
 import type { OrderItemRow, OrderRow, OrderStatus } from '../../lib/supabase/database.types'
+import { registerPlaces } from '../places/placeIconRegistry'
+import { toServerError } from '../../lib/errors/serverErrors'
 
 export const adminOrderSelect =
   'id,organization_id,order_number,place_id,current_place_name_snapshot,status,customer_label,comment,subtotal,total_amount,paid_amount,unpaid_amount,opened_by,closed_by,opened_at,closed_at,payment_refusal_comment,moved_to_order_id,moved_to_order_number_snapshot,moved_to_place_name_snapshot,moved_at,created_at,updated_at'
@@ -25,7 +27,7 @@ export function useAdminOpenOrdersCount(organizationId: string | null) {
         .eq('organization_id', organizationId!)
         .eq('status', 'open')
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return count ?? 0
     },
   })
@@ -48,7 +50,7 @@ export function useAdminOrders(organizationId: string | null, status: OrderStatu
       }
 
       const { data, error } = await query
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       const orders = (data ?? []) as OrderRow[]
       const orderIds = orders.map((order) => order.id)
 
@@ -60,7 +62,7 @@ export function useAdminOrders(organizationId: string | null, status: OrderStatu
             .order('added_at', { ascending: true })
         : { data: [], error: null }
 
-      if (itemsError) throw new Error(itemsError.message)
+      if (itemsError) throw toServerError(itemsError)
 
       const itemsByOrderId = new Map<string, AdminOrderItemSummary[]>()
       for (const item of (items ?? []) as AdminOrderItemSummary[]) {
@@ -113,19 +115,20 @@ export function useAdminOrderDetail(orderId: string | null) {
             .order('created_at', { ascending: true }),
         ])
 
-      if (orderResult.error) throw new Error(orderResult.error.message)
-      if (itemsResult.error) throw new Error(itemsResult.error.message)
-      if (paymentsResult.error) throw new Error(paymentsResult.error.message)
-      if (sessionsResult.error) throw new Error(sessionsResult.error.message)
-      if (reservationsResult.error) throw new Error(reservationsResult.error.message)
+      if (orderResult.error) throw toServerError(orderResult.error)
+      if (itemsResult.error) throw toServerError(itemsResult.error)
+      if (paymentsResult.error) throw toServerError(paymentsResult.error)
+      if (sessionsResult.error) throw toServerError(sessionsResult.error)
+      if (reservationsResult.error) throw toServerError(reservationsResult.error)
 
       const placeIds = [...new Set((sessionsResult.data ?? []).map((session) => session.place_id))]
       const placesResult = placeIds.length
-        ? await supabase.from('places').select('id,image_path').in('id', placeIds)
+        ? await supabase.from('places').select('id,image_path,type').in('id', placeIds)
         : { data: [], error: null }
 
-      if (placesResult.error) throw new Error(placesResult.error.message)
+      if (placesResult.error) throw toServerError(placesResult.error)
 
+      registerPlaces(placesResult.data ?? [])
       const placeImageById = Object.fromEntries(
         (placesResult.data ?? []).map((place) => [place.id, place.image_path]),
       ) as Record<string, string | null>

@@ -22,6 +22,8 @@ import {
   useInventoryRecentAdditions,
   useStockDocuments,
 } from '../catalog/inventoryApi'
+import { SkeletonList } from '../../../components/ui/Skeleton'
+import { getRawErrorMessage } from '../../../lib/errors/serverErrors'
 
 const documentSchema = z.object({
   type: z.enum(['purchase', 'write_off', 'adjustment_in', 'adjustment_out']),
@@ -443,14 +445,14 @@ export function AdminInventoryPage() {
   })
 
   const getProductDeleteError = (error: unknown) => {
-    const message = error instanceof Error ? error.message : ''
+    const message = getRawErrorMessage(error)
     if (message.includes('Product has already been used')) {
       return t("ui.tovar_uzhe_ispolzovalsya_v_zakazah_sklade_ili_kombo__f22fa56")
     }
     if (message.includes('Product stock must be zero')) {
       return t("ui.pered_udaleniem_ostatok_tovara_dolzhen_byt_0_b908662")
     }
-    return message || t("ui.ne_udalos_udalit_tovar_f3762ba")
+    return (error instanceof Error ? error.message : '') || t("ui.ne_udalos_udalit_tovar_f3762ba")
   }
 
   const deleteProduct = async (product: { id: string; name: string }) => {
@@ -547,10 +549,7 @@ export function AdminInventoryPage() {
       </div>
 
       {balancesQuery.isLoading ? (
-        <div className="inline-flex min-h-28 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600">
-          <Loader2 className="size-4 animate-spin text-emerald-700" />
-          Загрузка склада
-        </div>
+        <SkeletonList rows={8} />
       ) : null}
 
       {!balancesQuery.isLoading && !visibleProducts.length ? (

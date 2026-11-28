@@ -24,6 +24,7 @@ import { useCustomerDebts } from '../../debts/debtsApi'
 import { useCombos } from '../catalog/comboApi'
 import { useInventoryBalances } from '../catalog/inventoryApi'
 import { usePlaces, useProducts, useServices } from '../catalog/catalogApi'
+import { SkeletonStats } from '../../../components/ui/Skeleton'
 
 const formatMoney = (value: number | null | undefined) =>
   new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
@@ -211,9 +212,7 @@ export function AdminDashboardPage() {
       ) : null}
 
       {isLoading ? (
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm font-medium text-slate-600 shadow-sm">
-          {t("ui.zagruzka_pokazateley_d2ecfc9")}
-        </div>
+        <SkeletonStats />
       ) : null}
 
       <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-5">

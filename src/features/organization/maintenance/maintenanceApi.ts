@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../../lib/supabase/client'
+import { toServerError } from '../../../lib/errors/serverErrors'
 
 export type OrganizationTestOrderResetSummary = {
   organization_id: string
@@ -35,7 +36,7 @@ export function useOrganizationMaintenanceMutations() {
         })
 
         if (error) {
-          throw new Error(error.message)
+          throw toServerError(error)
         }
 
         return data as OrganizationTestOrderResetSummary

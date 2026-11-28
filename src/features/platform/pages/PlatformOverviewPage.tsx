@@ -12,6 +12,7 @@ import { formatNumericMonthDay, formatNumericMonthYear } from '../../../lib/i18n
 import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { getPlatformRoutePath } from '../../../lib/routing/appHost'
 import { getCurrentFinancialCycle } from '../../finance/financialCycle'
+import { toServerError } from '../../../lib/errors/serverErrors'
 
 const organizationSelect = 'id,name,slug,status,created_at'
 const DEMO_ORGANIZATION_SLUG = 'demo'
@@ -322,7 +323,7 @@ export function PlatformOverviewPage() {
 
       const failed = [organizationsResult, revenueResult, paymentSummaryResult, businessDatesResult, periodsResult]
         .find((result) => result.error)
-      if (failed?.error) throw new Error(failed.error.message)
+      if (failed?.error) throw toServerError(failed.error)
 
       return {
         businessDates: businessDatesResult.data as BusinessDate[],

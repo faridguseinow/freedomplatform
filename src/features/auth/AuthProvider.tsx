@@ -25,6 +25,7 @@ import {
   type OrganizationLoginBrand,
   type SignInCredentials,
 } from './AuthContext'
+import { toServerError } from '../../lib/errors/serverErrors'
 
 const profileSelect =
   'id,email,full_name,avatar_path,preferred_locale,is_active,created_at,updated_at'
@@ -485,7 +486,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
       if (error) {
         setIsLoading(false)
-        throw new Error(error.message || 'Не удалось войти.')
+        throw error.message ? toServerError(error) : new Error('Не удалось войти.')
       }
 
       setSession(data.session)
@@ -529,7 +530,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         })
 
         if (error || !data.user || !data.session) {
-          throw new Error(error?.message || 'Не удалось настроить демо-доступ.')
+          throw error?.message ? toServerError(error) : new Error('Не удалось настроить демо-доступ.')
         }
 
         setSession(data.session)

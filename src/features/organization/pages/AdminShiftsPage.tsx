@@ -1,8 +1,8 @@
 import { getCurrentLocale } from '../../../lib/i18n/translator'
-import { Archive, CalendarDays, Eye, Loader2, Trash2, X } from 'lucide-react'
+import { Archive, CalendarDays, Eye, Trash2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Modal } from '../../../components/ui/Modal'
+import { Modal, ModalCloseButton } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
 import { getTenantRoutePath } from '../../../lib/routing/appHost'
 import { useI18n } from '../../../lib/i18n/I18nContext'
@@ -12,6 +12,7 @@ import { getCurrentFinancialCycle } from '../../finance/financialCycle'
 import { todayDate } from '../../finance/financeApi'
 import { useFinancialPeriods } from '../../finance/financialPeriodsApi'
 import { shiftStatusLabel, useAdminShiftMutations, useAdminShifts } from '../../shifts/shiftsApi'
+import { SkeletonList } from '../../../components/ui/Skeleton'
 
 const formatMoney = (value: number | null | undefined) =>
   new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
@@ -267,9 +268,7 @@ export function AdminShiftsPage() {
       </header>
 
       {shiftsQuery.isLoading ? (
-        <div className="inline-flex min-h-28 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600">
-          <Loader2 className="size-4 animate-spin text-emerald-700" /> {t("ui.zagruzka_smen_af6891c")}
-        </div>
+        <SkeletonList />
       ) : null}
 
       <section className="flex min-h-0 flex-col gap-3">
@@ -331,14 +330,14 @@ export function AdminShiftsPage() {
                 <h3 className="text-lg font-semibold text-slate-950">{t('shifts.closedPeriod')}</h3>
                 <p className="mt-1 text-sm text-slate-600">{selectedPeriod.period.period_start} — {selectedPeriod.period.period_end}</p>
               </div>
-              <button
+              <ModalCloseButton
                 aria-label={t('Закрыть')}
                 className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100"
                 onClick={() => setSelectedPeriodId(null)}
                 type="button"
               >
                 <X className="size-4" />
-              </button>
+              </ModalCloseButton>
             </div>
             {selectedPeriod.groups.length ? renderDesktopGroups(selectedPeriod.groups, false) : null}
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain xl:hidden">

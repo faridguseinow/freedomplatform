@@ -7,6 +7,7 @@ import type {
   ProductRow,
   ServiceRow,
 } from '../../../lib/supabase/database.types'
+import { toServerError } from '../../../lib/errors/serverErrors'
 
 export const categorySelect =
   'id,organization_id,type,name,description,image_path,sort_order,status,created_by,created_at,updated_at,archived_at'
@@ -75,7 +76,7 @@ export function useCatalogCategories({ organizationId }: UseCatalogParams) {
         .order('created_at', { ascending: false })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data
@@ -102,7 +103,7 @@ export function usePlaces({ organizationId }: UseCatalogParams) {
       }
 
       if (!isMissingWorkspaceLayoutColumn(new Error(error.message))) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       const fallback = await supabase
@@ -113,7 +114,7 @@ export function usePlaces({ organizationId }: UseCatalogParams) {
         .order('created_at', { ascending: false })
 
       if (fallback.error) {
-        throw new Error(fallback.error.message)
+        throw toServerError(fallback.error)
       }
 
       return fallback.data.map((place) => withWorkspaceLayoutDefaults(place))
@@ -134,7 +135,7 @@ export function usePlacesLayoutSchemaStatus(organizationId: string | null) {
 
       if (!error) return true
       if (isMissingWorkspaceLayoutColumn(new Error(error.message))) return false
-      throw new Error(error.message)
+      throw toServerError(error)
     },
   })
 }
@@ -152,7 +153,7 @@ export function useProducts({ organizationId }: UseCatalogParams) {
         .order('created_at', { ascending: false })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data
@@ -173,7 +174,7 @@ export function useServices({ organizationId }: UseCatalogParams) {
         .order('created_at', { ascending: false })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data
@@ -202,7 +203,7 @@ export function useCategoryMutations(organizationId: string | null) {
         const { data, error } = await query
 
         if (error) {
-          throw new Error(error.message)
+          throw toServerError(error)
         }
 
         return data
@@ -217,7 +218,7 @@ export function useCategoryMutations(organizationId: string | null) {
         })
 
         if (error) {
-          throw new Error(error.message)
+          throw toServerError(error)
         }
 
         return data
@@ -248,7 +249,7 @@ export function usePlaceMutations(_organizationId: string | null) {
         }
 
         if (!isMissingWorkspaceLayoutColumn(new Error(error.message))) {
-          throw new Error(error.message)
+          throw toServerError(error)
         }
 
         const baseInput = stripWorkspaceLayoutFields(input)
@@ -258,7 +259,7 @@ export function usePlaceMutations(_organizationId: string | null) {
         const fallback = await fallbackQuery
 
         if (fallback.error) {
-          throw new Error(fallback.error.message)
+          throw toServerError(fallback.error)
         }
 
         return withWorkspaceLayoutDefaults(fallback.data)
@@ -273,7 +274,7 @@ export function usePlaceMutations(_organizationId: string | null) {
         })
 
         if (error) {
-          throw new Error(error.message)
+          throw toServerError(error)
         }
 
         return data
@@ -300,7 +301,7 @@ export function useProductMutations(_organizationId: string | null) {
         const { data, error } = await query
 
         if (error) {
-          throw new Error(error.message)
+          throw toServerError(error)
         }
 
         return data
@@ -317,7 +318,7 @@ export function useProductMutations(_organizationId: string | null) {
           .single()
 
         if (error) {
-          throw new Error(error.message)
+          throw toServerError(error)
         }
 
         return data
@@ -332,7 +333,7 @@ export function useProductMutations(_organizationId: string | null) {
         })
 
         if (error) {
-          throw new Error(error.message)
+          throw toServerError(error)
         }
 
         return data
@@ -347,7 +348,7 @@ export function useProductMutations(_organizationId: string | null) {
         })
 
         if (error) {
-          throw new Error(error.message)
+          throw toServerError(error)
         }
 
         return data
@@ -373,7 +374,7 @@ export function useServiceMutations(_organizationId: string | null) {
         const { data, error } = await query
 
         if (error) {
-          throw new Error(error.message)
+          throw toServerError(error)
         }
 
         return data
@@ -388,7 +389,7 @@ export function useServiceMutations(_organizationId: string | null) {
         })
 
         if (error) {
-          throw new Error(error.message)
+          throw toServerError(error)
         }
 
         return data

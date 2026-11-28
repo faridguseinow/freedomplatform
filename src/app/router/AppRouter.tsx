@@ -1,6 +1,6 @@
 import { lazy, Suspense, type ReactNode } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
-import { FullPageLoader } from '../../components/common/StateView'
+import { PageSkeleton } from '../../components/ui/Skeleton'
 import { AdminLayout } from '../layouts/AdminLayout'
 import { EmployeeLayout } from '../layouts/EmployeeLayout'
 import { PlatformLayout } from '../layouts/PlatformLayout'
@@ -235,7 +235,7 @@ const EmployeeMenuPage = lazy(() =>
 )
 
 const lazyPage = (element: ReactNode) => (
-  <Suspense fallback={<FullPageLoader />}>{element}</Suspense>
+  <Suspense fallback={<PageSkeleton />}>{element}</Suspense>
 )
 
 const platformRoutes = (path: string) => (

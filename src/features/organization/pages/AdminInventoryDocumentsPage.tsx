@@ -14,6 +14,7 @@ import {
   useStockDocumentDetail,
   useStockDocuments,
 } from '../catalog/inventoryApi'
+import { SkeletonList } from '../../../components/ui/Skeleton'
 
 const formatDate = (value: string) => new Date(value).toLocaleDateString(getCurrentLocale())
 const formatNumber = (value: number | null) =>
@@ -107,10 +108,7 @@ export function AdminInventoryDocumentsPage() {
       {pageError ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{pageError}</div> : null}
 
       {documentsQuery.isLoading ? (
-        <div className="inline-flex min-h-28 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600">
-          <Loader2 className="size-4 animate-spin text-emerald-700" />
-          Загрузка документов
-        </div>
+        <SkeletonList />
       ) : null}
 
       {!documentsQuery.isLoading && !visibleDocuments.length ? (

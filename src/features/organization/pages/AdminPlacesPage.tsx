@@ -2,6 +2,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Archive,
   Edit3,
+  Eye,
+  EyeOff,
   GripVertical,
   Loader2,
   MapPin,
@@ -12,15 +14,14 @@ import {
   Search,
   X,
 } from 'lucide-react'
-import { type PointerEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, type PointerEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
-import { CatalogImage } from '../../../components/common/CatalogImage'
+import { PlaceIcon } from '../../../components/common/PlaceIcon'
 import { EmptyState } from '../../../components/common/EmptyState'
 import { Button } from '../../../components/ui/Button'
-import { ImageFileInput } from '../../../components/ui/ImageFileInput'
 import { Input } from '../../../components/ui/Input'
-import { Modal } from '../../../components/ui/Modal'
+import { Modal, ModalCloseButton } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import type { CatalogItemStatus, PlaceRow, PlaceType } from '../../../lib/supabase/database.types'
@@ -36,6 +37,7 @@ import {
   toWorkspaceStorageSpan,
 } from '../../places/workspaceLayout'
 import { cacheWorkspacePlaces } from '../../places/workspacePlacesCache'
+import { registerPlaces } from '../../places/placeIconRegistry'
 import {
   type PlaceInput,
   useCatalogCategories,
@@ -43,7 +45,9 @@ import {
   usePlaces,
   usePlacesLayoutSchemaStatus,
 } from '../catalog/catalogApi'
-import { uploadCatalogImage } from '../catalog/imageUpload'
+import { PlaceIconPicker } from '../../places/PlaceIconPicker'
+import { DEFAULT_PLACE_ICON_BY_TYPE, encodePlaceIcon, type PlaceIconValue, resolvePlaceIcon } from '../../places/placeIcons'
+import { SkeletonCardGrid } from '../../../components/ui/Skeleton'
 
 const placeSchema = z
   .object({
@@ -63,7 +67,6 @@ const placeSchema = z
     workspace_w: z.number().int().min(1, 'Ширина от 1 до 12.').max(12, 'Ширина от 1 до 12.').optional(),
     workspace_h: z.number().int().min(1, 'Высота должна быть больше 0.').optional(),
     status: z.enum(['active', 'inactive', 'archived']),
-    image: z.instanceof(FileList).optional(),
   })
   .superRefine((value, context) => {
     if (value.type === 'other' && !value.custom_type_name) {
@@ -93,12 +96,6 @@ const statusLabel: Record<CatalogItemStatus, string> = {
   active: 'Активно',
   inactive: 'Выключено',
   archived: 'Архив',
-}
-
-const statusClass: Record<CatalogItemStatus, string> = {
-  active: 'bg-emerald-50 text-emerald-800',
-  inactive: 'bg-amber-50 text-amber-800',
-  archived: 'bg-slate-100 text-slate-600',
 }
 
 const BOARD_GAP = 12
@@ -168,8 +165,9 @@ export function AdminPlacesPage() {
   const [boardError, setBoardError] = useState<string | null>(null)
   const [interaction, setInteraction] = useState<BoardInteractionState | null>(null)
   const [workspaceMenuId, setWorkspaceMenuId] = useState<string | null>(null)
+  const [iconValue, setIconValue] = useState<PlaceIconValue>(DEFAULT_PLACE_ICON_BY_TYPE.table)
 
-  const { control, formState: { errors, isSubmitting }, handleSubmit, register, reset } = useForm<PlaceFormValues>({
+  const { control, formState: { errors, isSubmitting }, handleSubmit, register, reset, setValue } = useForm<PlaceFormValues>({
     resolver: zodResolver(placeSchema),
     defaultValues: {
       category_id: '',
@@ -193,6 +191,8 @@ export function AdminPlacesPage() {
 
   const hasTimer = useWatch({ control, name: 'has_timer' })
   const selectedType = useWatch({ control, name: 'type' })
+  const watchedName = useWatch({ control, name: 'name' })
+  const watchedStatus = useWatch({ control, name: 'status' })
   const places = useMemo(() => placesQuery.data ?? [], [placesQuery.data])
   const workspacePlaces = useMemo(
     () => places.filter((place) => place.status === 'active'),
@@ -212,6 +212,10 @@ export function AdminPlacesPage() {
   }, [interaction, workspacePlaces])
   const placeCategories = useMemo(
     () => (categoriesQuery.data ?? []).filter((item) => item.type === 'place' && item.status !== 'archived'),
+    [categoriesQuery.data],
+  )
+  const categoryNameById = useMemo(
+    () => new Map((categoriesQuery.data ?? []).map((category) => [category.id, category.name])),
     [categoriesQuery.data],
   )
   const visiblePlaces = useMemo(() => {
@@ -241,6 +245,7 @@ export function AdminPlacesPage() {
 
   useEffect(() => {
     cacheWorkspacePlaces(organizationId, places)
+    registerPlaces(places)
   }, [organizationId, places])
 
   const getNextWorkspaceDefaults = (): WorkspaceDefaults => {
@@ -283,6 +288,7 @@ export function AdminPlacesPage() {
   const openCreate = (workspaceDefaults?: Partial<WorkspaceDefaults>) => {
     setEditingPlace(null)
     setFormError(null)
+    setIconValue(DEFAULT_PLACE_ICON_BY_TYPE.table)
     reset({ category_id: '', name: '', type: 'table', custom_type_name: '', description: '', has_timer: false, hourly_rate: undefined, minimum_minutes: undefined, billing_step_minutes: undefined, capacity: undefined, sort_order: workspaceDefaults?.sort_order ?? 0, workspace_x: workspaceDefaults?.workspace_x, workspace_y: workspaceDefaults?.workspace_y, workspace_w: workspaceDefaults?.workspace_w, workspace_h: workspaceDefaults?.workspace_h, status: 'active' })
     setIsModalOpen(true)
   }
@@ -290,6 +296,7 @@ export function AdminPlacesPage() {
   const openEdit = (place: PlaceRow) => {
     setEditingPlace(place)
     setFormError(null)
+    setIconValue(resolvePlaceIcon(place.image_path, place.type))
     reset({ category_id: place.category_id ?? '', name: place.name, type: place.type, custom_type_name: place.custom_type_name ?? '', description: place.description ?? '', has_timer: place.has_timer, hourly_rate: place.hourly_rate ?? undefined, minimum_minutes: place.minimum_minutes ?? undefined, billing_step_minutes: place.billing_step_minutes ?? undefined, capacity: place.capacity ?? undefined, sort_order: place.sort_order, workspace_x: place.workspace_x ?? undefined, workspace_y: place.workspace_y ?? undefined, workspace_w: place.workspace_w ?? undefined, workspace_h: place.workspace_h ?? undefined, status: place.status })
     setIsModalOpen(true)
   }
@@ -301,19 +308,8 @@ export function AdminPlacesPage() {
     }
     setFormError(null)
     try {
-      const file = values.image?.item(0)
-
-      if (!file && !editingPlace?.image_path) {
-        setFormError('Загрузите фото места.')
-        return
-      }
-
       const placeId = editingPlace?.id ?? crypto.randomUUID()
-      let imagePath = editingPlace?.image_path ?? null
-
-      if (file) {
-        imagePath = await uploadCatalogImage({ file, itemId: placeId, kind: 'places', organizationId })
-      }
+      const imagePath = encodePlaceIcon(iconValue)
 
       const input: PlaceInput = {
         ...(editingPlace ? {} : { id: placeId }),
@@ -322,7 +318,7 @@ export function AdminPlacesPage() {
         name: values.name,
         type: values.type,
         custom_type_name: values.type === 'other' ? values.custom_type_name || null : null,
-        description: values.description || null,
+        description: editingPlace?.description ?? null,
         image_path: imagePath,
         has_timer: values.has_timer,
         hourly_rate: values.has_timer ? values.hourly_rate ?? null : null,
@@ -503,6 +499,10 @@ export function AdminPlacesPage() {
     placeMutations.setStatus.mutate({ id: place.id, status: 'archived' })
   }
 
+  const togglePlaceVisibility = (place: PlaceRow) => {
+    placeMutations.setStatus.mutate({ id: place.id, status: place.status === 'active' ? 'inactive' : 'active' })
+  }
+
   const restorePlace = (place: PlaceRow) => {
     placeMutations.setStatus.mutate({ id: place.id, status: 'active' })
   }
@@ -514,7 +514,7 @@ export function AdminPlacesPage() {
           <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">Места</h2>
           <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">Столы, кабинеты, игровые зоны и другие места обслуживания.</p>
         </div>
-        <Button onClick={() => openCreate()} type="button"><Plus className="size-4" />Создать место</Button>
+        <Button onClick={() => openCreate(getNextWorkspaceDefaults())} type="button"><Plus className="size-4" />Создать место</Button>
       </header>
 
       <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -541,7 +541,7 @@ export function AdminPlacesPage() {
         </div>
       </div>
 
-      {placesQuery.isLoading ? <div className="inline-flex min-h-28 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600"><Loader2 className="size-4 animate-spin text-emerald-700" />Загрузка мест</div> : null}
+      {placesQuery.isLoading ? <SkeletonCardGrid count={8} variant="compact" /> : null}
       {placesQuery.isError ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{placesQuery.error.message}</div> : null}
       {!placesQuery.isLoading && places.length > 0 && !visiblePlaces.length ? <EmptyState description="Измените фильтр или поиск." icon={MapPin} title="По фильтру мест нет" /> : null}
 
@@ -635,6 +635,7 @@ export function AdminPlacesPage() {
                     >
                       <GripVertical className="size-4" />
                     </button>
+                    <PlaceIcon alt={place.name} className="mt-0.5 size-6 rounded-md" placeType={place.type} value={place.image_path} />
                     <div className="min-w-0 flex-1 pt-1">
                       <h4 className="truncate text-xs font-semibold leading-5 text-slate-950 sm:text-sm">
                         {getPlaceDisplayLabel(place, place.name)}
@@ -700,30 +701,17 @@ export function AdminPlacesPage() {
       ) : null}
 
       {visiblePlaces.length ? (
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {visiblePlaces.map((place) => (
-            <article className="grid gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-sm sm:p-3" key={place.id}>
-              <CatalogImage alt={place.name} className="h-16 w-full sm:h-20" imagePath={place.image_path} />
-              <div className="grid gap-1 sm:flex sm:items-start sm:justify-between sm:gap-3">
-                <div className="min-w-0">
-                  <h3 className="truncate text-sm font-semibold text-slate-950 sm:text-base">{place.name}</h3>
-                  <p className="mt-0.5 truncate text-xs text-slate-600 sm:mt-1 sm:text-sm">{placeTypeLabel[place.type]}{place.custom_type_name ? ` · ${place.custom_type_name}` : ''}</p>
-                </div>
-                <span className={cn('w-fit rounded-md px-2 py-0.5 text-[11px] font-medium sm:py-1 sm:text-xs', statusClass[place.status])}>{statusLabel[place.status]}</span>
-              </div>
-              <dl className="grid grid-cols-2 gap-1 text-[11px] sm:text-xs">
-                <div><dt className="text-xs uppercase text-slate-500">Таймер</dt><dd>{place.has_timer ? 'Да' : 'Нет'}</dd></div>
-                <div><dt className="text-xs uppercase text-slate-500">Тариф</dt><dd>{place.hourly_rate ?? '-'}</dd></div>
-                <div className="hidden sm:block"><dt className="text-xs uppercase text-slate-500">Минимум</dt><dd>{place.minimum_minutes ?? '-'}</dd></div>
-                <div className="hidden sm:block"><dt className="text-xs uppercase text-slate-500">Шаг</dt><dd>{place.billing_step_minutes ?? '-'}</dd></div>
-              </dl>
-              <div className="grid grid-cols-2 gap-1.5">
-                <Button className="min-h-8 px-2 text-xs" onClick={() => openEdit(place)} type="button" variant="secondary"><Edit3 className="size-3.5" />Редактировать</Button>
-                <Button className="min-h-8 px-2 text-xs" onClick={() => archivePlaceFromBoard(place)} type="button" variant="danger">
-                  <Archive className="size-4" />{t('places.archivePlace')}
-                </Button>
-              </div>
-            </article>
+            <PlaceCard
+              categoryName={place.category_id ? categoryNameById.get(place.category_id) ?? null : null}
+              isBusy={placeMutations.setStatus.isPending}
+              key={place.id}
+              onArchive={archivePlaceFromBoard}
+              onEdit={openEdit}
+              onToggleVisibility={togglePlaceVisibility}
+              place={place}
+            />
           ))}
         </div>
       ) : null}
@@ -743,7 +731,7 @@ export function AdminPlacesPage() {
             <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
               {archivedPlaces.map((place) => (
                 <article className="grid gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-sm sm:gap-3 sm:p-4" key={place.id}>
-                  <CatalogImage alt={place.name} className="h-24 w-full opacity-80 sm:h-32" imagePath={place.image_path} />
+                  <PlaceIcon alt={place.name} className="size-12 rounded-xl opacity-70" placeType={place.type} value={place.image_path} />
                   <div className="min-w-0">
                     <h4 className="truncate text-sm font-semibold text-slate-950 sm:text-base">{place.name}</h4>
                     <p className="mt-0.5 truncate text-xs text-slate-600 sm:text-sm">
@@ -774,25 +762,44 @@ export function AdminPlacesPage() {
           <form className="grid max-h-[calc(100svh-3rem)] w-full max-w-3xl gap-4 overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-xl" noValidate onSubmit={onSubmit}>
             <div className="flex items-start justify-between gap-3">
               <h3 className="text-lg font-semibold text-slate-950">{editingPlace ? 'Редактировать место' : 'Создать место'}</h3>
-              <button aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setIsModalOpen(false)} type="button"><X className="size-4" /></button>
+              <ModalCloseButton aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setIsModalOpen(false)} type="button"><X className="size-4" /></ModalCloseButton>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Input error={errors.name?.message} id="place_name" label="Название" {...register('name')} />
               <label className="grid gap-1.5 text-sm font-medium text-slate-700"><span>Тип</span><select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15" {...register('type')}>{Object.entries(placeTypeLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
               {selectedType === 'other' ? <Input error={errors.custom_type_name?.message} id="custom_type_name" label="Название типа" {...register('custom_type_name')} /> : null}
               <label className="grid gap-1.5 text-sm font-medium text-slate-700"><span>Категория</span><select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15" {...register('category_id')}><option value="">Без категории</option>{placeCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
-              <label className="flex min-h-11 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700"><input type="checkbox" {...register('has_timer')} />Включить таймер</label>
-              <Input error={errors.capacity?.message} id="capacity" label="Вместимость" min={1} type="number" {...register('capacity', { valueAsNumber: true })} />
-              {hasTimer ? <><Input error={errors.hourly_rate?.message} id="hourly_rate" label="Почасовой тариф" min={0} step="0.01" type="number" {...register('hourly_rate', { valueAsNumber: true })} /><Input error={errors.minimum_minutes?.message} id="minimum_minutes" label="Минимум минут" min={1} type="number" {...register('minimum_minutes', { valueAsNumber: true })} /><Input error={errors.billing_step_minutes?.message} id="billing_step_minutes" label="Шаг расчета" min={1} type="number" {...register('billing_step_minutes', { valueAsNumber: true })} /></> : null}
-              <Input error={errors.sort_order?.message} id="place_sort" label="Порядок" min={0} type="number" {...register('sort_order', { valueAsNumber: true })} />
-              <Input error={errors.workspace_x?.message} id="workspace_x" label="Колонка X" max={12} min={1} type="number" {...register('workspace_x', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
-              <Input error={errors.workspace_y?.message} id="workspace_y" label="Ряд Y" min={1} type="number" {...register('workspace_y', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
-              <Input error={errors.workspace_w?.message} id="workspace_w" label="Ширина" max={12} min={1} type="number" {...register('workspace_w', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
-              <Input error={errors.workspace_h?.message} id="workspace_h" label="Высота" min={1} type="number" {...register('workspace_h', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
-              <label className="grid gap-1.5 text-sm font-medium text-slate-700"><span>Статус</span><select className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15" {...register('status')}><option value="active">Активно</option><option value="inactive">Выключено</option><option value="archived">Архив</option></select></label>
-              <ImageFileInput error={errors.image?.message} id="place_image" label="Фото" {...register('image')} />
-              <label className="grid gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2"><span>Описание</span><textarea className="min-h-24 rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15" {...register('description')} /></label>
+              <Input error={errors.capacity?.message} id="capacity" label="Вместимость" min={1} type="number" {...register('capacity', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+              <PlaceIconPicker onChange={setIconValue} previewLabel={watchedName || placeTypeLabel[selectedType]} value={iconValue} />
             </div>
+
+            <fieldset className="grid gap-3 rounded-md border border-slate-200 p-3">
+              <legend className="px-1 text-sm font-medium text-slate-700">{t('placeForm.sectionTimer')}</legend>
+              <label className="flex min-h-10 items-center gap-2 text-sm font-medium text-slate-700"><input className="size-4" type="checkbox" {...register('has_timer')} />Включить таймер</label>
+              {hasTimer ? (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Input error={errors.hourly_rate?.message} id="hourly_rate" label="Почасовой тариф" min={0} step="0.01" type="number" {...register('hourly_rate', { valueAsNumber: true })} />
+                  <Input error={errors.minimum_minutes?.message} id="minimum_minutes" label="Минимум минут" min={1} type="number" {...register('minimum_minutes', { valueAsNumber: true })} />
+                  <Input error={errors.billing_step_minutes?.message} id="billing_step_minutes" label="Шаг расчета" min={1} type="number" {...register('billing_step_minutes', { valueAsNumber: true })} />
+                </div>
+              ) : null}
+            </fieldset>
+
+            {editingPlace?.status !== 'archived' ? (
+              <label className="flex items-start gap-3 rounded-md border border-slate-200 p-3 text-sm">
+                <input
+                  checked={watchedStatus === 'active'}
+                  className="mt-0.5 size-4"
+                  onChange={(event) => setValue('status', event.target.checked ? 'active' : 'inactive', { shouldDirty: true })}
+                  type="checkbox"
+                />
+                <span className="grid gap-0.5">
+                  <span className="font-medium text-slate-800">{t('placeForm.showOnScheme')}</span>
+                  <span className="text-xs text-slate-500">{t('placeForm.showOnSchemeHint')}</span>
+                </span>
+              </label>
+            ) : null}
+            <p className="text-xs text-slate-500">{t('placeForm.layoutHint')}</p>
             {formError ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{formError}</div> : null}
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button onClick={() => setIsModalOpen(false)} type="button" variant="secondary">Отмена</Button><Button disabled={isSubmitting || placeMutations.upsert.isPending} type="submit">{isSubmitting || placeMutations.upsert.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}Сохранить</Button></div>
           </form>
@@ -801,3 +808,74 @@ export function AdminPlacesPage() {
     </section>
   )
 }
+
+type PlaceCardProps = {
+  place: PlaceRow
+  categoryName: string | null
+  isBusy: boolean
+  onEdit: (place: PlaceRow) => void
+  onArchive: (place: PlaceRow) => void
+  onToggleVisibility: (place: PlaceRow) => void
+}
+
+const PlaceCard = memo(function PlaceCard({ categoryName, isBusy, onArchive, onEdit, onToggleVisibility, place }: PlaceCardProps) {
+  const { t } = useI18n()
+  const isVisible = place.status === 'active'
+
+  return (
+    <article className={cn('grid min-w-0 gap-3 rounded-lg border bg-white p-3 shadow-sm', isVisible ? 'border-slate-200' : 'border-dashed border-slate-300')}>
+      <div className={cn('flex items-center gap-3', !isVisible && 'opacity-60')}>
+        <PlaceIcon alt={place.name} className="size-12 rounded-xl" placeType={place.type} value={place.image_path} />
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-base font-semibold text-slate-950">{place.name}</h3>
+          <p className="truncate text-xs text-slate-600">
+            {placeTypeLabel[place.type]}{place.custom_type_name ? ` · ${place.custom_type_name}` : ''}
+          </p>
+        </div>
+        <span className={cn('shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium', isVisible ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-600')}>
+          {isVisible ? t('placeCard.visible') : t('placeCard.hidden')}
+        </span>
+      </div>
+
+      <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 rounded-md bg-slate-50 p-2 text-xs">
+        <div className="col-span-2 flex justify-between gap-2"><dt className="text-slate-500">{t('placeCard.category')}</dt><dd className="truncate font-medium text-slate-800">{categoryName ?? t('placeCard.noCategory')}</dd></div>
+        <div className="flex justify-between gap-2"><dt className="text-slate-500">{t('placeCard.timer')}</dt><dd className="font-medium text-slate-800">{place.has_timer ? t('placeCard.yes') : t('placeCard.no')}</dd></div>
+        <div className="flex justify-between gap-2"><dt className="text-slate-500">{t('placeCard.capacity')}</dt><dd className="font-medium text-slate-800">{place.capacity ? t('placeCard.capacityValue', { count: place.capacity }) : '—'}</dd></div>
+        {place.has_timer ? (
+          <>
+            <div className="flex justify-between gap-2"><dt className="text-slate-500">{t('placeCard.rate')}</dt><dd className="font-medium text-slate-800">{place.hourly_rate != null ? t('placeCard.ratePerHour', { amount: place.hourly_rate }) : '—'}</dd></div>
+            <div className="flex justify-between gap-2"><dt className="text-slate-500">{t('placeCard.minimum')}</dt><dd className="font-medium text-slate-800">{place.minimum_minutes ? t('common.durationMinutes', { minutes: place.minimum_minutes }) : '—'}</dd></div>
+            <div className="flex justify-between gap-2"><dt className="text-slate-500">{t('placeCard.step')}</dt><dd className="font-medium text-slate-800">{place.billing_step_minutes ? t('common.durationMinutes', { minutes: place.billing_step_minutes }) : '—'}</dd></div>
+          </>
+        ) : null}
+      </dl>
+
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-1.5">
+        <Button className="min-h-9 px-2 text-xs" onClick={() => onEdit(place)} type="button" variant="secondary">
+          <Edit3 className="size-3.5" />{t('places.editPlace')}
+        </Button>
+        <Button
+          aria-label={isVisible ? t('placeCard.hide') : t('placeCard.show')}
+          className="min-h-9 px-2.5"
+          disabled={isBusy}
+          onClick={() => onToggleVisibility(place)}
+          title={isVisible ? t('placeCard.hide') : t('placeCard.show')}
+          type="button"
+          variant="secondary"
+        >
+          {isVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+        </Button>
+        <Button
+          aria-label={t('places.archivePlace')}
+          className="min-h-9 px-2.5"
+          onClick={() => onArchive(place)}
+          title={t('places.archivePlace')}
+          type="button"
+          variant="danger"
+        >
+          <Archive className="size-4" />
+        </Button>
+      </div>
+    </article>
+  )
+})

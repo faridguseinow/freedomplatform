@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase/client'
 import type { CustomerDebtRow, EmployeeDebtSummaryRow, PaymentMethod } from '../../lib/supabase/database.types'
+import { toServerError } from '../../lib/errors/serverErrors'
 
 const debtSelect =
   'id,organization_id,order_id,order_number_snapshot,customer_name,customer_phone,original_amount,paid_amount,balance_amount,status,incurred_on,due_on,comment,created_by,created_at,paid_at,updated_at'
@@ -16,7 +17,7 @@ export function useCustomerDebts(organizationId: string | null) {
         .eq('organization_id', organizationId!)
         .order('created_at', { ascending: false })
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as CustomerDebtRow[]
     },
   })
@@ -31,7 +32,7 @@ export function useEmployeeDebtSummary(organizationId: string | null, enabled = 
         target_organization_id: organizationId!,
       })
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return (data ?? []) as EmployeeDebtSummaryRow[]
     },
   })
@@ -64,7 +65,7 @@ export function useDebtMutations(organizationId: string | null) {
         target_due_on: input.dueOn || null,
         target_comment: input.comment || null,
       })
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as CustomerDebtRow
     },
     onSuccess: refresh,
@@ -83,7 +84,7 @@ export function useDebtMutations(organizationId: string | null) {
         target_method: input.method,
         target_comment: input.comment || null,
       })
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as CustomerDebtRow
     },
     onSuccess: refresh,
@@ -104,7 +105,7 @@ export function useDebtMutations(organizationId: string | null) {
         target_due_on: input.dueOn || null,
         target_comment: input.comment || null,
       })
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as CustomerDebtRow
     },
     onSuccess: refresh,
@@ -116,7 +117,7 @@ export function useDebtMutations(organizationId: string | null) {
         target_debt_id: input.debtId,
         target_reason: input.reason,
       })
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as string
     },
     onSuccess: refresh,

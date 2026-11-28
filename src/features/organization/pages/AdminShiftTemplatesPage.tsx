@@ -8,6 +8,7 @@ import {
   useShiftTemplateMutations,
   useShiftTemplates,
 } from '../../shifts/shiftTemplatesApi'
+import { SkeletonList } from '../../../components/ui/Skeleton'
 
 export function AdminShiftTemplatesPage() {
   const { organizationId, user } = useAuth()
@@ -67,7 +68,7 @@ export function AdminShiftTemplatesPage() {
       </form>
 
       <div className="grid gap-3">
-        {templatesQuery.isLoading ? <div className="text-sm text-slate-600">Загрузка...</div> : null}
+        {templatesQuery.isLoading ? <SkeletonList rows={3} /> : null}
         {(templatesQuery.data ?? []).map((template) => (
           <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm" key={template.id}>
             <div className="flex flex-wrap items-center justify-between gap-3">

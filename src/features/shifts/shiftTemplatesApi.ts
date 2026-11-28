@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase/client'
 import type { ShiftTemplateRow } from '../../lib/supabase/database.types'
+import { toServerError } from '../../lib/errors/serverErrors'
 
 export type ShiftTemplateInput = Omit<
   ShiftTemplateRow,
@@ -25,7 +26,7 @@ export function useShiftTemplates(organizationId: string | null, activeOnly = fa
       }
 
       const { data, error } = await query
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data
     },
   })
@@ -44,7 +45,7 @@ export function useShiftTemplateMutations(organizationId: string | null) {
           ? supabase.from('shift_templates').update(input).eq('id', id).select(select).single()
           : supabase.from('shift_templates').insert(input).select(select).single()
         const { data, error } = await query
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: invalidate,

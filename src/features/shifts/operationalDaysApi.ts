@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase/client'
 import type { AdminOperationalDayReportRow } from '../../lib/supabase/database.types'
+import { toServerError } from '../../lib/errors/serverErrors'
 
 export function useOperationalDays(organizationId: string | null) {
   return useQuery({
@@ -14,7 +15,7 @@ export function useOperationalDays(organizationId: string | null) {
         .order('business_date', { ascending: false })
         .limit(120)
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as AdminOperationalDayReportRow[]
     },
   })

@@ -19,6 +19,9 @@
 }
 
 :root.theme-dark {
+  /* Наведение в тёмной теме: тёмный оттенок фирменного цвета вместо серого */
+  --theme-hover: #1b2f2b;
+  --theme-hover-accent: #15392f;
   --theme-accent: #047857;
   --theme-accent-hover: #065f46;
   --theme-accent-soft: #102f26;
@@ -60,6 +63,211 @@ button {
 
 button:disabled {
   cursor: not-allowed;
+}
+
+/*
+ * Анимации интерфейса.
+ * Только transform и opacity (их считает видеокарта), короткие — 120–220 мс,
+ * и полностью отключаются при системной настройке «уменьшить движение».
+ */
+:root {
+  --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+@keyframes fp-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fp-pop-up {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fp-pop-down {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fp-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fp-modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fp-sheet-in {
+  from { transform: translateY(32px); opacity: 0.6; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes fp-drawer-in {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes fp-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: 0 0; }
+}
+
+@keyframes fp-live-ping {
+  0% { transform: scale(1); opacity: 0.55; }
+  80%, 100% { transform: scale(2.4); opacity: 0; }
+}
+
+@keyframes fp-attention {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+
+@keyframes fp-highlight {
+  from { background-color: rgb(16 185 129 / 0.22); }
+  to { background-color: transparent; }
+}
+
+.animate-fade-in { animation: fp-fade-in 180ms ease-out both; }
+.animate-pop-up { animation: fp-pop-up 160ms var(--ease-out-soft) both; }
+.animate-pop-down { animation: fp-pop-down 160ms var(--ease-out-soft) both; }
+.animate-enter { animation: fp-enter 200ms var(--ease-out-soft) both; }
+.animate-highlight { animation: fp-highlight 900ms ease-out both; }
+
+/* Скелетон: мягкий перелив, одинаково виден в светлой и тёмной теме */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgb(148 163 184 / 0.16) 25%,
+    rgb(148 163 184 / 0.3) 37%,
+    rgb(148 163 184 / 0.16) 63%
+  );
+  background-size: 400% 100%;
+  animation: fp-shimmer 1.4s ease infinite;
+}
+
+.theme-dark .skeleton {
+  background-image: linear-gradient(
+    90deg,
+    rgb(148 163 184 / 0.2) 25%,
+    rgb(148 163 184 / 0.36) 37%,
+    rgb(148 163 184 / 0.2) 63%
+  );
+}
+
+/* Карточки мест на рабочей схеме */
+.workspace-slot {
+  transition:
+    background-color 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    transform 140ms var(--ease-out-soft);
+}
+
+.workspace-slot[role='button']:active {
+  transform: scale(0.985);
+}
+
+/* Идущая сессия: от точки статуса расходится мягкая волна */
+.status-dot-live {
+  position: relative;
+}
+
+.status-dot-live::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: inherit;
+  animation: fp-live-ping 1.8s ease-out infinite;
+}
+
+/* Лимит времени истёк: рамка плавно пульсирует, привлекая внимание */
+.workspace-slot-attention::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 2px rgb(239 68 68 / 0.85);
+  pointer-events: none;
+  animation: fp-attention 1.4s ease-in-out infinite;
+}
+
+/* Модальные окна: фон проявляется, окно всплывает; на телефоне выезжает снизу */
+.modal-overlay {
+  animation: fp-fade-in 160ms ease-out both;
+}
+
+.modal-panel > * {
+  animation: fp-modal-in 200ms var(--ease-out-soft) both;
+}
+
+.modal-panel[data-align='end'] > * {
+  animation-name: fp-drawer-in;
+}
+
+@media (max-width: 767px) {
+  .modal-panel > *,
+  .modal-panel[data-align='end'] > * {
+    animation: fp-sheet-in 240ms var(--ease-out-soft) both;
+  }
+}
+
+/* Закрытие: то же движение в обратную сторону */
+@keyframes fp-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes fp-modal-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(8px) scale(0.97); }
+}
+
+@keyframes fp-drawer-out {
+  from { transform: none; opacity: 1; }
+  to { transform: translateX(32px); opacity: 0; }
+}
+
+@keyframes fp-sheet-out {
+  from { transform: none; opacity: 1; }
+  to { transform: translateY(40px); opacity: 0; }
+}
+
+.modal-overlay[data-state='closing'] {
+  animation: fp-fade-out 170ms ease-in both;
+  pointer-events: none;
+}
+
+.modal-overlay[data-state='closing'] .modal-panel > * {
+  animation: fp-modal-out 170ms ease-in both;
+}
+
+.modal-overlay[data-state='closing'] .modal-panel[data-align='end'] > * {
+  animation-name: fp-drawer-out;
+}
+
+@media (max-width: 767px) {
+  .modal-overlay[data-state='closing'] .modal-panel > *,
+  .modal-overlay[data-state='closing'] .modal-panel[data-align='end'] > * {
+    animation: fp-sheet-out 170ms ease-in both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+
+  .skeleton {
+    animation: none;
+  }
 }
 
 #root {
@@ -235,6 +443,52 @@ button:disabled {
   color: #f1c96f;
 }
 
+.theme-dark .hover\:text-slate-950:hover {
+  color: var(--theme-text);
+}
+
+.theme-dark .hover\:bg-emerald-800:hover {
+  background-color: var(--theme-accent-hover);
+}
+
+/*
+ * Тёмная тема: светлые фоны и подсветки при наведении.
+ * Ни один светлый (серо-белый) фон не должен проступать поверх тёмного интерфейса.
+ */
+.theme-dark .bg-slate-50\/95 {
+  background-color: var(--theme-background);
+}
+
+.theme-dark .bg-emerald-50\/70 {
+  background-color: var(--theme-accent-soft);
+}
+
+.theme-dark .bg-red-50\/40,
+.theme-dark .bg-red-50\/60,
+.theme-dark .bg-red-50\/70 {
+  background-color: #44252b;
+}
+
+.theme-dark .bg-amber-50\/40 {
+  background-color: #382d1b;
+}
+
+.theme-dark .bg-orange-50,
+.theme-dark .bg-orange-50\/50,
+.theme-dark .bg-orange-100 {
+  background-color: #3b2a1c;
+}
+
+.theme-dark .bg-blue-50,
+.theme-dark .bg-sky-50\/50,
+.theme-dark .bg-sky-100 {
+  background-color: #182a3f;
+}
+
+.theme-dark .bg-violet-50 {
+  background-color: #2a2340;
+}
+
 .theme-dark .hover\:bg-slate-50:hover,
 .theme-dark .hover\:bg-slate-50\/80:hover,
 .theme-dark .hover\:bg-slate-50\/70:hover,
@@ -242,15 +496,38 @@ button:disabled {
 .theme-dark .hover\:bg-slate-50\/40:hover,
 .theme-dark .hover\:bg-slate-50\/30:hover,
 .theme-dark .hover\:bg-slate-100:hover {
-  background-color: var(--theme-surface-muted);
+  background-color: var(--theme-hover);
 }
 
-.theme-dark .hover\:text-slate-950:hover {
-  color: var(--theme-text);
+.theme-dark .hover\:bg-emerald-50:hover,
+.theme-dark .hover\:bg-emerald-50\/30:hover,
+.theme-dark .hover\:bg-emerald-50\/40:hover,
+.theme-dark .hover\:bg-emerald-50\/50:hover,
+.theme-dark .hover\:bg-emerald-100:hover {
+  background-color: var(--theme-hover-accent);
 }
 
-.theme-dark .hover\:bg-emerald-800:hover {
-  background-color: var(--theme-accent-hover);
+.theme-dark .hover\:bg-red-50:hover,
+.theme-dark .hover\:bg-red-100:hover {
+  background-color: #4d2229;
+}
+
+.theme-dark .hover\:bg-cyan-100:hover {
+  background-color: #1a3a45;
+}
+
+.theme-dark .hover\:bg-blue-100:hover {
+  background-color: #1c3350;
+}
+
+.theme-dark .hover\:bg-amber-200:hover {
+  background-color: #4a3a1f;
+}
+
+.theme-dark .hover\:border-emerald-200:hover,
+.theme-dark .hover\:border-emerald-300:hover,
+.theme-dark .hover\:border-emerald-400:hover {
+  border-color: #2f9b74;
 }
 
 .theme-dark .focus-visible\:ring-emerald-700:focus-visible,

@@ -10,6 +10,7 @@ import { getTenantRoutePath } from '../../../lib/routing/appHost'
 import type { CustomerDebtRow, CustomerDebtStatus, PaymentMethod } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
 import { useCustomerDebts, useDebtMutations } from '../../debts/debtsApi'
+import { SkeletonList } from '../../../components/ui/Skeleton'
 
 type DebtFilter = CustomerDebtStatus | 'all'
 
@@ -186,7 +187,7 @@ export function AdminDebtsPage() {
       </div>
 
       {debtsQuery.isLoading ? (
-        <div className="flex min-h-32 items-center justify-center"><Loader2 className="size-5 animate-spin text-emerald-700" /></div>
+        <SkeletonList />
       ) : visibleDebts.length ? (
         <div className="grid gap-3">
           <div className="hidden overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm md:block">

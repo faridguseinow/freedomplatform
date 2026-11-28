@@ -10,6 +10,7 @@ import { useI18n } from '../../../lib/i18n/I18nContext'
 import { languageLabels, supportedLanguages, type SystemLanguage } from '../../../lib/i18n/translations'
 import { getTenantRoutePath } from '../../../lib/routing/appHost'
 import { useFinancePinState, useSetFinancePin } from '../../finance/financeAccessApi'
+import { getRawErrorMessage } from '../../../lib/errors/serverErrors'
 
 const mobileManagementLinks = [
   {
@@ -68,11 +69,11 @@ export function AdminSettingsPage() {
       setFinancePinConfirmation('')
       setFinancePinMessage(t('financeAccess.saved'))
     } catch (error) {
-      const message = error instanceof Error ? error.message : ''
+      const message = getRawErrorMessage(error)
       setFinancePinMessage(
         message.includes('account password is incorrect')
           ? t('financeAccess.passwordInvalid')
-          : message || t('financeAccess.saveFailed'),
+          : (error instanceof Error ? error.message : '') || t('financeAccess.saveFailed'),
       )
     } finally {
       setFinancePassword('')

@@ -27,7 +27,7 @@ import { Link, useParams } from 'react-router-dom'
 import { EmptyState } from '../../../components/common/EmptyState'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
-import { Modal } from '../../../components/ui/Modal'
+import { Modal, ModalCloseButton } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
 import { getTenantRoutePath } from '../../../lib/routing/appHost'
 import { useI18n } from '../../../lib/i18n/I18nContext'
@@ -76,6 +76,7 @@ import {
   useRecurringExpenses,
   type RecurringExpenseInput,
 } from '../recurringExpensesApi'
+import { SkeletonList, SkeletonStats } from '../../../components/ui/Skeleton'
 
 const DEFAULT_END = todayDate()
 
@@ -818,9 +819,7 @@ function PaymentTrafficAnalytics({ organizationId }: { organizationId: string | 
       </div>
 
       {analytics.isLoading ? (
-        <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-          {t("ui.zagruzka_analitiki_0be70ab")}
-        </div>
+        <SkeletonStats />
       ) : null}
 
       <div className="min-w-0 lg:hidden">
@@ -1235,9 +1234,9 @@ function ExpenseTransactionModal({
       <form className="grid w-full max-w-2xl gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-xl" onSubmit={handleSubmit}>
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-lg font-semibold text-slate-950">{isEdit ? 'Редактировать расход' : 'Расход'}</h3>
-          <button aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={onClose} type="button">
+          <ModalCloseButton aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={onClose} type="button">
             <X className="size-4" />
-          </button>
+          </ModalCloseButton>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
@@ -1462,7 +1461,7 @@ export function AdminFinanceIncomePage() {
           <div className="grid max-h-[calc(100svh-3rem)] w-full max-w-3xl gap-4 overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-lg font-semibold text-slate-950">{t('Добавить доход')}</h3>
-              <button aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setIsCreateOpen(false)} type="button"><X className="size-4" /></button>
+              <ModalCloseButton aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setIsCreateOpen(false)} type="button"><X className="size-4" /></ModalCloseButton>
             </div>
             <MoneyForm
               onCreated={() => setIsCreateOpen(false)}
@@ -1482,7 +1481,7 @@ export function AdminFinanceIncomePage() {
                 <h3 className="text-lg font-semibold text-slate-950">{t('Доходы периода')}</h3>
                 <p className="mt-1 text-sm text-slate-600">{selectedPeriod.period_start} — {selectedPeriod.period_end}</p>
               </div>
-              <button aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setSelectedPeriod(null)} type="button"><X className="size-4" /></button>
+              <ModalCloseButton aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setSelectedPeriod(null)} type="button"><X className="size-4" /></ModalCloseButton>
             </div>
             <div className="rounded-md bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
               {t('Общий доход')}: {money(selectedPeriodTransactions.reduce((sum, row) => sum + row.amount, 0))}
@@ -1599,7 +1598,7 @@ export function AdminFinanceExpensesPage() {
           <div className="grid max-h-[calc(100svh-3rem)] w-full max-w-3xl gap-4 overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-lg font-semibold text-slate-950">{t('Добавить расход')}</h3>
-              <button aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setIsCreateOpen(false)} type="button"><X className="size-4" /></button>
+              <ModalCloseButton aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setIsCreateOpen(false)} type="button"><X className="size-4" /></ModalCloseButton>
             </div>
             <MoneyForm
               onCreated={() => setIsCreateOpen(false)}
@@ -1619,7 +1618,7 @@ export function AdminFinanceExpensesPage() {
                 <h3 className="text-lg font-semibold text-slate-950">{t('Расходы периода')}</h3>
                 <p className="mt-1 text-sm text-slate-600">{selectedPeriod.period_start} — {selectedPeriod.period_end}</p>
               </div>
-              <button aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setSelectedPeriod(null)} type="button"><X className="size-4" /></button>
+              <ModalCloseButton aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setSelectedPeriod(null)} type="button"><X className="size-4" /></ModalCloseButton>
             </div>
             <div className="rounded-md bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
               {t('Общие траты')}: {money(selectedPeriodTransactions.reduce((sum, row) => sum + row.amount, 0))}
@@ -1954,7 +1953,7 @@ export function AdminFinancePeriodsPage() {
         </div>
 
         {rows.isLoading ? (
-          <div className="rounded-md border border-slate-200 p-4 text-sm text-slate-600">{t("ui.periody_zagruzhayutsya_56da31c")}</div>
+          <SkeletonList rows={4} />
         ) : null}
 
         <div className="hidden overflow-x-auto rounded-lg border border-slate-200 lg:block">

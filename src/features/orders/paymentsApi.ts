@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase/client'
 import type { PaymentMethod, PaymentRow, PlaceType } from '../../lib/supabase/database.types'
+import { toServerError } from '../../lib/errors/serverErrors'
 
 export function usePaymentMutations(organizationId: string | null) {
   const queryClient = useQueryClient()
@@ -17,7 +18,7 @@ export function usePaymentMutations(organizationId: string | null) {
           target_order_id: orderId,
           target_method: method,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (order) => invalidate(order.id),
@@ -28,7 +29,7 @@ export function usePaymentMutations(organizationId: string | null) {
           target_order_id: orderId,
           target_comment: comment,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (order) => invalidate(order.id),
@@ -54,7 +55,7 @@ export function usePaymentsForDate(organizationId: string | null, date: string) 
         .gte('completed_at', start)
         .lt('completed_at', nextStr)
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as PaymentRow[]
     },
   })
@@ -125,9 +126,9 @@ export function useUsageHoursBreakdown(
           .limit(10000),
       ])
 
-      if (sessionsResult.error) throw new Error(sessionsResult.error.message)
-      if (ordersResult.error) throw new Error(ordersResult.error.message)
-      if (placesResult.error) throw new Error(placesResult.error.message)
+      if (sessionsResult.error) throw toServerError(sessionsResult.error)
+      if (ordersResult.error) throw toServerError(ordersResult.error)
+      if (placesResult.error) throw toServerError(placesResult.error)
 
       const placeTypes = new Map((placesResult.data ?? []).map((place) => [place.id, place.type]))
       const result: UsageHoursBreakdown = { ...emptyUsageHours }
@@ -188,9 +189,9 @@ export function useUsageHoursBreakdownByShiftIds(organizationId: string | null, 
           .limit(10000),
       ])
 
-      if (sessionsResult.error) throw new Error(sessionsResult.error.message)
-      if (ordersResult.error) throw new Error(ordersResult.error.message)
-      if (placesResult.error) throw new Error(placesResult.error.message)
+      if (sessionsResult.error) throw toServerError(sessionsResult.error)
+      if (ordersResult.error) throw toServerError(ordersResult.error)
+      if (placesResult.error) throw toServerError(placesResult.error)
 
       const nowMs = Date.now()
       const placeTypes = new Map((placesResult.data ?? []).map((place) => [place.id, place.type]))
@@ -249,7 +250,7 @@ export function usePaymentMethodSummary(
         .lt('completed_at', range.end)
         .limit(10000)
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
 
       return (data ?? []).reduce<PaymentMethodSummary>(
         (summary, payment) => {
@@ -285,7 +286,7 @@ export function usePaymentMethodSummaryByShiftIds(
         .in('shift_id', shiftIds)
         .limit(10000)
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
 
       return (data ?? []).reduce<PaymentMethodSummary>(
         (summary, payment) => {
@@ -333,7 +334,7 @@ async function buildRevenueBreakdown(paymentRows: PaymentRow[]) {
         .select('id,place_id')
         .in('id', chunk)
 
-      if (ordersErr) throw new Error(ordersErr.message)
+      if (ordersErr) throw toServerError(ordersErr)
       orders.push(...(ordersData ?? []))
     }
   }
@@ -348,7 +349,7 @@ async function buildRevenueBreakdown(paymentRows: PaymentRow[]) {
         .select('id,type')
         .in('id', chunk)
 
-      if (placesErr) throw new Error(placesErr.message)
+      if (placesErr) throw toServerError(placesErr)
       places.push(...(placesData ?? []))
     }
   }
@@ -368,7 +369,7 @@ async function buildRevenueBreakdown(paymentRows: PaymentRow[]) {
         .select('order_id,item_type,status,timed_session_id,total_price,total_cost_snapshot')
         .in('order_id', chunk)
 
-      if (itemsErr) throw new Error(itemsErr.message)
+      if (itemsErr) throw toServerError(itemsErr)
       orderItems.push(...(itemsData ?? []))
     }
   }
@@ -385,7 +386,7 @@ async function buildRevenueBreakdown(paymentRows: PaymentRow[]) {
       .select('id,place_id')
       .in('id', chunk)
 
-    if (sessionsErr) throw new Error(sessionsErr.message)
+    if (sessionsErr) throw toServerError(sessionsErr)
     for (const session of sessionsData ?? []) timedSessionPlaceById.set(session.id, session.place_id)
   }
 
@@ -398,7 +399,7 @@ async function buildRevenueBreakdown(paymentRows: PaymentRow[]) {
       .select('id,type')
       .in('id', chunk)
 
-    if (placesErr) throw new Error(placesErr.message)
+    if (placesErr) throw toServerError(placesErr)
     places.push(...(placesData ?? []))
   }
 
@@ -492,7 +493,7 @@ export function useRevenueBreakdown(
         .lt('completed_at', range.end)
         .limit(10000)
 
-      if (paymentsErr) throw new Error(paymentsErr.message)
+      if (paymentsErr) throw toServerError(paymentsErr)
       return buildRevenueBreakdown((payments ?? []) as PaymentRow[])
     },
   })
@@ -548,7 +549,7 @@ export function useProductProfitReport(
       }
 
       const { data: payments, error: paymentsError } = await paymentsQuery
-      if (paymentsError) throw new Error(paymentsError.message)
+      if (paymentsError) throw toServerError(paymentsError)
 
       const orderIds = Array.from(new Set(
         (payments ?? []).map((payment) => payment.order_id).filter((id): id is string => Boolean(id)),
@@ -560,7 +561,7 @@ export function useProductProfitReport(
         .select('id,name,image_path')
         .eq('organization_id', organizationId!)
 
-      if (servicesError) throw new Error(servicesError.message)
+      if (servicesError) throw toServerError(servicesError)
       const serviceByName = new Map((services ?? []).map((service) => [normalizeCatalogName(service.name), service]))
       const teaServices = (services ?? []).filter((service) => isTeaName(service.name))
       const hookahServices = (services ?? []).filter((service) => isHookahName(service.name))
@@ -585,7 +586,7 @@ export function useProductProfitReport(
           .eq('status', 'active')
           .in('order_id', chunk)
 
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         items.push(...(data ?? []))
       }
 
@@ -650,7 +651,7 @@ export function useRevenueBreakdownByShiftIds(organizationId: string | null, shi
         .in('shift_id', shiftIds)
         .limit(10000)
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return buildRevenueBreakdown((payments ?? []) as PaymentRow[])
     },
   })
@@ -685,7 +686,7 @@ export function usePaymentTrafficAnalytics(organizationId: string | null) {
         .lte('completed_at', new Date().toISOString())
         .limit(10000)
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
 
       const points = Array.from({ length: 24 }, (_, hour) => ({
         amount: 0,

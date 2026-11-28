@@ -1,5 +1,6 @@
-import { AlertTriangle, Loader2 } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { Skeleton } from '../ui/Skeleton'
 
 type StateViewProps = {
   title: string
@@ -8,12 +9,34 @@ type StateViewProps = {
   actionLabel?: string
 }
 
+/** Первая загрузка приложения: заготовка интерфейса вместо надписи «Загрузка». */
 export function FullPageLoader() {
   return (
-    <main className="grid min-h-svh place-items-center bg-slate-50 px-4">
-      <div className="inline-flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm">
-        <Loader2 aria-hidden="true" className="size-4 animate-spin text-emerald-700" />
-        Загрузка
+    <main aria-busy="true" className="flex min-h-svh bg-slate-50 animate-fade-in" role="status">
+      <span className="sr-only">Загрузка</span>
+      <aside aria-hidden="true" className="hidden w-64 shrink-0 flex-col gap-3 border-r border-slate-200 bg-white p-4 md:flex">
+        <div className="flex items-center gap-3 pb-3">
+          <Skeleton className="size-9 rounded-lg" />
+          <Skeleton className="h-4 w-28" />
+        </div>
+        {Array.from({ length: 7 }, (_, index) => (
+          <Skeleton className="h-9 w-full" key={index} />
+        ))}
+      </aside>
+      <div aria-hidden="true" className="grid flex-1 content-start gap-5 p-4 sm:p-6">
+        <div className="grid gap-2">
+          <Skeleton className="h-8 w-56 max-w-full" />
+          <Skeleton className="h-4 w-80 max-w-full" />
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {Array.from({ length: 8 }, (_, index) => (
+            <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3" key={index}>
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+          ))}
+        </div>
       </div>
     </main>
   )

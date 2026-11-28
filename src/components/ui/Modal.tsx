@@ -1,4 +1,14 @@
-import { useEffect, type PointerEvent, type ReactNode } from 'react'
+import {
+  type ButtonHTMLAttributes,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent,
+  type ReactNode,
+} from 'react'
 import { cn } from '../../lib/utils/cn'
 
 type ModalProps = {
@@ -11,8 +21,34 @@ type ModalProps = {
   panelClassName?: string
 }
 
+/** Длительность анимации закрытия; совпадает с CSS (fp-*-out). */
+const CLOSE_ANIMATION_MS = 170
+
 let activeBodyScrollLocks = 0
 let bodyOverflowBeforeModal = ''
+
+const ModalCloseContext = createContext<(() => void) | null>(null)
+
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+
+/**
+ * Закрыть окно с анимацией. Внутри модального окна используйте
+ * `<ModalDismiss>{(close) => <button onClick={close} />}</ModalDismiss>`.
+ */
+export function ModalDismiss({ children }: { children: (close: () => void) => ReactNode }) {
+  const close = useContext(ModalCloseContext)
+  return <>{children(close ?? (() => {}))}</>
+}
+
+/**
+ * Кнопка закрытия (крестик). Внутри окна закрывает его с анимацией,
+ * вне окна ведёт себя как обычная кнопка с переданным onClick.
+ */
+export function ModalCloseButton({ onClick, type = 'button', ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
+  const close = useContext(ModalCloseContext)
+  return <button {...props} onClick={close ? () => close() : onClick} type={type} />
+}
 
 export function Modal({
   children,
@@ -23,9 +59,37 @@ export function Modal({
   className,
   panelClassName,
 }: ModalProps) {
+  const [isClosing, setIsClosing] = useState(false)
+  const onCloseRef = useRef(onClose)
+  const closeTimeoutRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
+
+  const requestClose = useCallback(() => {
+    if (closeTimeoutRef.current !== null) return
+    if (prefersReducedMotion()) {
+      onCloseRef.current()
+      return
+    }
+    setIsClosing(true)
+    closeTimeoutRef.current = window.setTimeout(() => {
+      closeTimeoutRef.current = null
+      onCloseRef.current()
+    }, CLOSE_ANIMATION_MS)
+  }, [])
+
+  useEffect(
+    () => () => {
+      if (closeTimeoutRef.current !== null) window.clearTimeout(closeTimeoutRef.current)
+    },
+    [],
+  )
+
   const closeFromBackdrop = (event: PointerEvent<HTMLDivElement>) => {
     if (event.target === event.currentTarget) {
-      onClose()
+      requestClose()
     }
   }
 
@@ -47,7 +111,7 @@ export function Modal({
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onClose()
+        requestClose()
       }
     }
 
@@ -55,28 +119,32 @@ export function Modal({
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [onClose])
+  }, [requestClose])
 
   return (
-    <div
-      className={cn(
-        'modal-overlay fixed inset-0 z-50 grid bg-slate-950/40',
-        align === 'center' ? 'place-items-center' : 'lg:place-items-end',
-        padding === 'default' ? 'p-0 md:px-4 md:py-6' : null,
-        className,
-      )}
-      onPointerDown={closeFromBackdrop}
-      role="presentation"
-    >
+    <ModalCloseContext.Provider value={requestClose}>
       <div
-        aria-label={ariaLabel}
-        aria-modal="true"
-        className={cn('modal-panel h-svh w-full md:h-auto', align === 'center' ? 'flex justify-center' : null, panelClassName)}
+        className={cn(
+          'modal-overlay fixed inset-0 z-50 grid bg-slate-950/40',
+          align === 'center' ? 'place-items-center' : 'lg:place-items-end',
+          padding === 'default' ? 'p-0 md:px-4 md:py-6' : null,
+          className,
+        )}
+        data-state={isClosing ? 'closing' : 'open'}
         onPointerDown={closeFromBackdrop}
-        role="dialog"
+        role="presentation"
       >
-        {children}
+        <div
+          aria-label={ariaLabel}
+          aria-modal="true"
+          className={cn('modal-panel h-svh w-full md:h-auto', align === 'center' ? 'flex justify-center' : null, panelClassName)}
+          data-align={align}
+          onPointerDown={closeFromBackdrop}
+          role="dialog"
+        >
+          {children}
+        </div>
       </div>
-    </div>
+    </ModalCloseContext.Provider>
   )
 }

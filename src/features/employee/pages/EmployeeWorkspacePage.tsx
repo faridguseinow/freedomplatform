@@ -11,6 +11,7 @@ import {
   Hourglass,
   Loader2,
   Pause,
+  ReceiptText,
   Play,
   Plus,
   Search,
@@ -19,11 +20,11 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CatalogImage } from '../../../components/common/CatalogImage'
 import { Button } from '../../../components/ui/Button'
-import { Modal } from '../../../components/ui/Modal'
+import { Modal, ModalDismiss } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import { formatUnitName } from '../../../lib/i18n/formatUnitName'
@@ -35,12 +36,28 @@ import type {
 import { cn } from '../../../lib/utils/cn'
 import { USER_ROLES } from '../../../types/roles'
 import {
+  formatAzn,
+  getSessionLimitInfo,
+} from '../workspace/sessionTiming'
+import {
+  formatVipEquipmentSummary,
+  isVipEquipmentPlace,
+  placeStatus,
+} from '../workspace/placeVisuals'
+import { WorkspacePlaceCard } from '../workspace/WorkspacePlaceCard'
+import { Skeleton } from '../../../components/ui/Skeleton'
+import { usePrimeCatalogImages } from '../../catalog/catalogImages'
+import { registerPlaces } from '../../places/placeIconRegistry'
+import { LivePlaceTotal, LiveSessionTimeBox, LiveTableTimeBox } from '../workspace/LiveSessionInfo'
+import {
   useEmployeeCombos,
   useEmployeeProductSalesRanking,
   useEmployeeProducts,
   useEmployeeServices,
 } from '../catalog/employeeCatalogApi'
 import {
+  getOrderItemRenderKey,
+  isOptimisticOrderItem,
   orderStatusLabel,
   useEmployeeOrderItems,
   useEmployeeOrderMutations,
@@ -59,42 +76,10 @@ import {
 type PickerTab = 'products' | 'services' | 'combos'
 type OrderCloseAction = 'finish-empty' | 'cancel'
 
-const BILLING_GRACE_MINUTES = 10
-const SESSION_LIMIT_WARNING_MINUTES = 10
 const SESSION_LIMIT_ALARM_REPEAT_MS = 5_000
 
-const formatMoney = (value: number | null | undefined) =>
-  new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
-
-const formatAzn = (value: number | null | undefined) => `${formatMoney(value)} AZN`
 const formatOrderItemAddedAt = (value: string) => formatNumericTime(value)
 const parseMoneyInput = (value: string) => Number(value.replace(',', '.'))
-
-const formatElapsed = (startedAt: string | null, nowMs: number) => {
-  if (!startedAt) return '00:00'
-  const totalSeconds = Math.max(0, Math.floor((nowMs - new Date(startedAt).getTime()) / 1000))
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
-  return hours > 0
-    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-    : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-}
-
-const getTimedSessionElapsedMs = (place: EmployeeWorkspacePlaceRow, nowMs: number) => {
-  if (!place.active_session_started_at) return 0
-  const startedAtMs = new Date(place.active_session_started_at).getTime()
-  const storedPausedMs = (place.active_session_total_paused_seconds ?? 0) * 1000
-  const currentPauseMs = place.active_session_paused_at
-    ? Math.max(0, nowMs - new Date(place.active_session_paused_at).getTime())
-    : 0
-  return Math.max(0, nowMs - startedAtMs - storedPausedMs - currentPauseMs)
-}
-
-const formatTimedSessionElapsed = (place: EmployeeWorkspacePlaceRow, nowMs: number) => {
-  const effectiveStartedAt = nowMs - getTimedSessionElapsedMs(place, nowMs)
-  return formatElapsed(new Date(effectiveStartedAt).toISOString(), nowMs)
-}
 
 const formatQuantity = (value: number | null | undefined) => {
   if (value === null || value === undefined) return null
@@ -108,28 +93,6 @@ const formatDurationMinutes = (minutes: number | null | undefined, hourLabel: st
   if (hours && rest) return `${hours} ${hourLabel} ${rest} ${minuteLabel}`
   if (hours) return `${hours} ${hourLabel}`
   return `${rest} ${minuteLabel}`
-}
-
-const formatRemainingMs = (remainingMs: number) => {
-  const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000))
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
-  return hours > 0
-    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-    : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-}
-
-const getSessionLimitInfo = (place: EmployeeWorkspacePlaceRow | null, nowMs: number) => {
-  if (!place?.active_session_started_at || !place.active_session_planned_minutes) return null
-  const remainingMs = place.active_session_planned_minutes * 60_000 - getTimedSessionElapsedMs(place, nowMs)
-  return {
-    endMs: nowMs + remainingMs,
-    isExpired: remainingMs <= 0,
-    isWarning: remainingMs > 0 && remainingMs <= SESSION_LIMIT_WARNING_MINUTES * 60_000,
-    remainingMs,
-    remainingText: formatRemainingMs(remainingMs),
-  }
 }
 
 type ComboComponentPreview = {
@@ -177,76 +140,6 @@ const getComboComponentLabels = (
     return [`${quantityLabel ?? 1} × ${name}${durationLabel}`]
   })
 }
-
-const calculateCurrentSessionAmount = (
-  place: EmployeeWorkspacePlaceRow,
-  nowMs: number,
-  includedMinutes = 0,
-) => {
-  if (!place.active_session_started_at || !place.active_session_hourly_rate) return 0
-  const actualMinutes = Math.max(1, Math.ceil(getTimedSessionElapsedMs(place, nowMs) / 60_000))
-  const minimum = place.active_session_minimum_minutes ?? 60
-  const step = place.active_session_billing_step_minutes ?? 30
-  const billable =
-    actualMinutes <= minimum + BILLING_GRACE_MINUTES
-      ? minimum
-      : minimum + Math.ceil((actualMinutes - minimum - BILLING_GRACE_MINUTES) / step) * step
-  const chargeableMinutes = Math.max(0, billable - includedMinutes)
-  return (place.active_session_hourly_rate * chargeableMinutes) / 60
-}
-
-const getSessionGraceNotice = (place: EmployeeWorkspacePlaceRow, nowMs: number) => {
-  if (!place.active_session_started_at || !place.active_session_hourly_rate) return null
-  const actualMinutes = Math.max(1, Math.ceil(getTimedSessionElapsedMs(place, nowMs) / 60_000))
-  const minimum = place.active_session_minimum_minutes ?? 60
-  const step = place.active_session_billing_step_minutes ?? 30
-
-  if (actualMinutes <= minimum) return null
-
-  const minutesAfterMinimum = actualMinutes - minimum
-  const minutesAfterLastBoundary = ((minutesAfterMinimum - 1) % step) + 1
-
-  return minutesAfterLastBoundary <= BILLING_GRACE_MINUTES ? BILLING_GRACE_MINUTES : null
-}
-
-const isVipEquipmentPlace = (place: EmployeeWorkspacePlaceRow | null) => {
-  if (!place) return false
-  const name = normalizePlaceName(place.name)
-  return place.type === 'vip_room' || place.type === 'private_room' || name.includes('vip')
-}
-
-const formatVipEquipmentSummary = (place: EmployeeWorkspacePlaceRow | null) => {
-  if (!place?.vip_equipment_name && !place?.vip_equipment_time && !place?.vip_equipment_price) return null
-  return [place.vip_equipment_name, place.vip_equipment_time, place.vip_equipment_price].filter(Boolean).join(' · ')
-}
-
-const placeStatus = (place: EmployeeWorkspacePlaceRow) => {
-  if (place.status !== 'active') return 'Недоступно'
-  if (place.active_order_status === 'waiting_payment') return 'Ожидает оплаты'
-  if (place.active_order_id || place.active_session_id) return 'Занято'
-  return 'Свободно'
-}
-
-const getStatusIndicatorClassName = (status: ReturnType<typeof placeStatus>) =>
-  cn(
-    'size-2.5 shrink-0 rounded-full ring-2',
-    status === 'Свободно' && 'bg-emerald-500 ring-emerald-100',
-    status === 'Занято' && 'bg-red-500 ring-red-100',
-    status === 'Ожидает оплаты' && 'bg-orange-500 ring-orange-100',
-    status === 'Недоступно' && 'bg-slate-400 ring-slate-100',
-  )
-
-const getSlotClassName = (place: EmployeeWorkspacePlaceRow, hasSessionLimitAlert = false) =>
-  cn(
-    'group relative grid min-h-0 content-between overflow-hidden rounded-lg border p-2 text-left shadow-sm transition',
-    'focus-within:ring-2 focus-within:ring-emerald-700 hover:brightness-[0.98]',
-    place.active_order_id || place.active_session_id
-      ? 'workspace-slot-occupied border-red-200 bg-red-50/70'
-      : 'border-slate-200 bg-white hover:border-emerald-200',
-    place.active_order_status === 'waiting_payment' && 'workspace-slot-waiting border-orange-200 bg-orange-50',
-    hasSessionLimitAlert && 'workspace-slot-alert border-red-400 bg-red-100 ring-2 ring-red-200',
-    place.status !== 'active' && 'border-slate-200 bg-slate-100 opacity-70',
-  )
 
 type CatalogAddButtonProps = {
   details?: string[]
@@ -322,7 +215,6 @@ export function EmployeeWorkspacePage() {
     role === USER_ROLES.organizationAdmin || role === USER_ROLES.platformOwner
   const isWorkspaceReadOnly =
     !currentShiftQuery.isLoading && !currentShiftQuery.data?.shift && canObserveWithoutShift
-  const [nowMs, setNowMs] = useState(() => Date.now())
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [pickerTab, setPickerTab] = useState<PickerTab>('products')
   const [paymentChoiceOrderId, setPaymentChoiceOrderId] = useState<string | null>(null)
@@ -373,10 +265,6 @@ export function EmployeeWorkspacePage() {
     }
   }, [isWorkspaceReadOnly, t])
 
-  useEffect(() => {
-    const intervalId = window.setInterval(() => setNowMs(Date.now()), 1000)
-    return () => window.clearInterval(intervalId)
-  }, [])
 
   useEffect(() => {
     const alarmOscillators = sessionAlarmOscillatorsRef.current
@@ -416,6 +304,19 @@ export function EmployeeWorkspacePage() {
     [workspaceQuery.data?.comboItems],
   )
   const placeLayout = useMemo(() => buildWorkspaceLayout(places), [places])
+  useEffect(() => {
+    registerPlaces(places)
+  }, [places])
+  const catalogImagePaths = useMemo(
+    () => [
+      ...(productsQuery.data ?? []).map((item) => item.image_path),
+      ...(servicesQuery.data ?? []).map((item) => item.image_path),
+      ...(combosQuery.data ?? []).map((item) => item.image_path),
+    ],
+    [combosQuery.data, productsQuery.data, servicesQuery.data],
+  )
+  // Картинки каталога готовятся в фоне сразу после открытия рабочего места.
+  usePrimeCatalogImages(catalogImagePaths)
   const selectedOrder = useMemo(
     () => orders.find((order) => order.id === selectedOrderId) ?? null,
     [orders, selectedOrderId],
@@ -439,12 +340,33 @@ export function EmployeeWorkspacePage() {
     cardSplitValue >= 0 &&
     splitPaymentTotal > 0 &&
     Math.abs(splitPaymentTotal - splitPaymentTargetTotal) < 0.01
-  const orderItems = orderItemsQuery.data ?? []
+  const orderItems = useMemo(() => orderItemsQuery.data ?? [], [orderItemsQuery.data])
   const orderSessionsById = useMemo(
     () => new Map((orderSessionsQuery.data ?? []).map((session) => [session.id, session])),
     [orderSessionsQuery.data],
   )
   const activeOrderItemsCount = orderItems.filter((item) => item.status === 'active').length
+  // Последние добавленные позиции показываются сверху.
+  const displayedOrderItems = useMemo(
+    () =>
+      orderItems
+        .map((item, index) => ({ item, index }))
+        .sort((left, right) => {
+          const byTime = new Date(right.item.added_at).getTime() - new Date(left.item.added_at).getTime()
+          return byTime || right.index - left.index
+        })
+        .map(({ item }) => item),
+    [orderItems],
+  )
+  const orderItemsListRef = useRef<HTMLDivElement | null>(null)
+  const previousOrderItemsCountRef = useRef(orderItems.length)
+  useEffect(() => {
+    // Новая позиция появилась сверху: если список прокручен, плавно поднимаем его к началу.
+    if (orderItems.length > previousOrderItemsCountRef.current) {
+      orderItemsListRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    previousOrderItemsCountRef.current = orderItems.length
+  }, [orderItems.length])
   const ordersById = useMemo(() => new Map(orders.map((order) => [order.id, order])), [orders])
   const placesById = useMemo(() => new Map(places.map((place) => [place.id, place])), [places])
   const comboGiftMinutesByOrderId = useMemo(() => {
@@ -489,6 +411,10 @@ export function EmployeeWorkspacePage() {
     [sessionLimitAlerts],
   )
   const sessionLimitAlertCount = Object.keys(sessionLimitAlerts).length
+
+  // Стабильный обработчик для memo-карточек мест; актуальная логика лежит в ref.
+  const activatePlaceRef = useRef<(place: EmployeeWorkspacePlaceRow) => void>(() => {})
+  const handleActivatePlace = useCallback((place: EmployeeWorkspacePlaceRow) => activatePlaceRef.current(place), [])
 
   const acknowledgeSessionLimitAlert = useCallback((placeId: string) => {
     setSessionLimitAlerts((current) => {
@@ -547,30 +473,40 @@ export function EmployeeWorkspacePage() {
     }
   }, [playSessionLimitAlarm, sessionLimitAlertCount])
 
+  // Проверка лимитов сессий раз в секунду без перерисовки всей страницы.
+  const sessionLimitCheckRef = useRef<() => void>(() => {})
   useEffect(() => {
-    const expiredSessions = places.filter((place) => {
-      const limitInfo = getSessionLimitInfo(place, nowMs)
-      return place.active_session_id && !place.active_session_paused_at && limitInfo?.isExpired
-    })
+    sessionLimitCheckRef.current = () => {
+      const expiredSessions = places.filter((place) => {
+        const limitInfo = getSessionLimitInfo(place, Date.now())
+        return place.active_session_id && !place.active_session_paused_at && limitInfo?.isExpired
+      })
 
-    for (const place of expiredSessions) {
-      const sessionId = place.active_session_id!
-      if (!alertedSessionIdsRef.current.has(sessionId)) {
-        alertedSessionIdsRef.current.add(sessionId)
+      for (const place of expiredSessions) {
+        const sessionId = place.active_session_id!
+        if (!alertedSessionIdsRef.current.has(sessionId)) {
+          alertedSessionIdsRef.current.add(sessionId)
+          window.queueMicrotask(() => {
+            setSessionLimitAlerts((current) =>
+              current[sessionId] ? current : { ...current, [sessionId]: place.id },
+            )
+          })
+        }
+        if (isWorkspaceReadOnly) continue
+        if (autoCompletingSessionsRef.current.has(sessionId)) continue
+        autoCompletingSessionsRef.current.add(sessionId)
         window.queueMicrotask(() => {
-          setSessionLimitAlerts((current) =>
-            current[sessionId] ? current : { ...current, [sessionId]: place.id },
-          )
+          void runAction(() => orderMutations.completeSession.mutateAsync(sessionId))
         })
       }
-      if (isWorkspaceReadOnly) continue
-      if (autoCompletingSessionsRef.current.has(sessionId)) continue
-      autoCompletingSessionsRef.current.add(sessionId)
-      window.queueMicrotask(() => {
-        void runAction(() => orderMutations.completeSession.mutateAsync(sessionId))
-      })
     }
-  }, [isWorkspaceReadOnly, nowMs, orderMutations.completeSession, places, runAction])
+    sessionLimitCheckRef.current()
+  }, [isWorkspaceReadOnly, orderMutations.completeSession, places, runAction])
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => sessionLimitCheckRef.current(), 1000)
+    return () => window.clearInterval(intervalId)
+  }, [])
 
   const productSalesRanking = productSalesRankingQuery.data ?? {}
   const filteredProducts = (productsQuery.data ?? [])
@@ -643,31 +579,6 @@ export function EmployeeWorkspacePage() {
     setSelectedOrderId(null)
   }
 
-  // Organization admins and platform owners may observe the workspace without a shift.
-  // Employees still need an open shift for operational work.
-  if (!currentShiftQuery.isLoading && !currentShiftQuery.data?.shift && !canObserveWithoutShift) {
-    return (
-      <section className="grid content-start gap-3">
-        <div className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-          <header className="min-w-0">
-            <h2 className="text-xl font-semibold text-slate-950">Рабочая панель</h2>
-            <p className="mt-1 text-sm leading-5 text-amber-900">
-              Для продаж, сессий и оплат нужна открытая смена.
-            </p>
-            <p className="mt-1 text-xs leading-5 text-amber-800">
-              Смена не открыта. Откройте смену, чтобы начать работу с заказами.
-            </p>
-          </header>
-          <Button type="button">
-            <Link className="inline-flex items-center gap-2" to="/employee/shift">
-              <Clock3 className="size-4" /> Открыть смену
-            </Link>
-          </Button>
-        </div>
-      </section>
-    )
-  }
-
   const createOrderForPlace = (place: EmployeeWorkspacePlaceRow) =>
     runAction(async () => {
       if (!currentShiftQuery.data?.shift) {
@@ -707,6 +618,13 @@ export function EmployeeWorkspacePage() {
     void createOrderForPlace(place)
   }
 
+  useEffect(() => {
+    activatePlaceRef.current = (place) => {
+      acknowledgeSessionLimitAlert(place.id)
+      if (!isWorkspaceReadOnly || place.active_order_id) openPlaceOrder(place)
+    }
+  })
+
   const transferOrder = () => {
     if (!selectedOrder || (!transferTargetPlaceId && !transferTargetOrderId)) return
     void runAction(async () => {
@@ -731,13 +649,38 @@ export function EmployeeWorkspacePage() {
       if (!selectedOrderId) return
       markCatalogPress(`${kind}:${id}`)
       if (kind === 'products') {
-        await orderMutations.addProduct.mutateAsync({ orderId: selectedOrderId, productId: id, quantity: 1 })
+        const product = (productsQuery.data ?? []).find((item) => item.id === id)
+        await orderMutations.addProduct.mutateAsync({
+          orderId: selectedOrderId,
+          productId: id,
+          quantity: 1,
+          preview: product
+            ? { id, itemType: 'product', name: product.name, unitPrice: product.sale_price, imagePath: product.image_path }
+            : undefined,
+        })
       } else if (kind === 'services') {
-        await orderMutations.addService.mutateAsync({ orderId: selectedOrderId, serviceId: id, quantity: 1 })
+        const service = (servicesQuery.data ?? []).find((item) => item.id === id)
+        // Почасовые услуги считаются на сервере, поэтому показываем их сразу только с фиксированной ценой.
+        const servicePrice = service?.pricing_type === 'fixed' ? service.fixed_price : null
+        await orderMutations.addService.mutateAsync({
+          orderId: selectedOrderId,
+          serviceId: id,
+          quantity: 1,
+          preview: service && servicePrice != null
+            ? { id, itemType: 'service', name: service.name, unitPrice: servicePrice, imagePath: service.image_path }
+            : undefined,
+        })
       } else {
         const combo = (combosQuery.data ?? []).find((item) => item.id === id)
         const comboIncludedMinutes = getComboIncludedMinutes(combo?.component_preview)
-        await orderMutations.addCombo.mutateAsync({ orderId: selectedOrderId, comboId: id, quantity: 1 })
+        await orderMutations.addCombo.mutateAsync({
+          orderId: selectedOrderId,
+          comboId: id,
+          quantity: 1,
+          preview: combo
+            ? { id, itemType: 'combo', name: combo.name, unitPrice: combo.sale_price, imagePath: combo.image_path }
+            : undefined,
+        })
         if (
           comboIncludedMinutes &&
           selectedOrderPlace?.has_timer &&
@@ -1036,8 +979,33 @@ export function EmployeeWorkspacePage() {
     orderMutations.prepayOrder.isPending ||
     debtMutations.create.isPending
 
+  // Organization admins and platform owners may observe the workspace without a shift.
+  // Employees still need an open shift for operational work.
+  if (!currentShiftQuery.isLoading && !currentShiftQuery.data?.shift && !canObserveWithoutShift) {
+    return (
+      <section className="grid content-start gap-3">
+        <div className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+          <header className="min-w-0">
+            <h2 className="text-xl font-semibold text-slate-950">Рабочая панель</h2>
+            <p className="mt-1 text-sm leading-5 text-amber-900">
+              Для продаж, сессий и оплат нужна открытая смена.
+            </p>
+            <p className="mt-1 text-xs leading-5 text-amber-800">
+              Смена не открыта. Откройте смену, чтобы начать работу с заказами.
+            </p>
+          </header>
+          <Button type="button">
+            <Link className="inline-flex items-center gap-2" to="/employee/shift">
+              <Clock3 className="size-4" /> Открыть смену
+            </Link>
+          </Button>
+        </div>
+      </section>
+    )
+  }
+
   return (
-    <section className="flex min-h-[calc(100svh-1rem)] flex-col gap-3">
+    <section className="flex min-h-[calc(100svh-1.25rem)] flex-col gap-3">
       {error ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
       {isWorkspaceReadOnly ? (
         <div className="rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-950">
@@ -1048,149 +1016,41 @@ export function EmployeeWorkspacePage() {
         </div>
       ) : null}
 
-      {workspaceQuery.isLoading ? (
-        <div className="inline-flex min-h-28 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600">
-          <Loader2 className="size-4 animate-spin text-emerald-700" /> Загрузка рабочего места
-        </div>
-      ) : null}
-
       <section className="h-auto shrink-0 overflow-visible rounded-lg bg-slate-100 p-2 shadow-sm ring-1 ring-slate-200 md:h-[620px] md:overflow-hidden md:p-3">
         <div
           className="grid w-full min-w-0 grid-cols-2 content-start auto-rows-auto gap-2 md:auto-rows-[143px] md:[grid-template-columns:repeat(6,minmax(0,1fr))] md:[grid-template-rows:repeat(4,143px)]"
         >
+          {workspaceQuery.isLoading && !placeLayout.length
+            ? Array.from({ length: 12 }, (_, index) => (
+                <div
+                  aria-hidden="true"
+                  className="grid min-h-40 content-start gap-2 rounded-lg border border-slate-200 bg-white p-2 md:min-h-0"
+                  key={`skeleton-${index}`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Skeleton className="size-8 shrink-0 rounded-full" />
+                    <Skeleton className="h-3.5 w-2/3" />
+                  </div>
+                  <Skeleton className="h-3 w-1/2" />
+                  <Skeleton className="h-3 w-2/5" />
+                  <Skeleton className="h-3.5 w-1/3" />
+                </div>
+              ))
+            : null}
           {placeLayout.map((slot) => {
             const place = slot.place
-            const status = placeStatus(place)
-            const isTable = isTablePlace(place)
-            const hasActiveSession = Boolean(place.active_session_id)
-            const hasActiveOrder = Boolean(place.active_order_id)
-            const occupancyStartedAt =
-              hasActiveSession
-                ? place.active_session_started_at
-                : isTable && hasActiveOrder
-                  ? place.active_order_opened_at
-                  : null
-            const comboGiftMinutes = place.active_order_id
-              ? comboGiftMinutesByOrderId.get(place.active_order_id) ?? 0
-              : 0
-            const sessionAmount = calculateCurrentSessionAmount(place, nowMs, comboGiftMinutes)
-            const sessionGraceNotice = getSessionGraceNotice(place, nowMs)
-            const sessionLimitInfo = getSessionLimitInfo(place, nowMs)
-            const hasSessionLimitAlert = sessionLimitAlertPlaceIds.has(place.id)
-            const vipEquipmentSummary = isVipEquipmentPlace(place) ? formatVipEquipmentSummary(place) : null
-            const canOpenPlace = !isWorkspaceReadOnly || hasActiveOrder
-            const customerLabel = place.active_order_id
-              ? ordersById.get(place.active_order_id)?.customer_label?.trim() ?? ''
-              : ''
-
             return (
-              <article
-                className={cn(
-                  getSlotClassName(
-                    place,
-                    Boolean(
-                      hasSessionLimitAlert || sessionLimitInfo?.isWarning || sessionLimitInfo?.isExpired,
-                    ),
-                  ),
-                  'min-h-40 md:min-h-0 md:[grid-column:var(--workspace-grid-column)] md:[grid-row:var(--workspace-grid-row)]',
-                  hasActiveOrder || hasActiveSession ? 'order-first md:order-none' : 'order-last md:order-none',
-                )}
+              <WorkspacePlaceCard
+                canOpenPlace={!isWorkspaceReadOnly || Boolean(place.active_order_id)}
+                comboGiftMinutes={place.active_order_id ? comboGiftMinutesByOrderId.get(place.active_order_id) ?? 0 : 0}
+                customerLabel={place.active_order_id ? ordersById.get(place.active_order_id)?.customer_label?.trim() ?? '' : ''}
+                gridColumn={slot.style.gridColumn}
+                gridRow={slot.style.gridRow}
+                hasSessionLimitAlert={sessionLimitAlertPlaceIds.has(place.id)}
                 key={slot.key}
-                onClick={() => {
-                  acknowledgeSessionLimitAlert(place.id)
-                  if (canOpenPlace) openPlaceOrder(place)
-                }}
-                onKeyDown={(event) => {
-                  if (canOpenPlace && (event.key === 'Enter' || event.key === ' ')) {
-                    event.preventDefault()
-                    acknowledgeSessionLimitAlert(place.id)
-                    openPlaceOrder(place)
-                  }
-                }}
-                role={canOpenPlace ? 'button' : undefined}
-                style={{
-                  '--workspace-grid-column': slot.style.gridColumn,
-                  '--workspace-grid-row': slot.style.gridRow,
-                } as CSSProperties}
-                tabIndex={canOpenPlace ? 0 : undefined}
-              >
-                <div className="grid gap-1.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <CatalogImage alt={place.name} className="size-8 rounded-full" imagePath={place.image_path} />
-                      <h3 className="line-clamp-2 min-w-0 break-words text-xs font-semibold leading-tight text-slate-950 sm:text-sm">
-                        {place.name}
-                      </h3>
-                    </div>
-                    <span
-                      aria-label={status}
-                      className={getStatusIndicatorClassName(status)}
-                      role="img"
-                      title={status}
-                    />
-                  </div>
-
-                  <div className="grid gap-0.5 text-[11px] leading-4 text-slate-600 sm:text-xs">
-                    {vipEquipmentSummary ? (
-                      <span className="font-semibold text-emerald-800">{vipEquipmentSummary}</span>
-                    ) : null}
-                    {occupancyStartedAt ? (
-                      <span className="inline-flex items-center gap-1 font-semibold text-red-900">
-                        <Timer className="size-3.5" />
-                        {hasActiveSession ? formatTimedSessionElapsed(place, nowMs) : formatElapsed(occupancyStartedAt, nowMs)}
-                        {place.active_session_paused_at ? ` · ${t('session.pausedShort')}` : null}
-                      </span>
-                    ) : (
-                      <span>{isTable ? 'Стол' : place.has_timer ? 'Сессия не начата' : 'Без таймера'}</span>
-                    )}
-                    <span>
-                      {hasActiveOrder
-                        ? `#${place.active_order_number} · ${t('order.itemCountShort', { count: place.active_order_item_count })}`
-                        : 'Заказ не открыт'}
-                    </span>
-                    <span className="font-semibold text-slate-950">
-                      {formatAzn((place.active_order_total ?? 0) + sessionAmount)}
-                    </span>
-                    {sessionGraceNotice ? (
-                      <span className="font-medium text-orange-700">{sessionGraceNotice}</span>
-                    ) : null}
-                    {hasSessionLimitAlert ? (
-                      <span className="text-[9px] font-semibold leading-[11px] text-red-800 sm:text-[10px]">
-                        {t('session.limitEndedAcknowledge')}
-                      </span>
-                    ) : sessionLimitInfo ? (
-                      <span
-                        className={cn(
-                          'font-semibold',
-                          sessionLimitInfo.isExpired ? 'text-red-800' : 'text-orange-700',
-                        )}
-                      >
-                        {sessionLimitInfo.isExpired
-                          ? t("ui.limit_istek_a337232")
-                          : comboGiftMinutes > 0
-                            ? t('session.giftTimeRemaining', { time: sessionLimitInfo.remainingText })
-                            : `${t("ui.ostalos_76a8eb1")}: ${sessionLimitInfo.remainingText}`}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-
-                {customerLabel ? (
-                  <div
-                    className={cn(
-                      '-mx-2 -mb-2 mt-1 flex min-h-6 items-center justify-center border-t-2 px-2 py-0.5 text-center text-[10px] font-semibold leading-3 text-slate-800 sm:text-[11px]',
-                      place.active_order_status === 'waiting_payment'
-                        ? 'border-orange-400/50'
-                        : hasActiveOrder || hasActiveSession
-                          ? 'border-red-400/50'
-                          : 'border-slate-300/50',
-                    )}
-                    title={customerLabel}
-                  >
-                    <span className="min-w-0 truncate">{customerLabel}</span>
-                  </div>
-                ) : null}
-              </article>
+                onActivate={handleActivatePlace}
+                place={place}
+              />
             )
           })}
         </div>
@@ -1292,18 +1152,22 @@ export function EmployeeWorkspacePage() {
                   {selectedOrder.current_place_name_snapshot ?? 'Без места'} · {orderStatusLabel[selectedOrder.status]}
                 </p>
               </div>
-              <button
-                aria-label="Закрыть"
-                className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100"
-                onClick={closeOrder}
-                type="button"
-              >
-                <X className="size-4" />
-              </button>
+              <ModalDismiss>
+                {(close) => (
+                  <button
+                    aria-label="Закрыть"
+                    className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100"
+                    onClick={close}
+                    type="button"
+                  >
+                    <X className="size-4" />
+                  </button>
+                )}
+              </ModalDismiss>
             </header>
 
             <div className="flex min-h-0 flex-col gap-2 overflow-y-auto p-2 md:grid md:gap-3 md:overflow-hidden md:p-3 md:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
-              <section className="grid content-start gap-2 md:min-h-0 md:gap-3 md:overflow-y-auto md:pr-1">
+              <section className="grid content-start gap-2 md:min-h-0 md:grid-rows-[auto_minmax(0,1fr)] md:content-stretch md:gap-3 md:overflow-hidden">
                 {(() => {
                   const selectedPlace = placesById.get(selectedOrder.place_id ?? '') ?? null
                   const hasActiveSession = Boolean(selectedPlace?.active_session_id)
@@ -1326,8 +1190,26 @@ export function EmployeeWorkspacePage() {
                   return (
                     <div className="grid gap-1.5 rounded-lg border border-red-300 bg-slate-50/60 p-2 md:gap-2 md:p-2.5">
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-xs font-semibold text-slate-950 md:text-sm">Сумма заказа</span>
-                        <span className="text-lg font-semibold text-slate-950 md:text-xl">{formatAzn(selectedOrderTotalWithTip)}</span>
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="grid size-8 shrink-0 place-items-center rounded-md bg-red-50 text-red-700 md:size-9">
+                            <ReceiptText aria-hidden="true" className="size-4" />
+                          </span>
+                          <div className="grid min-w-0">
+                            <span className="text-xs font-semibold text-slate-950 md:text-sm">Сумма заказа</span>
+                            <span className="truncate text-[11px] text-slate-500 md:text-xs">
+                              {t('order.itemCountShort', { count: activeOrderItemsCount })}
+                              {normalizedTipAmount > 0
+                                ? ` · ${t('order.tipIncluded', { amount: formatAzn(normalizedTipAmount) })}`
+                                : null}
+                            </span>
+                          </div>
+                        </div>
+                        <span
+                          className="animate-highlight rounded-md px-1.5 text-xl font-bold tabular-nums text-slate-950 md:text-2xl"
+                          key={selectedOrderTotalWithTip}
+                        >
+                          {formatAzn(selectedOrderTotalWithTip)}
+                        </span>
                       </div>
 
                       {selectedOrder.paid_amount > 0 ? (
@@ -1378,7 +1260,7 @@ export function EmployeeWorkspacePage() {
                             </span>
                           </button>
                           {isOrderCommentOpen ? (
-                            <label className="grid gap-1.5 border-t border-slate-200 p-2 text-sm font-medium text-slate-700">
+                            <label className="animate-enter grid gap-1.5 border-t border-slate-200 p-2 text-sm font-medium text-slate-700">
                               <span className="sr-only">Комментарий к заказу</span>
                               <textarea
                                 className="min-h-16 rounded-md border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
@@ -1486,7 +1368,7 @@ export function EmployeeWorkspacePage() {
                                 {t('payment.splitPayment')}
                               </button>
                               {isSplitPaymentOpen ? (
-                                <div className="grid gap-2 border-t border-emerald-200 pt-2">
+                                <div className="animate-enter grid gap-2 border-t border-emerald-200 pt-2">
                                   <div className="grid grid-cols-2 gap-2">
                                     <label className="grid gap-1 text-xs font-medium text-slate-700">
                                       <span>Наличными</span>
@@ -1534,7 +1416,7 @@ export function EmployeeWorkspacePage() {
                   )
                 })()}
 
-                <div className="grid gap-2 rounded-lg border border-emerald-200 bg-white p-2 shadow-sm md:gap-3 md:p-3">
+                <div className="grid content-start gap-2 rounded-lg border border-emerald-200 bg-white p-2 shadow-sm md:max-h-full md:min-h-0 md:self-start md:grid-rows-[auto_minmax(0,1fr)] md:gap-3 md:p-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <h4 className="text-sm font-semibold text-slate-950 md:text-base">Состав заказа</h4>
@@ -1544,11 +1426,24 @@ export function EmployeeWorkspacePage() {
                     </span>
                   </div>
 
-                  <div className="overflow-hidden rounded-lg border border-slate-300">
+                  <div
+                    className="overflow-hidden rounded-lg border border-slate-300 md:max-h-full md:min-h-0 md:self-start md:overflow-y-auto md:overscroll-contain"
+                    ref={orderItemsListRef}
+                  >
                     {orderItemsQuery.isLoading ? (
-                      <div className="p-4 text-sm text-slate-600">Загрузка позиций...</div>
+                      <div aria-busy="true" className="grid gap-3 p-3" role="status">
+                        {[0, 1, 2].map((index) => (
+                          <div className="grid grid-cols-[48px_minmax(0,1fr)] items-center gap-3" key={index}>
+                            <Skeleton className="size-12" />
+                            <div className="grid gap-1.5">
+                              <Skeleton className="h-3.5 w-1/2" />
+                              <Skeleton className="h-3 w-1/3" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     ) : null}
-                    {orderItems.map((item) => {
+                    {displayedOrderItems.map((item) => {
                       const isRemoved = item.status === 'removed' || item.status === 'cancelled'
                       const paidQuantity = Number(item.paid_quantity ?? 0)
                       const unpaidQuantity = Math.max(0, Number(item.quantity) - paidQuantity)
@@ -1559,8 +1454,15 @@ export function EmployeeWorkspacePage() {
                         ? orderSessionsById.get(item.timed_session_id) ?? null
                         : null
                       const sessionPlace = session ? placesById.get(session.place_id) ?? null : null
-                      const itemImagePath = item.image_path_snapshot ?? sessionPlace?.image_path ?? null
+                      // Строка сессии всегда показывает текущую иконку своего места.
+                      const itemImagePath =
+                        item.item_type === 'timed_session' && sessionPlace
+                          ? sessionPlace.image_path
+                          : item.image_path_snapshot ?? sessionPlace?.image_path ?? null
+                      const itemPlaceType = item.item_type === 'timed_session' ? sessionPlace?.type : undefined
+                      const isSavingItem = isOptimisticOrderItem(item)
                       const canEditQuantity =
+                        !isSavingItem &&
                         item.status === 'active' &&
                         selectedOrder.status === 'open' &&
                         item.item_type !== 'timed_session' &&
@@ -1585,10 +1487,14 @@ export function EmployeeWorkspacePage() {
 
                       return (
                         <div
-                          className="grid grid-cols-[48px_minmax(0,1fr)] gap-2 border-b border-slate-200 p-2 last:border-b-0 md:grid-cols-[80px_1fr] md:gap-5 md:p-3"
-                          key={item.id}
+                          aria-busy={isSavingItem || undefined}
+                          className={cn(
+                            'animate-enter grid grid-cols-[48px_minmax(0,1fr)] gap-2 border-b border-slate-200 p-2 transition-opacity last:border-b-0 md:grid-cols-[80px_1fr] md:gap-5 md:p-3',
+                            isSavingItem && 'opacity-70',
+                          )}
+                          key={getOrderItemRenderKey(item)}
                         >
-                          <CatalogImage alt={item.name_snapshot} className="size-12 md:size-20" imagePath={itemImagePath} />
+                          <CatalogImage alt={item.name_snapshot} className="size-12 md:size-20" imagePath={itemImagePath} placeType={itemPlaceType} />
                           <div className="grid min-w-0 gap-1.5 md:gap-2">
                             <div className="flex items-start justify-between gap-2 md:gap-3">
                               <div className="min-w-0">
@@ -1690,7 +1596,12 @@ export function EmployeeWorkspacePage() {
                                       Кол-во
                                     </Button>
                                   ) : null}
-                                  {!isFullyPaid && item.unit_price > 0 ? (
+                                  {isSavingItem ? (
+                                    <span className="inline-flex min-h-7 items-center gap-1.5 text-xs text-slate-500 md:min-h-8">
+                                      <Loader2 className="size-3.5 animate-spin" /> {t('order.itemSaving')}
+                                    </span>
+                                  ) : null}
+                                  {!isSavingItem && !isFullyPaid && item.unit_price > 0 ? (
                                     <Button
                                       className="min-h-7 shrink gap-1 px-2 py-1 text-[11px] md:min-h-8 md:px-2.5 md:text-xs"
                                       disabled={isWorkspaceReadOnly || orderMutations.payItems.isPending}
@@ -1701,7 +1612,7 @@ export function EmployeeWorkspacePage() {
                                       <Banknote className="size-3.5" /> {t('payment.payItem')}
                                     </Button>
                                   ) : null}
-                                  <Button
+                                  {isSavingItem ? null : <Button
                                     aria-label={t('Удалить')}
                                     className="size-7 min-h-7 shrink-0 p-0 text-red-600 hover:bg-red-50 hover:text-red-700 disabled:text-slate-300 md:size-8 md:min-h-8"
                                     disabled={isWorkspaceReadOnly || paidQuantity > 0}
@@ -1711,60 +1622,99 @@ export function EmployeeWorkspacePage() {
                                     variant="danger"
                                   >
                                     <Trash2 className="size-4" />
-                                  </Button>
+                                  </Button>}
                                 </div>
-                                {isItemPaymentOpen ? (
-                                  <div className="flex flex-wrap items-end gap-2 rounded-md border border-emerald-200 bg-emerald-50/70 p-2">
-                                    <label className="grid gap-1 text-xs font-medium text-slate-700">
-                                      {t('payment.quantity')}
-                                      <input
-                                        className="h-8 w-20 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-950 outline-none focus:border-emerald-700"
-                                        max={unpaidQuantity}
-                                        min={1}
-                                        onChange={(event) => setItemPaymentQuantity(Number(event.target.value))}
-                                        step={1}
-                                        type="number"
-                                        value={itemPaymentQuantity}
-                                      />
-                                    </label>
-                                    <div className="grid gap-0.5 text-xs text-slate-600">
-                                      <span>{t('payment.unpaidQuantity', { count: formatQuantity(unpaidQuantity) })}</span>
-                                      <strong className="text-sm text-slate-950">
-                                        {formatAzn(item.unit_price * itemPaymentQuantity)}
-                                      </strong>
-                                    </div>
-                                    <Button
-                                      className="min-h-8 gap-1 px-2.5 py-1 text-xs"
-                                      disabled={orderMutations.payItems.isPending}
-                                      onClick={() => payItem(item, 'cash')}
-                                      type="button"
-                                      variant="secondary"
-                                    >
-                                      <Banknote className="size-3.5" /> {t('payment.cash')}
-                                    </Button>
-                                    <Button
-                                      className="min-h-8 gap-1 px-2.5 py-1 text-xs"
-                                      disabled={orderMutations.payItems.isPending}
-                                      onClick={() => payItem(item, 'card_transfer')}
-                                      type="button"
-                                      variant="secondary"
-                                    >
-                                      <CreditCard className="size-3.5" /> {t('payment.cardTransfer')}
-                                    </Button>
-                                    <Button
-                                      aria-label={t('common.close')}
-                                      className="size-8 min-h-8 p-0"
-                                      onClick={() => setItemPaymentItemId(null)}
-                                      type="button"
-                                      variant="ghost"
-                                    >
-                                      <X className="size-4" />
-                                    </Button>
-                                  </div>
-                                ) : null}
                               </div>
                             ) : null}
                           </div>
+                          {isItemPaymentOpen ? (
+                            <div className="animate-enter col-span-2 grid gap-2 rounded-lg border border-emerald-200 bg-emerald-50/70 p-2.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex min-w-0 items-center gap-2 text-xs">
+                                  <Banknote aria-hidden="true" className="size-3.5 shrink-0 text-emerald-700" />
+                                  <span className="font-semibold text-slate-950">{t('payment.payItemTitle')}</span>
+                                  <span className="truncate text-slate-500">
+                                    · {t('payment.unpaidQuantity', { count: formatQuantity(unpaidQuantity) })}
+                                  </span>
+                                </div>
+                                <Button
+                                  aria-label={t('common.close')}
+                                  className="size-7 min-h-7 shrink-0 p-0"
+                                  onClick={() => setItemPaymentItemId(null)}
+                                  type="button"
+                                  variant="ghost"
+                                >
+                                  <X className="size-4" />
+                                </Button>
+                              </div>
+
+                              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 sm:grid-cols-[auto_minmax(0,1fr)_9.5rem]">
+                                <div className="grid gap-1">
+                                  <span className="text-[11px] font-medium text-slate-600">{t('payment.quantity')}</span>
+                                  <div className="grid h-8 w-28 grid-cols-[32px_1fr_32px] overflow-hidden rounded-md border border-slate-300 bg-white">
+                                    <button
+                                      aria-label="-1"
+                                      className="font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                                      disabled={itemPaymentQuantity <= 1}
+                                      onClick={() => setItemPaymentQuantity((current) => Math.max(1, current - 1))}
+                                      type="button"
+                                    >
+                                      -
+                                    </button>
+                                    <input
+                                      aria-label={t('payment.quantity')}
+                                      className="min-w-0 border-x border-slate-300 bg-transparent text-center text-sm font-semibold tabular-nums text-slate-950 outline-none"
+                                      max={unpaidQuantity}
+                                      min={1}
+                                      onChange={(event) => {
+                                        const value = Number(event.target.value)
+                                        setItemPaymentQuantity(Number.isFinite(value) ? Math.min(unpaidQuantity, Math.max(1, value)) : 1)
+                                      }}
+                                      step={1}
+                                      type="number"
+                                      value={itemPaymentQuantity}
+                                    />
+                                    <button
+                                      aria-label="+1"
+                                      className="font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                                      disabled={itemPaymentQuantity >= unpaidQuantity}
+                                      onClick={() => setItemPaymentQuantity((current) => Math.min(unpaidQuantity, current + 1))}
+                                      type="button"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="grid gap-1">
+                                  <span className="text-[11px] font-medium text-slate-600">{t('payment.amountToPay')}</span>
+                                  <strong className="text-base font-bold tabular-nums text-slate-950">
+                                    {formatAzn(item.unit_price * itemPaymentQuantity)}
+                                  </strong>
+                                </div>
+                                <div className="col-span-2 grid grid-cols-2 gap-1.5 sm:col-span-1 sm:grid-cols-1">
+                                  <Button
+                                    className="min-h-8 gap-1.5 px-2 py-1 text-xs font-semibold"
+                                    disabled={orderMutations.payItems.isPending}
+                                    onClick={() => payItem(item, 'cash')}
+                                    type="button"
+                                    variant="primary"
+                                  >
+                                    {orderMutations.payItems.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Banknote className="size-3.5" />}
+                                    {t('payment.payWithCash')}
+                                  </Button>
+                                  <Button
+                                    className="min-h-8 gap-1.5 bg-blue-700 px-2 py-1 text-xs font-semibold text-white hover:bg-blue-800 focus-visible:ring-blue-700"
+                                    disabled={orderMutations.payItems.isPending}
+                                    onClick={() => payItem(item, 'card_transfer')}
+                                    type="button"
+                                  >
+                                    {orderMutations.payItems.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <CreditCard className="size-3.5" />}
+                                    {t('payment.payWithCard')}
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
                       )
                     })}
@@ -1793,14 +1743,7 @@ export function EmployeeWorkspacePage() {
                     orderMutations.pauseSession.isPending ||
                     orderMutations.resumeSession.isPending ||
                     orderMutations.completeSession.isPending
-                  const selectedSessionGraceNotice = selectedPlace
-                    ? getSessionGraceNotice(selectedPlace, nowMs)
-                    : null
-                  const selectedSessionLimitInfo = selectedPlace
-                    ? getSessionLimitInfo(selectedPlace, nowMs)
-                    : null
                   const comboGiftMinutes = comboGiftMinutesByOrderId.get(selectedOrder.id) ?? 0
-                  const hasComboGiftTime = comboGiftMinutes > 0
                   const isSelectedTable = Boolean(selectedPlace && isTablePlace(selectedPlace))
                   const tableOpenedAt =
                     isSelectedTable
@@ -1848,8 +1791,18 @@ export function EmployeeWorkspacePage() {
                           <div className="grid min-h-0 content-start gap-1.5 overflow-y-auto overscroll-contain pr-1">
                             {pickerTab === 'products' ? (
                               productsQuery.isLoading ? (
-                                <div className="rounded-md border border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">
-                                  {t('catalog.productsLoading')}
+                                <div aria-busy="true" className="grid gap-1.5" role="status">
+                                  <span className="sr-only">{t('catalog.productsLoading')}</span>
+                                  {[0, 1, 2, 3, 4].map((index) => (
+                                    <div className="grid grid-cols-[32px_1fr_auto] items-center gap-2 rounded-md border border-slate-200 p-1.5 md:grid-cols-[36px_1fr_auto]" key={index}>
+                                      <Skeleton className="size-8 md:size-9" />
+                                      <div className="grid gap-1">
+                                        <Skeleton className="h-3 w-3/5" />
+                                        <Skeleton className="h-3 w-1/4" />
+                                      </div>
+                                      <Skeleton className="size-7 md:size-8" />
+                                    </div>
+                                  ))}
                                 </div>
                               ) : productsQuery.error ? (
                                 <div className="rounded-md border border-red-200 bg-red-50 px-3 py-4 text-sm text-red-700">
@@ -1914,9 +1867,35 @@ export function EmployeeWorkspacePage() {
 
                       <div className="grid gap-1.5 rounded-lg border border-amber-300 p-1.5 md:gap-2 md:p-2.5">
                         <div className="flex items-center justify-between gap-2">
-                          <div className="hidden md:block">
-                            <h4 className="text-sm font-semibold text-slate-950">
+                          <div className="hidden min-w-0 md:block">
+                            <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+                              <Timer aria-hidden="true" className="size-4 text-amber-700" />
                               {isSelectedTable ? t('session.occupancy') : 'Сессия'}
+                              {!isSelectedTable ? (
+                                <span
+                                  className={cn(
+                                    'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                                    hasActiveSession && !isSessionPaused && 'bg-emerald-50 text-emerald-800',
+                                    isSessionPaused && 'bg-amber-50 text-amber-800',
+                                    !hasActiveSession && 'bg-slate-100 text-slate-600',
+                                  )}
+                                >
+                                  <span
+                                    aria-hidden="true"
+                                    className={cn(
+                                      'size-1.5 rounded-full',
+                                      hasActiveSession && !isSessionPaused && 'status-dot-live bg-emerald-500',
+                                      isSessionPaused && 'bg-amber-500',
+                                      !hasActiveSession && 'bg-slate-400',
+                                    )}
+                                  />
+                                  {hasActiveSession
+                                    ? isSessionPaused
+                                      ? t('session.statusPaused')
+                                      : t('session.statusRunning')
+                                    : t('session.statusIdle')}
+                                </span>
+                              ) : null}
                             </h4>
                             <p className="mt-0.5 text-xs leading-5 text-slate-600">
                               {isSelectedTable
@@ -1930,65 +1909,14 @@ export function EmployeeWorkspacePage() {
                                     : 'Добавьте позиции или переведите заказ к оплате.'}
                             </p>
                           </div>
-                          {hasActiveSession ? (
-                            <div className="ml-auto shrink-0 rounded-md border border-cyan-100 bg-cyan-50 px-2 py-1 text-right text-xs text-cyan-900 md:px-2.5 md:py-1.5 md:text-sm">
-                              {hasComboGiftTime && selectedSessionLimitInfo ? (
-                                <div
-                                  className={cn(
-                                    'flex items-center justify-end gap-1.5 font-semibold',
-                                    selectedSessionLimitInfo.isExpired ? 'text-red-800' : 'text-emerald-800',
-                                  )}
-                                >
-                                  <Hourglass className="size-3.5 md:size-4" />
-                                  {selectedSessionLimitInfo.isExpired
-                                    ? t('ui.limit_istek_a337232')
-                                    : t('session.giftTimeRemaining', {
-                                        time: selectedSessionLimitInfo.remainingText,
-                                      })}
-                                </div>
-                              ) : (
-                                <div className="flex items-center justify-end gap-1.5 font-semibold">
-                                  <Timer className="size-3.5 md:size-4" />
-                                  {selectedPlace ? formatTimedSessionElapsed(selectedPlace, nowMs) : '00:00'}
-                                </div>
-                              )}
-                              <div className="mt-0.5 hidden text-xs md:block">
-                                {hasComboGiftTime && selectedPlace
-                                  ? `${t('session.elapsed', { time: formatTimedSessionElapsed(selectedPlace, nowMs) })} · `
-                                  : null}
-                                {isSessionPaused ? t('session.paused') : t('session.currentAmount')}:{' '}
-                                {formatAzn(
-                                  selectedPlace
-                                    ? calculateCurrentSessionAmount(selectedPlace, nowMs, comboGiftMinutes)
-                                    : 0,
-                                )}
-                              </div>
-                              {selectedSessionGraceNotice ? (
-                                <div className="mt-0.5 hidden text-xs font-semibold text-orange-700 md:block">
-                                  {t('session.graceRemaining', { minutes: selectedSessionGraceNotice })}
-                                </div>
-                              ) : null}
-                              {selectedSessionLimitInfo && !hasComboGiftTime ? (
-                                <div
-                                  className={cn(
-                                    'mt-0.5 hidden text-xs font-semibold md:block',
-                                    selectedSessionLimitInfo.isExpired ? 'text-red-800' : 'text-orange-700',
-                                  )}
-                                >
-                                  {selectedSessionLimitInfo.isExpired
-                                    ? t("ui.limit_istek_a337232")
-                                    : `${t("ui.ostalos_76a8eb1")}: ${selectedSessionLimitInfo.remainingText}`}
-                                </div>
-                              ) : null}
-                            </div>
+                          {hasActiveSession && selectedPlace ? (
+                            <LiveSessionTimeBox
+                              comboGiftMinutes={comboGiftMinutes}
+                              isSessionPaused={isSessionPaused}
+                              place={selectedPlace}
+                            />
                           ) : tableOpenedAt ? (
-                            <div className="ml-auto shrink-0 rounded-md border border-cyan-100 bg-cyan-50 px-2 py-1 text-right text-xs text-cyan-900 md:px-2.5 md:py-1.5 md:text-sm">
-                              <div className="flex items-center justify-end gap-1.5 font-semibold">
-                                <Timer className="size-3.5 md:size-4" />
-                                {formatElapsed(tableOpenedAt, nowMs)}
-                              </div>
-                              <div className="mt-0.5 hidden text-xs md:block">{t('session.tableOpen')}</div>
-                            </div>
+                            <LiveTableTimeBox openedAt={tableOpenedAt} />
                           ) : null}
                         </div>
 
@@ -2068,7 +1996,7 @@ export function EmployeeWorkspacePage() {
                             ) : null}
                             <div className="grid grid-cols-3 gap-1.5 md:gap-2">
                             <Button
-                              className="min-h-8 gap-1 bg-emerald-700 px-1 text-[11px] text-white hover:bg-emerald-800 focus-visible:ring-emerald-700 md:min-h-9 md:px-1.5 md:text-xs"
+                              className="min-h-9 gap-1.5 bg-emerald-700 px-1 text-xs font-semibold text-white shadow-sm hover:bg-emerald-800 focus-visible:ring-emerald-700 disabled:opacity-40 md:min-h-10 md:px-2 md:text-sm"
                               disabled={isWorkspaceReadOnly || (!canStartSession && !isSessionPaused) || isSessionActionPending}
                               onClick={() => {
                                 if (!selectedPlace) return
@@ -2086,7 +2014,7 @@ export function EmployeeWorkspacePage() {
                               <Play className="size-3.5 md:size-4" /> {isSessionPaused ? t('session.resume') : t('session.start')}
                             </Button>
                             <Button
-                              className="min-h-8 gap-1 border border-amber-300 bg-amber-100 px-1 text-[11px] text-amber-900 hover:bg-amber-200 focus-visible:ring-amber-500 md:min-h-9 md:px-1.5 md:text-xs"
+                              className="min-h-9 gap-1.5 border border-amber-300 bg-amber-100 px-1 text-xs font-semibold text-amber-900 shadow-sm hover:bg-amber-200 focus-visible:ring-amber-500 disabled:opacity-40 md:min-h-10 md:px-2 md:text-sm"
                               disabled={isWorkspaceReadOnly || !hasActiveSession || isSessionPaused || isSessionActionPending}
                               onClick={() =>
                                 selectedPlace?.active_session_id &&
@@ -2098,7 +2026,7 @@ export function EmployeeWorkspacePage() {
                               <Pause className="size-3.5 md:size-4" /> {t('session.pause')}
                             </Button>
                             <Button
-                              className="min-h-8 gap-1 bg-red-600 px-1 text-[11px] text-white hover:bg-red-700 focus-visible:ring-red-600 md:min-h-9 md:px-1.5 md:text-xs"
+                              className="min-h-9 gap-1.5 bg-red-600 px-1 text-xs font-semibold text-white shadow-sm hover:bg-red-700 focus-visible:ring-red-600 disabled:opacity-40 md:min-h-10 md:px-2 md:text-sm"
                               disabled={isWorkspaceReadOnly || !hasActiveSession || isSessionActionPending}
                               onClick={() =>
                                 selectedPlace?.active_session_id &&
@@ -2148,7 +2076,6 @@ export function EmployeeWorkspacePage() {
                     const isDisabled = isWaitingForPayment || hasOrphanSession
                     const isOccupied = Boolean(place.active_order_id || place.active_session_id)
                     const isSelected = transferTargetPlaceId === place.id
-                    const sessionAmount = calculateCurrentSessionAmount(place, nowMs)
 
                     return (
                       <button
@@ -2187,9 +2114,7 @@ export function EmployeeWorkspacePage() {
                         {place.active_order_id ? (
                           <span className="flex items-center justify-between gap-3 text-xs text-slate-300">
                             <span>#{place.active_order_number} · {place.active_order_item_count} поз.</span>
-                            <span className="font-semibold text-slate-100">
-                              {formatAzn((place.active_order_total ?? 0) + sessionAmount)}
-                            </span>
+                            <LivePlaceTotal className="font-semibold text-slate-100" place={place} />
                           </span>
                         ) : (
                           <span className="text-xs text-slate-400">

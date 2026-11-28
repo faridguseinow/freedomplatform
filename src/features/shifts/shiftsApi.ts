@@ -7,6 +7,7 @@ import type {
   ShiftTemplateRow,
   ShiftStatus,
 } from '../../lib/supabase/database.types'
+import { toServerError } from '../../lib/errors/serverErrors'
 
 type EmployeeShiftSummary = {
   active_sessions_count?: number
@@ -120,7 +121,7 @@ export function useAdminShifts(
       }
 
       const { data, error } = await query
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as AdminShiftReportRow[]
     },
   })
@@ -144,11 +145,11 @@ export function useAdminShiftDetail(
           supabase.from('timed_sessions').select('*').or(`started_shift_id.eq.${shiftId},ended_shift_id.eq.${shiftId}`),
         ])
 
-      if (shiftResult.error) throw new Error(shiftResult.error.message)
-      if (handoversResult.error) throw new Error(handoversResult.error.message)
-      if (ordersResult.error) throw new Error(ordersResult.error.message)
-      if (paymentsResult.error) throw new Error(paymentsResult.error.message)
-      if (sessionsResult.error) throw new Error(sessionsResult.error.message)
+      if (shiftResult.error) throw toServerError(shiftResult.error)
+      if (handoversResult.error) throw toServerError(handoversResult.error)
+      if (ordersResult.error) throw toServerError(ordersResult.error)
+      if (paymentsResult.error) throw toServerError(paymentsResult.error)
+      if (sessionsResult.error) throw toServerError(sessionsResult.error)
 
       return {
         shift: shiftResult.data as AdminShiftReportRow,
@@ -184,7 +185,7 @@ export function useAdminShiftMutations(organizationId: string | null) {
           target_shift_id: shiftId,
           target_comment: comment ?? null,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (_payload, variables) => invalidate(variables.shiftId),
@@ -204,7 +205,7 @@ export function useAdminShiftMutations(organizationId: string | null) {
           target_actual_cash_amount: actualCashAmount ?? null,
           target_reason: reason,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (payload) => invalidate((payload.shift as EmployeeShiftRow).id),

@@ -9,6 +9,7 @@ import type {
   FinancialPeriodSummary,
   OrganizationFinanceSettingsRow,
 } from '../../lib/supabase/database.types'
+import { ServerError, toServerError } from '../../lib/errors/serverErrors'
 
 export const financeCategorySelect =
   'id,organization_id,transaction_type,name,description,system_code,affects_profit,affects_cash_flow,eligible_for_platform_share_deduction,sort_order,is_active,is_system,created_by,created_at,updated_at'
@@ -37,7 +38,7 @@ export function useFinanceDashboardSummary(organizationId: string | null) {
         .eq('organization_id', organizationId!)
         .maybeSingle()
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as FinanceDashboardSummaryRow | null
     },
   })
@@ -65,7 +66,7 @@ export function useFinanceCategories(
       else if (type) query = query.eq('transaction_type', type)
 
       const { data, error } = await query
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as FinanceCategoryRow[]
     },
   })
@@ -96,7 +97,7 @@ export function useFinanceTransactions(
       }
 
       const { data, error } = await query
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as FinanceTransactionRow[]
     },
   })
@@ -117,7 +118,7 @@ export function useFinancePeriodSummary(
         target_period_end: periodEnd,
       })
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as FinancialPeriodSummary
     },
   })
@@ -134,7 +135,7 @@ export function useFinanceSettings(organizationId: string | null) {
         .eq('organization_id', organizationId!)
         .maybeSingle()
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as OrganizationFinanceSettingsRow | null
     },
   })
@@ -145,14 +146,14 @@ export function useFinanceSettingsMutation(organizationId: string | null) {
 
   return useMutation({
     mutationFn: async (input: Partial<OrganizationFinanceSettingsRow>) => {
-      if (!organizationId) throw new Error('Organization is required.')
+      if (!organizationId) throw new ServerError('Organization is required.')
       const { data, error } = await supabase
         .from('organization_finance_settings')
         .upsert({ ...input, organization_id: organizationId })
         .select(financeSettingsSelect)
         .single()
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as OrganizationFinanceSettingsRow
     },
     onSuccess: async () => {

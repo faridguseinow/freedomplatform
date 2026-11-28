@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase/client'
+import { toServerError } from '../../lib/errors/serverErrors'
 
 export function useSessionMutations(organizationId: string | null) {
   const queryClient = useQueryClient()
@@ -19,7 +20,7 @@ export function useSessionMutations(organizationId: string | null) {
           target_place_id: placeId,
           target_order_id: orderId ?? null,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (session) => invalidate(session.order_id),
@@ -29,7 +30,7 @@ export function useSessionMutations(organizationId: string | null) {
         const { data, error } = await supabase.rpc('complete_timed_session', {
           target_session_id: sessionId,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: (session) => invalidate(session.order_id),

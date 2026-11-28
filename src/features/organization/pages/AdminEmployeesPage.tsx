@@ -20,7 +20,7 @@ import { z } from 'zod'
 import { EmptyState } from '../../../components/common/EmptyState'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
-import { Modal } from '../../../components/ui/Modal'
+import { Modal, ModalCloseButton } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import { supabase } from '../../../lib/supabase/client'
@@ -30,6 +30,8 @@ import type {
   ProfileRow,
 } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
+import { SkeletonList } from '../../../components/ui/Skeleton'
+import { toServerError } from '../../../lib/errors/serverErrors'
 
 const membershipSelect =
   'id,organization_id,user_id,role,is_active,job_title,phone,notes,sort_order,deactivated_at,created_by,created_at,updated_at'
@@ -143,7 +145,7 @@ export function AdminEmployeesPage() {
         .order('created_at', { ascending: false })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       const userIds = memberships.map((item) => item.user_id)
@@ -158,7 +160,7 @@ export function AdminEmployeesPage() {
         .in('id', userIds)
 
       if (profilesError) {
-        throw new Error(profilesError.message)
+        throw toServerError(profilesError)
       }
 
       const profileById = new Map(profiles.map((profile) => [profile.id, profile]))
@@ -179,7 +181,7 @@ export function AdminEmployeesPage() {
       })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data as EmployeeLockState[]
@@ -198,7 +200,7 @@ export function AdminEmployeesPage() {
       })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data[0] ?? null
@@ -230,7 +232,7 @@ export function AdminEmployeesPage() {
       })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data
@@ -263,7 +265,7 @@ export function AdminEmployeesPage() {
       })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data
@@ -298,7 +300,7 @@ export function AdminEmployeesPage() {
       })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data
@@ -322,7 +324,7 @@ export function AdminEmployeesPage() {
       })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
     },
     onSuccess: async () => {
@@ -342,7 +344,7 @@ export function AdminEmployeesPage() {
       })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
     },
     onSuccess: async () => {
@@ -361,7 +363,7 @@ export function AdminEmployeesPage() {
       })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
     },
     onSuccess: async () => {
@@ -550,10 +552,7 @@ export function AdminEmployeesPage() {
       </div>
 
       {employeesQuery.isLoading ? (
-        <div className="inline-flex min-h-28 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600">
-          <Loader2 aria-hidden="true" className="size-4 animate-spin text-emerald-700" />
-          Загрузка сотрудников
-        </div>
+        <SkeletonList />
       ) : null}
 
       {employeesQuery.isError ? (
@@ -737,14 +736,14 @@ export function AdminEmployeesPage() {
                   Пользователь должен уже существовать в Supabase Authentication.
                 </p>
               </div>
-              <button
+              <ModalCloseButton
                 aria-label="Закрыть"
                 className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                 onClick={() => setIsAddOpen(false)}
                 type="button"
               >
                 <X aria-hidden="true" className="size-4" />
-              </button>
+              </ModalCloseButton>
             </div>
 
             <form className="grid gap-3 sm:grid-cols-[1fr_auto]" noValidate onSubmit={handleFindUser}>
@@ -878,14 +877,14 @@ export function AdminEmployeesPage() {
                   </p>
                 </div>
               </div>
-              <button
+              <ModalCloseButton
                 aria-label="Закрыть"
                 className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                 onClick={() => setSelectedEmployee(null)}
                 type="button"
               >
                 <X aria-hidden="true" className="size-4" />
-              </button>
+              </ModalCloseButton>
             </div>
 
             <dl className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm sm:grid-cols-3">

@@ -1,4 +1,5 @@
 import { supabase } from '../../../lib/supabase/client'
+import { toServerError } from '../../../lib/errors/serverErrors'
 
 const maxSourceBytes = 5 * 1024 * 1024
 const maxSide = 1200
@@ -78,7 +79,7 @@ export async function uploadCatalogImage({
     })
 
   if (error) {
-    throw new Error(error.message)
+    throw toServerError(error)
   }
 
   return path
@@ -101,7 +102,7 @@ export async function uploadOrganizationLogo({
     })
 
   if (error) {
-    throw new Error(error.message)
+    throw toServerError(error)
   }
 
   return path

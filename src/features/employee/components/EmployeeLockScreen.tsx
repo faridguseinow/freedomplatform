@@ -14,6 +14,7 @@ import {
   getPlaceDisplayLabel,
 } from '../../places/workspaceLayout'
 import { useEmployeeWorkspaceData } from '../../orders/employeeOrdersApi'
+import { toServerError } from '../../../lib/errors/serverErrors'
 
 const pinPattern = /^\d{4}$/
 
@@ -99,7 +100,7 @@ export function EmployeeLockScreen({ collapsed = false }: EmployeeLockScreenProp
       })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return (data[0] ?? null) as EmployeeLockState | null
@@ -148,7 +149,7 @@ export function EmployeeLockScreen({ collapsed = false }: EmployeeLockScreenProp
       })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data
@@ -184,7 +185,7 @@ export function EmployeeLockScreen({ collapsed = false }: EmployeeLockScreenProp
       })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
     },
     onSuccess: async () => {
@@ -415,6 +416,7 @@ export function EmployeeLockScreen({ collapsed = false }: EmployeeLockScreenProp
                                   alt={place.name}
                                   className="size-10 rounded-full"
                                   imagePath={place.image_path}
+                                  placeType={place.type}
                                 />
                                 <h3 className="min-w-0 break-words text-base font-semibold leading-tight">
                                   {getPlaceDisplayLabel(place, slot.label)}

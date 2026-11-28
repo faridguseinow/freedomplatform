@@ -1,9 +1,10 @@
-import { ArrowLeft, Clock3, Loader2, PackageMinus, PackagePlus } from 'lucide-react'
+import { ArrowLeft, Clock3, PackageMinus, PackagePlus } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { EmptyState } from '../../../components/common/EmptyState'
 import { formatUnitName, formatUnitsInText } from '../../../lib/i18n/formatUnitName'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import { stockDocumentTypeLabel, useProductMovements } from '../catalog/inventoryApi'
+import { SkeletonList } from '../../../components/ui/Skeleton'
 
 const systemCommentKeys: Record<string, string> = {
   'Order sale': 'inventoryHistory.orderSale',
@@ -56,10 +57,7 @@ export function AdminInventoryProductPage() {
       </header>
 
       {movementsQuery.isLoading ? (
-        <div className="inline-flex min-h-28 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600">
-          <Loader2 className="size-4 animate-spin text-emerald-700" />
-          {t('ui.zagruzka_istorii_cbf509b')}
-        </div>
+        <SkeletonList />
       ) : null}
 
       {!movementsQuery.isLoading && !movements.length ? (

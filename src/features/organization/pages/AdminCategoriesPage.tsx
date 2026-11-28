@@ -8,7 +8,7 @@ import { EmptyState } from '../../../components/common/EmptyState'
 import { Button } from '../../../components/ui/Button'
 import { ImageFileInput } from '../../../components/ui/ImageFileInput'
 import { Input } from '../../../components/ui/Input'
-import { Modal } from '../../../components/ui/Modal'
+import { Modal, ModalCloseButton } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
 import type {
   CatalogCategoryRow,
@@ -22,6 +22,7 @@ import {
   useCategoryMutations,
 } from '../catalog/catalogApi'
 import { uploadCatalogImage } from '../catalog/imageUpload'
+import { SkeletonCardGrid } from '../../../components/ui/Skeleton'
 
 const categorySchema = z.object({
   type: z.enum(['product', 'service', 'place']),
@@ -194,10 +195,7 @@ export function AdminCategoriesPage() {
       </div>
 
       {categoriesQuery.isLoading ? (
-        <div className="inline-flex min-h-28 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600">
-          <Loader2 aria-hidden="true" className="size-4 animate-spin text-emerald-700" />
-          Загрузка категорий
-        </div>
+        <SkeletonCardGrid count={6} />
       ) : null}
 
       {categoriesQuery.isError ? (
@@ -274,14 +272,14 @@ export function AdminCategoriesPage() {
               <h3 className="text-lg font-semibold text-slate-950">
                 {editingCategory ? 'Редактировать категорию' : 'Создать категорию'}
               </h3>
-              <button
+              <ModalCloseButton
                 aria-label="Закрыть"
                 className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100"
                 onClick={() => setIsModalOpen(false)}
                 type="button"
               >
                 <X aria-hidden="true" className="size-4" />
-              </button>
+              </ModalCloseButton>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">

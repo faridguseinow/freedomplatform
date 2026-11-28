@@ -19,7 +19,7 @@ export function Button({ className, variant = 'primary', ...props }: ButtonProps
   return (
     <button
       className={cn(
-        'inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-60',
+        'inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-[color,background-color,border-color,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 enabled:active:scale-[0.97] disabled:opacity-60',
         variants[variant],
         className,
       )}

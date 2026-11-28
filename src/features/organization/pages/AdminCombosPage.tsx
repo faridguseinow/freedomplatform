@@ -9,7 +9,7 @@ import { EmptyState } from '../../../components/common/EmptyState'
 import { Button } from '../../../components/ui/Button'
 import { ImageFileInput } from '../../../components/ui/ImageFileInput'
 import { Input } from '../../../components/ui/Input'
-import { Modal } from '../../../components/ui/Modal'
+import { Modal, ModalCloseButton } from '../../../components/ui/Modal'
 import { useAuth } from '../../../hooks/useAuth'
 import { useI18n } from '../../../lib/i18n/I18nContext'
 import type { ComboRow, ComboStatus } from '../../../lib/supabase/database.types'
@@ -25,6 +25,7 @@ import {
   useCombos,
 } from '../catalog/comboApi'
 import { uploadCatalogImage } from '../catalog/imageUpload'
+import { SkeletonList } from '../../../components/ui/Skeleton'
 
 const comboSchema = z.object({
   category_id: z.string().uuid().optional().or(z.literal('')),
@@ -265,7 +266,7 @@ export function AdminCombosPage() {
         </div>
       </div>
 
-      {combosQuery.isLoading ? <div className="inline-flex min-h-28 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600"><Loader2 className="size-4 animate-spin text-emerald-700" />Загрузка комбо</div> : null}
+      {combosQuery.isLoading ? <SkeletonList rows={4} /> : null}
       {!combosQuery.isLoading && !visibleCombos.length ? <EmptyState description="Создайте первое fixed-комбо из товаров и услуг." icon={Gift} title="Комбо пока нет" /> : null}
 
       <div className="grid gap-3">
@@ -327,7 +328,7 @@ export function AdminCombosPage() {
           <form className="grid max-h-[calc(100svh-3rem)] w-full max-w-3xl gap-4 overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-xl" noValidate onSubmit={onSubmit}>
             <div className="flex items-start justify-between gap-3">
               <div><h3 className="text-lg font-semibold text-slate-950">Создать комбо</h3><p className="mt-1 text-sm text-slate-600">Режим выбора: fixed. Choice будет добавлен позже.</p></div>
-              <button aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setIsModalOpen(false)} type="button"><X className="size-4" /></button>
+              <ModalCloseButton aria-label="Закрыть" className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setIsModalOpen(false)} type="button"><X className="size-4" /></ModalCloseButton>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Input error={errors.name?.message} id="combo_name" label="Название" {...register('name')} />

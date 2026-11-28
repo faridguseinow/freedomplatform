@@ -6,6 +6,7 @@ import type {
   RecurringFrequency,
 } from '../../lib/supabase/database.types'
 import { todayDate } from './financeApi'
+import { ServerError, toServerError } from '../../lib/errors/serverErrors'
 
 export const recurringExpenseSelect =
   'id,organization_id,category_id,title,amount,frequency,start_date,next_generation_date,end_date,payment_method,recipient_or_supplier,description,affects_profit,affects_cash_flow,is_active,last_generated_at,created_by,created_at,updated_at'
@@ -36,7 +37,7 @@ export function useRecurringExpenses(organizationId: string | null) {
         .eq('organization_id', organizationId!)
         .order('next_generation_date', { ascending: true })
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as RecurringExpenseRow[]
     },
   })
@@ -71,20 +72,20 @@ export function useRecurringExpenseMutations(organizationId: string | null) {
               .single()
 
         const { data, error } = await query
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data as RecurringExpenseRow
       },
       onSuccess: invalidate,
     }),
     generateDue: useMutation({
       mutationFn: async (untilDate?: string) => {
-        if (!organizationId) throw new Error('Organization is required.')
+        if (!organizationId) throw new ServerError('Organization is required.')
         const { data, error } = await supabase.rpc('generate_due_recurring_expenses', {
           target_organization_id: organizationId,
           target_until_date: untilDate ?? todayDate(),
         })
 
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data as number
       },
       onSuccess: invalidate,

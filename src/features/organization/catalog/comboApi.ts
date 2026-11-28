@@ -5,6 +5,7 @@ import type {
   ComboRow,
   ComboStatus,
 } from '../../../lib/supabase/database.types'
+import { toServerError } from '../../../lib/errors/serverErrors'
 
 export const comboSelect =
   'id,organization_id,category_id,name,description,image_path,sale_price,selection_mode,sort_order,status,created_by,created_at,updated_at,archived_at'
@@ -27,7 +28,7 @@ export function useCombos(organizationId: string | null) {
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false })
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data
     },
   })
@@ -44,7 +45,7 @@ export function useComboComponents(organizationId: string | null) {
         .eq('organization_id', organizationId!)
         .order('sort_order', { ascending: true })
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data
     },
   })
@@ -60,7 +61,7 @@ export function useComboAvailability(organizationId: string | null) {
         .select('combo_id,organization_id,is_available,available_quantity,missing_components')
         .eq('organization_id', organizationId!)
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data
     },
   })
@@ -82,7 +83,7 @@ export function useComboMutations(organizationId: string | null) {
           ? supabase.from('combos').update(input).eq('id', id).select(comboSelect).single()
           : supabase.from('combos').insert(input).select(comboSelect).single()
         const { data, error } = await query
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: invalidate,
@@ -94,7 +95,7 @@ export function useComboMutations(organizationId: string | null) {
           .from('combo_components')
           .insert(components)
           .select(comboComponentSelect)
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: invalidate,
@@ -126,7 +127,7 @@ export function useComboMutations(organizationId: string | null) {
         ])
 
         const failedResult = results.find((result) => result.error)
-        if (failedResult?.error) throw new Error(failedResult.error.message)
+        if (failedResult?.error) throw toServerError(failedResult.error)
 
         if (staleIds.length) {
           const { error } = await supabase
@@ -134,7 +135,7 @@ export function useComboMutations(organizationId: string | null) {
             .delete()
             .eq('combo_id', comboId)
             .in('id', staleIds)
-          if (error) throw new Error(error.message)
+          if (error) throw toServerError(error)
         }
 
         return components
@@ -144,7 +145,7 @@ export function useComboMutations(organizationId: string | null) {
     removeComponent: useMutation({
       mutationFn: async (componentId: string) => {
         const { error } = await supabase.from('combo_components').delete().eq('id', componentId)
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return componentId
       },
       onSuccess: invalidate,
@@ -155,7 +156,7 @@ export function useComboMutations(organizationId: string | null) {
           target_id: id,
           target_status: status,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: invalidate,

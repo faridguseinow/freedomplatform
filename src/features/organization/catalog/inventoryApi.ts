@@ -6,6 +6,7 @@ import type {
   StockDocumentItemRow,
   StockMovementType,
 } from '../../../lib/supabase/database.types'
+import { toServerError } from '../../../lib/errors/serverErrors'
 
 export const stockDocumentSelect =
   'id,organization_id,document_number,type,status,document_date,supplier_name,reference,comment,total_amount,created_by,posted_by,posted_at,cancelled_by,cancelled_at,cancellation_reason,created_at,updated_at'
@@ -43,7 +44,7 @@ export function useInventoryBalances(organizationId: string | null) {
         .neq('status', 'archived')
         .order('name', { ascending: true })
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data
     },
   })
@@ -62,7 +63,7 @@ export function useInventoryRecentAdditions(organizationId: string | null) {
         .order('created_at', { ascending: false })
         .limit(1000)
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data
     },
   })
@@ -84,7 +85,7 @@ export function useStockDocuments(organizationId: string | null, type?: StockMov
         .order('document_date', { ascending: false })
         .limit(100)
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data
     },
   })
@@ -101,7 +102,7 @@ export function useStockDocumentDetail(documentId: string | null) {
         .eq('id', documentId!)
         .single()
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
 
       const { data: items, error: itemsError } = await supabase
         .from('stock_document_items')
@@ -109,7 +110,7 @@ export function useStockDocumentDetail(documentId: string | null) {
         .eq('document_id', documentId!)
         .order('created_at', { ascending: true })
 
-      if (itemsError) throw new Error(itemsError.message)
+      if (itemsError) throw toServerError(itemsError)
 
       const productIds = [...new Set(items.map((item) => item.product_id))]
       const { data: products, error: productsError } = productIds.length
@@ -119,7 +120,7 @@ export function useStockDocumentDetail(documentId: string | null) {
             .in('id', productIds)
         : { data: [], error: null }
 
-      if (productsError) throw new Error(productsError.message)
+      if (productsError) throw toServerError(productsError)
 
       return { document, items, products }
     },
@@ -145,8 +146,8 @@ export function useProductMovements(productId: string | null) {
           .single(),
       ])
 
-      if (movementsResult.error) throw new Error(movementsResult.error.message)
-      if (productResult.error) throw new Error(productResult.error.message)
+      if (movementsResult.error) throw toServerError(movementsResult.error)
+      if (productResult.error) throw toServerError(productResult.error)
       return { movements: movementsResult.data, product: productResult.data }
     },
   })
@@ -172,7 +173,7 @@ export function useInventoryMutations(organizationId: string | null) {
           .select(stockDocumentSelect)
           .single()
 
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: invalidate,
@@ -186,7 +187,7 @@ export function useInventoryMutations(organizationId: string | null) {
           .select(stockDocumentSelect)
           .single()
 
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: invalidate,
@@ -199,7 +200,7 @@ export function useInventoryMutations(organizationId: string | null) {
           .insert(items)
           .select(stockDocumentItemSelect)
 
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: invalidate,
@@ -209,12 +210,12 @@ export function useInventoryMutations(organizationId: string | null) {
         const { data, error } = await supabase.rpc('post_stock_document', {
           target_document_id: documentId,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         if (data?.type === 'purchase') {
           const { error: financeError } = await supabase.rpc('create_purchase_finance_transaction', {
             target_document_id: data.id,
           })
-          if (financeError) throw new Error(financeError.message)
+          if (financeError) throw toServerError(financeError)
         }
         return data
       },
@@ -225,7 +226,7 @@ export function useInventoryMutations(organizationId: string | null) {
         const { data, error } = await supabase.rpc('create_purchase_finance_transaction', {
           target_document_id: documentId,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: invalidate,
@@ -236,7 +237,7 @@ export function useInventoryMutations(organizationId: string | null) {
           target_document_id: documentId,
           target_reason: reason,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: invalidate,
@@ -247,7 +248,7 @@ export function useInventoryMutations(organizationId: string | null) {
           target_document_id: documentId,
           target_reason: 'Removed from purchase history',
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: invalidate,
@@ -270,7 +271,7 @@ export function useInventoryMutations(organizationId: string | null) {
           target_unit_cost: unitCost ?? null,
           target_comment: comment ?? null,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: invalidate,
@@ -280,7 +281,7 @@ export function useInventoryMutations(organizationId: string | null) {
         const { data, error } = await supabase.rpc('reconcile_product_stock', {
           target_product_id: productId,
         })
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: invalidate,

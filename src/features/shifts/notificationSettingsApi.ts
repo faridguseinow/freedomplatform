@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase/client'
 import type { OrganizationNotificationSettingsRow } from '../../lib/supabase/database.types'
+import { toServerError } from '../../lib/errors/serverErrors'
 
 const select = 'id,organization_id,telegram_enabled,telegram_chat_id,notify_shift_opened,notify_shift_closed,notify_daily_summary,notify_cash_variance,notify_payment_refused,notify_adjustment_requests,notify_low_stock,created_at,updated_at'
 
@@ -15,7 +16,7 @@ export function useNotificationSettings(organizationId: string | null) {
         .eq('organization_id', organizationId!)
         .maybeSingle()
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data
     },
   })
@@ -39,7 +40,7 @@ export function useNotificationSettingsMutations(organizationId: string | null) 
           .select(select)
           .single()
 
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data
       },
       onSuccess: invalidate,

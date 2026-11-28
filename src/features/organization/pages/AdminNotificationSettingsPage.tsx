@@ -5,6 +5,7 @@ import {
   useNotificationSettings,
   useNotificationSettingsMutations,
 } from '../../shifts/notificationSettingsApi'
+import { SkeletonList } from '../../../components/ui/Skeleton'
 
 export function AdminNotificationSettingsPage() {
   const { organizationId } = useAuth()
@@ -20,7 +21,7 @@ export function AdminNotificationSettingsPage() {
           Chat ID хранится в настройках организации. Bot token должен быть только в Edge Function secret `TELEGRAM_BOT_TOKEN`.
         </p>
       </header>
-      {settingsQuery.isLoading ? <div className="text-sm text-slate-600"><Loader2 className="mr-2 inline size-4 animate-spin" /> Загрузка</div> : null}
+      {settingsQuery.isLoading ? <SkeletonList rows={3} /> : null}
       <form
         className="grid max-w-2xl gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
         key={settings?.id ?? 'empty'}

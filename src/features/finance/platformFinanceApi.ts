@@ -7,6 +7,7 @@ import type {
 } from '../../lib/supabase/database.types'
 import { financeTransactionSelect } from './financeApi'
 import { financialPeriodSelect } from './financialPeriodsApi'
+import { toServerError } from '../../lib/errors/serverErrors'
 
 export function usePlatformFinanceSummary() {
   return useQuery({
@@ -17,7 +18,7 @@ export function usePlatformFinanceSummary() {
         .select('*')
         .order('total_income', { ascending: false })
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as FinanceDashboardSummaryRow[]
     },
   })
@@ -48,9 +49,9 @@ export function usePlatformOrganizationFinance(organizationId: string | null) {
           .limit(50),
       ])
 
-      if (summaryResult.error) throw new Error(summaryResult.error.message)
-      if (periodsResult.error) throw new Error(periodsResult.error.message)
-      if (transactionsResult.error) throw new Error(transactionsResult.error.message)
+      if (summaryResult.error) throw toServerError(summaryResult.error)
+      if (periodsResult.error) throw toServerError(periodsResult.error)
+      if (transactionsResult.error) throw toServerError(transactionsResult.error)
 
       return {
         summary: summaryResult.data as FinanceDashboardSummaryRow | null,

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase/client'
 import type { FinancialPeriodRow } from '../../lib/supabase/database.types'
+import { toServerError } from '../../lib/errors/serverErrors'
 
 export const financialPeriodSelect =
   'id,organization_id,period_start,period_end,status,revenue,cogs,gross_profit,operating_expenses,other_income,net_profit_before_platform_share,platform_share_percentage,platform_share_amount,organization_owner_amount,cash_inflow,cash_outflow,submitted_by,submitted_at,reviewed_by,reviewed_at,review_comment,locked_at,created_at,updated_at'
@@ -16,7 +17,7 @@ export function useFinancialPeriods(organizationId: string | null) {
         .eq('organization_id', organizationId!)
         .order('period_start', { ascending: false })
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as FinancialPeriodRow[]
     },
   })
@@ -33,7 +34,7 @@ export function useFinancialPeriod(periodId: string | null) {
         .eq('id', periodId!)
         .single()
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return data as FinancialPeriodRow
     },
   })
@@ -55,7 +56,7 @@ export function useFinancialPeriodMutations(organizationId: string | null) {
           target_period_end: periodEnd,
         })
 
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data as FinancialPeriodRow
       },
       onSuccess: (period) => invalidate(period.id),
@@ -66,7 +67,7 @@ export function useFinancialPeriodMutations(organizationId: string | null) {
           target_period_id: periodId,
         })
 
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data as FinancialPeriodRow
       },
       onSuccess: (period) => invalidate(period.id),
@@ -87,7 +88,7 @@ export function useFinancialPeriodMutations(organizationId: string | null) {
           target_period_end: periodEnd,
         })
 
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data as FinancialPeriodRow
       },
       onSuccess: (period) => invalidate(period.id),
@@ -99,7 +100,7 @@ export function useFinancialPeriodMutations(organizationId: string | null) {
           target_comment: comment ?? null,
         })
 
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data as FinancialPeriodRow
       },
       onSuccess: (period) => invalidate(period.id),
@@ -111,7 +112,7 @@ export function useFinancialPeriodMutations(organizationId: string | null) {
           target_comment: comment ?? null,
         })
 
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data as string
       },
       onSuccess: (periodId) => invalidate(periodId),

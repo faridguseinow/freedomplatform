@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase/client'
 import type { FinanceTransactionRow } from '../../lib/supabase/database.types'
 import type { MoneyInput } from './financeApi'
 import { todayDate } from './financeApi'
+import { ServerError, toServerError } from '../../lib/errors/serverErrors'
 
 export function useExpenseMutations(organizationId: string | null) {
   const queryClient = useQueryClient()
@@ -13,7 +14,7 @@ export function useExpenseMutations(organizationId: string | null) {
   return {
     createExpense: useMutation({
       mutationFn: async (input: MoneyInput & { categoryId: string; idempotencyKey?: string | null }) => {
-        if (!organizationId) throw new Error('Organization is required.')
+        if (!organizationId) throw new ServerError('Organization is required.')
         const { data, error } = await supabase.rpc('create_expense', {
           target_organization_id: organizationId,
           target_title: input.title,
@@ -29,7 +30,7 @@ export function useExpenseMutations(organizationId: string | null) {
           target_source_id: input.idempotencyKey ?? null,
         })
 
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data as FinanceTransactionRow
       },
       onSuccess: invalidate,
@@ -54,7 +55,7 @@ export function useExpenseMutations(organizationId: string | null) {
           target_description: input.description ?? null,
         })
 
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data as FinanceTransactionRow
       },
       onSuccess: invalidate,
@@ -66,7 +67,7 @@ export function useExpenseMutations(organizationId: string | null) {
           target_reason: reason,
         })
 
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data as FinanceTransactionRow
       },
       onSuccess: invalidate,
@@ -87,7 +88,7 @@ export function useExpenseMutations(organizationId: string | null) {
           target_comment: comment ?? null,
         })
 
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
         return data as FinanceTransactionRow
       },
       onSuccess: invalidate,

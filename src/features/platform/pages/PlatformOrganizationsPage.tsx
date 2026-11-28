@@ -25,7 +25,7 @@ import { EmptyState } from '../../../components/common/EmptyState'
 import { Button } from '../../../components/ui/Button'
 import { ImageFileInput } from '../../../components/ui/ImageFileInput'
 import { Input } from '../../../components/ui/Input'
-import { Modal } from '../../../components/ui/Modal'
+import { Modal, ModalCloseButton } from '../../../components/ui/Modal'
 import { supabase } from '../../../lib/supabase/client'
 import type { OrganizationRow } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
@@ -38,6 +38,8 @@ import {
   getPlatformRoutePath,
   isValidOrganizationSlug,
 } from '../../../lib/routing/appHost'
+import { SkeletonList } from '../../../components/ui/Skeleton'
+import { toServerError } from '../../../lib/errors/serverErrors'
 
 const organizationSelect =
   'id,name,slug,description,logo_path,status,default_locale,timezone,currency_code,created_by,created_at,updated_at,archived_at'
@@ -160,7 +162,7 @@ export function PlatformOrganizationsPage() {
         .order('created_at', { ascending: false })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data
@@ -176,7 +178,7 @@ export function PlatformOrganizationsPage() {
         .eq('is_active', true)
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data.reduce<Record<string, number>>((acc, item) => {
@@ -196,7 +198,7 @@ export function PlatformOrganizationsPage() {
         .limit(500)
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data.reduce<Record<string, { hasOpenShift: boolean; lastActivityAt: string }>>(
@@ -303,7 +305,7 @@ export function PlatformOrganizationsPage() {
       })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data
@@ -335,7 +337,7 @@ export function PlatformOrganizationsPage() {
         .single()
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data
@@ -364,7 +366,7 @@ export function PlatformOrganizationsPage() {
         .single()
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data
@@ -382,7 +384,7 @@ export function PlatformOrganizationsPage() {
       })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data
@@ -448,7 +450,7 @@ export function PlatformOrganizationsPage() {
             .eq('id', createdOrganization.id)
 
           if (error) {
-            throw new Error(error.message)
+            throw toServerError(error)
           }
         }
       }
@@ -514,10 +516,7 @@ export function PlatformOrganizationsPage() {
       </header>
 
       {organizationsQuery.isLoading ? (
-        <div className="inline-flex min-h-28 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600">
-          <Loader2 aria-hidden="true" className="size-4 animate-spin text-emerald-700" />
-          Загрузка организаций
-        </div>
+        <SkeletonList />
       ) : null}
 
       {organizationsQuery.isError ? (
@@ -685,14 +684,14 @@ export function PlatformOrganizationsPage() {
                   Администратор выбирается из уже созданных Supabase Auth пользователей.
                 </p>
               </div>
-              <button
+              <ModalCloseButton
                 aria-label="Закрыть"
                 className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                 onClick={closeModal}
                 type="button"
               >
                 <X aria-hidden="true" className="size-4" />
-              </button>
+              </ModalCloseButton>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -805,14 +804,14 @@ export function PlatformOrganizationsPage() {
                   {t('platformOrganizations.deleteDescription')}
                 </p>
               </div>
-              <button
+              <ModalCloseButton
                 aria-label="Закрыть"
                 className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                 onClick={closeDeleteModal}
                 type="button"
               >
                 <X aria-hidden="true" className="size-4" />
-              </button>
+              </ModalCloseButton>
             </div>
 
             <Input

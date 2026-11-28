@@ -2,6 +2,7 @@ import { getCurrentLocale } from '../../../lib/i18n/translator'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../../../lib/supabase/client'
 import type { AuditLogRow, FinanceAuditLogRow, ProfileRow } from '../../../lib/supabase/database.types'
+import { toServerError } from '../../../lib/errors/serverErrors'
 
 type RawMetadata = Record<string, unknown>
 
@@ -403,7 +404,7 @@ export async function logAdminSectionView({
     target_metadata: { path, title },
   })
 
-  if (error) throw new Error(error.message)
+  if (error) throw toServerError(error)
 }
 
 export function useAdminActivityEvents(organizationId: string | null) {
@@ -426,8 +427,8 @@ export function useAdminActivityEvents(organizationId: string | null) {
           .limit(500),
       ])
 
-      if (auditResult.error) throw new Error(auditResult.error.message)
-      if (financeResult.error) throw new Error(financeResult.error.message)
+      if (auditResult.error) throw toServerError(auditResult.error)
+      if (financeResult.error) throw toServerError(financeResult.error)
 
       const auditLogs = auditResult.data as AuditLogRow[]
       const financeLogs = financeResult.data as FinanceAuditLogRow[]
@@ -446,7 +447,7 @@ export function useAdminActivityEvents(organizationId: string | null) {
           .select('id,email,full_name')
           .in('id', actorIds)
 
-        if (error) throw new Error(error.message)
+        if (error) throw toServerError(error)
 
         for (const profile of data as Pick<ProfileRow, 'id' | 'email' | 'full_name'>[]) {
           profiles.set(profile.id, profile)

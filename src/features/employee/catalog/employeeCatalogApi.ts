@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../../../lib/supabase/client'
 import type { EmployeeProductRow } from '../../../lib/supabase/database.types'
+import { toServerError } from '../../../lib/errors/serverErrors'
 
 type EmployeeCatalogParams = {
   organizationId: string | null
@@ -41,7 +42,7 @@ export function useEmployeeCategories({ organizationId }: EmployeeCatalogParams)
         .order('sort_order', { ascending: true })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data
@@ -63,7 +64,7 @@ export function useEmployeePlaces({ organizationId }: EmployeeCatalogParams) {
         .order('sort_order', { ascending: true })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data
@@ -86,7 +87,7 @@ export function useEmployeeProducts({ organizationId }: EmployeeCatalogParams) {
         .order('sort_order', { ascending: true })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return normalizeEmployeeProducts((data ?? []) as EmployeeProductMaybeStock[])
@@ -109,7 +110,7 @@ export function useEmployeeProductSalesRanking({ organizationId }: EmployeeCatal
         .gt('paid_quantity', 0)
         .limit(10000)
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
 
       return (data ?? []).reduce<Record<string, number>>((ranking, item) => {
         if (!item.product_id) return ranking
@@ -134,7 +135,7 @@ export function useEmployeeServices({ organizationId }: EmployeeCatalogParams) {
         .order('sort_order', { ascending: true })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data
@@ -156,7 +157,7 @@ export function useEmployeeCombos({ organizationId }: EmployeeCatalogParams) {
         .order('name', { ascending: true })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data

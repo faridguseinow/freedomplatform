@@ -42,7 +42,7 @@ export function LanguageSwitcher({ className = '' }: LanguageSwitcherProps) {
           onClick={() => changeLanguage(item)}
           type="button"
         >
-          {item.toUpperCase()}
+          <span className="text-xs font-semibold leading-none">{item.toUpperCase()}</span>
         </button>
       ))}
     </div>

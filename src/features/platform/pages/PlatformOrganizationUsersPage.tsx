@@ -8,7 +8,7 @@ import { Link, useParams } from 'react-router-dom'
 import { z } from 'zod'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
-import { Modal } from '../../../components/ui/Modal'
+import { Modal, ModalCloseButton } from '../../../components/ui/Modal'
 import { supabase } from '../../../lib/supabase/client'
 import type {
   OrganizationMembershipRow,
@@ -16,6 +16,8 @@ import type {
   ProfileRow,
 } from '../../../lib/supabase/database.types'
 import { getPlatformRoutePath } from '../../../lib/routing/appHost'
+import { SkeletonList } from '../../../components/ui/Skeleton'
+import { toServerError } from '../../../lib/errors/serverErrors'
 
 const organizationSelect =
   'id,name,slug,description,logo_path,status,default_locale,timezone,currency_code,created_by,created_at,updated_at,archived_at'
@@ -80,7 +82,7 @@ export function PlatformOrganizationUsersPage() {
         .single()
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data satisfies OrganizationRow
@@ -98,7 +100,7 @@ export function PlatformOrganizationUsersPage() {
         .order('created_at', { ascending: false })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       const userIds = memberships.map((item) => item.user_id)
@@ -113,7 +115,7 @@ export function PlatformOrganizationUsersPage() {
         .in('id', userIds)
 
       if (profilesError) {
-        throw new Error(profilesError.message)
+        throw toServerError(profilesError)
       }
 
       const profileById = new Map(profiles.map((profile) => [profile.id, profile]))
@@ -133,7 +135,7 @@ export function PlatformOrganizationUsersPage() {
       })
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data
@@ -163,7 +165,7 @@ export function PlatformOrganizationUsersPage() {
         .single()
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data
@@ -186,7 +188,7 @@ export function PlatformOrganizationUsersPage() {
         .single()
 
       if (error) {
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data
@@ -218,7 +220,7 @@ export function PlatformOrganizationUsersPage() {
             if (responseError instanceof Error && responseError.message !== 'Unexpected end of JSON input') throw responseError
           }
         }
-        throw new Error(error.message)
+        throw toServerError(error)
       }
 
       return data
@@ -362,10 +364,7 @@ export function PlatformOrganizationUsersPage() {
       ) : null}
 
       {membershipsQuery.isLoading ? (
-        <div className="inline-flex min-h-28 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600">
-          <Loader2 aria-hidden="true" className="size-4 animate-spin text-emerald-700" />
-          Загрузка пользователей
-        </div>
+        <SkeletonList />
       ) : null}
 
       {!membershipsQuery.isLoading && !memberships.length ? (
@@ -452,14 +451,14 @@ export function PlatformOrganizationUsersPage() {
                   {editingMembership.user_id}
                 </p>
               </div>
-              <button
+              <ModalCloseButton
                 aria-label="Закрыть"
                 className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                 onClick={closeEditProfile}
                 type="button"
               >
                 <X aria-hidden="true" className="size-4" />
-              </button>
+              </ModalCloseButton>
             </div>
 
             <Input

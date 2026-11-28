@@ -1,5 +1,5 @@
 import { getCurrentLocale } from '../../../lib/i18n/translator'
-import { Eye, Loader2, ReceiptText, Search } from 'lucide-react'
+import { Eye, ReceiptText, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../hooks/useAuth'
@@ -11,6 +11,7 @@ import { orderStatusLabel } from '../../orders/employeeOrdersApi'
 import { formatOrderDisplayNumber } from '../../orders/orderDisplay'
 import type { AdminOrderRow } from '../../orders/ordersApi'
 import { useAdminOrders } from '../../orders/ordersApi'
+import { SkeletonList } from '../../../components/ui/Skeleton'
 
 type StatusFilter = OrderStatus | 'all'
 
@@ -117,9 +118,7 @@ export function AdminOrdersPage() {
       </div>
 
       {ordersQuery.isLoading ? (
-        <div className="inline-flex min-h-28 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600">
-          <Loader2 className="size-4 animate-spin text-emerald-700" /> {t("ui.zagruzka_zakazov_ea84195")}
-        </div>
+        <SkeletonList rows={8} />
       ) : null}
 
       <div className="hidden overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm xl:block">

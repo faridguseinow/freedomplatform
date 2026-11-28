@@ -1,11 +1,11 @@
-import { ArrowLeft, HandCoins, Loader2, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Settings, UserRound, X } from 'lucide-react'
+import { ArrowLeft, HandCoins, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Settings, UserRound, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { CatalogImage } from '../../components/common/CatalogImage'
-import { LanguageSwitcher } from '../../components/common/LanguageSwitcher'
-import { ThemeToggle } from '../../components/common/ThemeToggle'
+import { cn } from '../../lib/utils/cn'
+import { UserMenuPanel } from './UserMenuPanel'
 import { Button } from '../../components/ui/Button'
-import { Modal } from '../../components/ui/Modal'
+import { Modal, ModalCloseButton } from '../../components/ui/Modal'
 import { useEmployeeDebtSummary } from '../../features/debts/debtsApi'
 import { EmployeeLockScreen } from '../../features/employee/components/EmployeeLockScreen'
 import { useAuth } from '../../hooks/useAuth'
@@ -17,6 +17,7 @@ import {
   getPlatformAdminUrl,
   getTenantRoutePath,
 } from '../../lib/routing/appHost'
+import { SkeletonList } from '../../components/ui/Skeleton'
 
 type AppLayoutProps = {
   productArea: string
@@ -238,7 +239,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                 type="button"
               >
                 <HandCoins aria-hidden="true" className="size-4 shrink-0" />
-                {sidebarCollapsed ? null : <span className="truncate">{t('debt.employeeListButton')}</span>}
+                {sidebarCollapsed ? null : <span className="truncate text-sm font-medium">{t('debt.employeeListButton')}</span>}
               </button>
             ) : null}
           </nav>
@@ -272,64 +273,17 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                 </button>
 
                 {isUserMenuOpen ? (
-                  <div
-                    style={{ zIndex: 9999 }}
-                    className={[
-                      'absolute rounded-lg border border-slate-200 bg-white p-2 shadow-lg',
-                      sidebarCollapsed
-                        ? 'bottom-full left-2 mb-2 w-64'
-                        : 'bottom-full left-0 mb-2 w-full',
-                    ].join(' ')}
-                  >
-                    <div className="border-b border-slate-100 px-2 pb-2">
-                      <p className="truncate text-sm font-medium text-slate-900">{displayName}</p>
-                      <p className="mt-0.5 text-xs text-slate-500">
-                        {role ? ROLE_LABEL[role] : 'Роль не задана'}
-                      </p>
-                      {currentOrganization ? (
-                        <p className="mt-1 truncate text-xs text-slate-500">
-                          {currentOrganization.name} · {currentOrganization.status}
-                        </p>
-                      ) : null}
-                    </div>
-                    {isEmployeeArea ? (
-                      <div className="grid gap-2 border-b border-slate-100 py-2">
-                        <LanguageSwitcher className="w-full justify-center shadow-none" />
-                        <ThemeToggle className="w-full shadow-none" compact />
-                      </div>
-                    ) : null}
-                    {isPlatformOwnerOrganizationView ? (
-                      <Button
-                        className="mt-2 w-full justify-start px-2"
-                        onClick={handleExitOrganizationView}
-                        type="button"
-                        variant="secondary"
-                      >
-                        <ArrowLeft aria-hidden="true" className="size-4" />
-                        Вернуться в платформу
-                      </Button>
-                    ) : null}
-                    {isOrganizationAdminEmployeeView ? (
-                      <Button
-                        className="mt-2 w-full justify-start px-2"
-                        onClick={handleBackToAdmin}
-                        type="button"
-                        variant="secondary"
-                      >
-                        <ArrowLeft aria-hidden="true" className="size-4" />
-                        В админку
-                      </Button>
-                    ) : null}
-                    <Button
-                      className="mt-2 w-full justify-start px-2"
-                      onClick={handleSignOut}
-                      type="button"
-                      variant="danger"
-                    >
-                      <LogOut aria-hidden="true" className="size-4" />
-                      Выйти
-                    </Button>
-                  </div>
+                  <UserMenuPanel
+                    className={cn('absolute bottom-full z-50 mb-2', sidebarCollapsed ? 'left-2 w-72' : 'inset-x-2')}
+                    displayName={displayName}
+                    onBackToAdmin={isOrganizationAdminEmployeeView ? handleBackToAdmin : undefined}
+                    onExitOrganizationView={isPlatformOwnerOrganizationView ? handleExitOrganizationView : undefined}
+                    onSignOut={handleSignOut}
+                    organizationName={currentOrganization?.name ?? null}
+                    roleLabel={role ? t(ROLE_LABEL[role]) : null}
+                    showPreferences={isEmployeeArea}
+                    origin="bottom"
+                  />
                 ) : null}
               </div>
             </div>
@@ -370,56 +324,17 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                   </button>
 
                   {isUserMenuOpen ? (
-                    <div style={{ zIndex: 9999999 }} className="absolute right-0 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
-                      <div className="border-b border-slate-100 px-2 pb-2">
-                        <p className="truncate text-sm font-medium text-slate-900">{displayName}</p>
-                        <p className="mt-0.5 text-xs text-slate-500">
-                          {role ? ROLE_LABEL[role] : 'Роль не задана'}
-                        </p>
-                        {currentOrganization ? (
-                          <p className="mt-1 truncate text-xs text-slate-500">
-                            {currentOrganization.name} · {currentOrganization.status}
-                          </p>
-                        ) : null}
-                      </div>
-                      {isEmployeeArea ? (
-                        <div className="grid gap-2 border-b border-slate-100 py-2">
-                          <LanguageSwitcher className="w-full justify-center shadow-none" />
-                          <ThemeToggle className="w-full shadow-none" compact />
-                        </div>
-                      ) : null}
-                      {isPlatformOwnerOrganizationView ? (
-                        <Button
-                          className="mt-2 w-full justify-start px-2"
-                          onClick={handleExitOrganizationView}
-                          type="button"
-                          variant="secondary"
-                        >
-                          <ArrowLeft aria-hidden="true" className="size-4" />
-                          Вернуться в платформу
-                        </Button>
-                      ) : null}
-                      {isOrganizationAdminEmployeeView ? (
-                        <Button
-                          className="mt-2 w-full justify-start px-2"
-                          onClick={handleBackToAdmin}
-                          type="button"
-                          variant="secondary"
-                        >
-                          <ArrowLeft aria-hidden="true" className="size-4" />
-                          В админку
-                        </Button>
-                      ) : null}
-                      <Button
-                        className="mt-2 w-full justify-start px-2"
-                        onClick={handleSignOut}
-                        type="button"
-                        variant="danger"
-                      >
-                        <LogOut aria-hidden="true" className="size-4" />
-                        Выйти
-                      </Button>
-                    </div>
+                    <UserMenuPanel
+                      className="absolute right-0 top-full z-50 mt-2 w-72"
+                      displayName={displayName}
+                    onBackToAdmin={isOrganizationAdminEmployeeView ? handleBackToAdmin : undefined}
+                    onExitOrganizationView={isPlatformOwnerOrganizationView ? handleExitOrganizationView : undefined}
+                    onSignOut={handleSignOut}
+                    organizationName={currentOrganization?.name ?? null}
+                    roleLabel={role ? t(ROLE_LABEL[role]) : null}
+                    showPreferences={isEmployeeArea}
+                      origin="top"
+                    />
                   ) : null}
                 </div>
               </div>
@@ -456,7 +371,9 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                   </Button>
                 </div>
               ) : null}
-              <Outlet />
+              <div className="grid min-w-0 content-start gap-[inherit] animate-enter" key={location.pathname}>
+                <Outlet />
+              </div>
               {isSettingsPage ? (
                 <div className="md:hidden">
                   <Button
@@ -476,52 +393,18 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
       </div>
 
       {isEmployeeArea && isUserMenuOpen ? (
-        <div
-          className="fixed inset-x-2 bottom-[calc(max(env(safe-area-inset-bottom),0.75rem)+4.25rem)] z-40 rounded-lg border border-slate-200 bg-white p-3 shadow-xl md:hidden"
+        <UserMenuPanel
+          className="fixed inset-x-2 bottom-[calc(max(env(safe-area-inset-bottom),0.75rem)+4.25rem)] z-40 md:hidden"
+          displayName={displayName}
+                    onBackToAdmin={isOrganizationAdminEmployeeView ? handleBackToAdmin : undefined}
+                    onExitOrganizationView={isPlatformOwnerOrganizationView ? handleExitOrganizationView : undefined}
+                    onSignOut={handleSignOut}
+                    organizationName={currentOrganization?.name ?? null}
+                    roleLabel={role ? t(ROLE_LABEL[role]) : null}
+                    showPreferences={isEmployeeArea}
+          origin="bottom"
           ref={mobileProfileMenuRef}
-        >
-          <div className="border-b border-slate-100 px-1 pb-2">
-            <p className="truncate text-sm font-semibold text-slate-900">{displayName}</p>
-            {currentOrganization ? (
-              <p className="mt-0.5 truncate text-xs text-slate-500">{currentOrganization.name}</p>
-            ) : null}
-          </div>
-          <div className="grid grid-cols-2 gap-2 py-2">
-            <LanguageSwitcher className="w-full justify-center shadow-none" />
-            <ThemeToggle className="w-full min-w-0 px-2 shadow-none" compact />
-          </div>
-          {isPlatformOwnerOrganizationView ? (
-            <Button
-              className="w-full justify-start px-2"
-              onClick={handleExitOrganizationView}
-              type="button"
-              variant="secondary"
-            >
-              <ArrowLeft aria-hidden="true" className="size-4" />
-              Вернуться в платформу
-            </Button>
-          ) : null}
-          {isOrganizationAdminEmployeeView ? (
-            <Button
-              className="w-full justify-start px-2"
-              onClick={handleBackToAdmin}
-              type="button"
-              variant="secondary"
-            >
-              <ArrowLeft aria-hidden="true" className="size-4" />
-              В админку
-            </Button>
-          ) : null}
-          <Button
-            className="mt-2 w-full justify-start px-2"
-            onClick={handleSignOut}
-            type="button"
-            variant="danger"
-          >
-            <LogOut aria-hidden="true" className="size-4" />
-            Выйти
-          </Button>
-        </div>
+        />
       ) : null}
 
       {isEmployeeArea && isDebtNamesOpen ? (
@@ -532,15 +415,13 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
                 <HandCoins aria-hidden="true" className="size-5 shrink-0 text-emerald-700" />
                 <h2 className="truncate text-lg font-semibold text-slate-950">{t('debt.employeeListTitle')}</h2>
               </div>
-              <button aria-label={t('Закрыть')} className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setIsDebtNamesOpen(false)} type="button">
+              <ModalCloseButton aria-label={t('Закрыть')} className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setIsDebtNamesOpen(false)} type="button">
                 <X aria-hidden="true" className="size-4" />
-              </button>
+              </ModalCloseButton>
             </header>
             <div className="min-h-0 overflow-y-auto p-3">
               {debtSummaryQuery.isLoading ? (
-                <div className="grid min-h-28 place-items-center text-slate-500">
-                  <Loader2 aria-hidden="true" className="size-5 animate-spin" />
-                </div>
+                <SkeletonList rows={4} />
               ) : debtSummaryQuery.isError ? (
                 <p className="rounded-md bg-red-50 px-3 py-3 text-sm text-red-800">{t('debt.employeeListError')}</p>
               ) : debtSummaryQuery.data?.length ? (
@@ -599,7 +480,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
               {...(item.end ? { end: true } : {})}
             >
               <item.icon aria-hidden="true" className="size-5" />
-              <span className="max-w-full truncate">{t(item.label)}</span>
+              <span className="max-w-full truncate text-[11px] font-medium leading-tight">{t(item.label)}</span>
             </NavLink>
           )
         })}
@@ -615,7 +496,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
             type="button"
           >
             <HandCoins aria-hidden="true" className="size-5" />
-            <span className="max-w-full truncate">{t('debt.employeeListButton')}</span>
+            <span className="max-w-full truncate text-[11px] font-medium leading-tight">{t('debt.employeeListButton')}</span>
           </button>
         ) : null}
         {isEmployeeArea ? (
@@ -631,7 +512,7 @@ export function AppLayout({ fullWidthContent = false, hideHeader = false, navIte
             type="button"
           >
             <Settings aria-hidden="true" className="size-5" />
-            <span className="max-w-full truncate">{t('Настройки')}</span>
+            <span className="max-w-full truncate text-[11px] font-medium leading-tight">{t('Настройки')}</span>
           </button>
         ) : null}
       </nav>

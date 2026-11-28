@@ -1,7 +1,7 @@
 import { getCurrentLocale } from '../../../lib/i18n/translator'
-import { Loader2 } from 'lucide-react'
 import { useAuth } from '../../../hooks/useAuth'
 import { useOperationalDays } from '../../shifts/operationalDaysApi'
+import { SkeletonList } from '../../../components/ui/Skeleton'
 
 const formatMoney = (value: number | null | undefined) =>
   new Intl.NumberFormat(getCurrentLocale(), { maximumFractionDigits: 2 }).format(value ?? 0)
@@ -17,7 +17,7 @@ export function AdminOperationalDaysPage() {
         <h2 className="text-2xl font-semibold text-slate-950 sm:text-3xl">Операционные дни</h2>
         <p className="max-w-3xl text-sm leading-6 text-slate-600">Итоги дня по всем сменам без расчёта чистой прибыли.</p>
       </header>
-      {daysQuery.isLoading ? <div className="text-sm text-slate-600"><Loader2 className="mr-2 inline size-4 animate-spin" /> Загрузка</div> : null}
+      {daysQuery.isLoading ? <SkeletonList rows={4} /> : null}
       <div className="grid gap-3">
         {days.map((day) => (
           <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm" key={day.id}>

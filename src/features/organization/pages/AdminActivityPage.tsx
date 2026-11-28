@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Activity, Loader2 } from 'lucide-react'
+import { Activity } from 'lucide-react'
 import { EmptyState } from '../../../components/common/EmptyState'
 import { useAuth } from '../../../hooks/useAuth'
 import { formatNumericDateTime } from '../../../lib/i18n/dateTime'
@@ -8,6 +8,7 @@ import { useI18n } from '../../../lib/i18n/I18nContext'
 import { cn } from '../../../lib/utils/cn'
 import type { ActivityArea, ActivityCategory, ActivityEvent } from '../activity/activityApi'
 import { useAdminActivityEvents } from '../activity/activityApi'
+import { SkeletonList } from '../../../components/ui/Skeleton'
 
 const categoryOrder: Array<ActivityCategory | 'all'> = [
   'all',
@@ -138,9 +139,7 @@ export function AdminActivityPage() {
       ) : null}
 
       {activityQuery.isLoading ? (
-        <div className="inline-flex min-h-28 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600">
-          <Loader2 className="size-4 animate-spin text-emerald-700" /> {t('ui.zagruzka_zhurnala_2e726fc')}
-        </div>
+        <SkeletonList rows={8} />
       ) : null}
 
       {!activityQuery.isLoading && !events.length ? (

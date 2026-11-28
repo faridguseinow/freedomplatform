@@ -8,7 +8,9 @@ import { getCurrentLocale } from '../../../lib/i18n/translator'
 import type { EmployeeWorkspacePlaceRow, PlaceType } from '../../../lib/supabase/database.types'
 import { cn } from '../../../lib/utils/cn'
 import { useEmployeeOrderItems, useEmployeeWorkspaceData } from '../../orders/employeeOrdersApi'
+import { registerPlaces } from '../../places/placeIconRegistry'
 import { useAdminShiftDetail, useAdminShifts } from '../../shifts/shiftsApi'
+import { SkeletonCardGrid, SkeletonList } from '../../../components/ui/Skeleton'
 
 const BILLING_GRACE_MINUTES = 10
 const LIVE_REFRESH_INTERVAL = 15_000
@@ -100,6 +102,9 @@ export function AdminLiveMonitorPage() {
   }, [])
 
   const places = useMemo(() => workspaceQuery.data?.places ?? [], [workspaceQuery.data?.places])
+  useEffect(() => {
+    registerPlaces(places)
+  }, [places])
   const orders = useMemo(() => workspaceQuery.data?.orders ?? [], [workspaceQuery.data?.orders])
   const occupiedPlaces = useMemo(
     () =>
@@ -196,9 +201,7 @@ export function AdminLiveMonitorPage() {
       ) : null}
 
       {isLoading ? (
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm font-medium text-slate-600 shadow-sm">
-          {t("ui.zagruzka_dannyh_6811312")}
-        </div>
+        <SkeletonCardGrid count={12} variant="compact" />
       ) : null}
 
       <section className="grid gap-3">
@@ -226,7 +229,7 @@ export function AdminLiveMonitorPage() {
                   type="button"
                 >
                   <div className="flex items-start gap-3">
-                    <CatalogImage alt={place.name} className="size-11 rounded-full" imagePath={place.image_path} />
+                    <CatalogImage alt={place.name} className="size-11 rounded-full" imagePath={place.image_path} placeType={place.type} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
                         <h3 className="min-w-0 truncate text-base font-semibold text-slate-950">{place.name}</h3>
@@ -342,7 +345,7 @@ export function AdminLiveMonitorPage() {
             <header className="flex items-start justify-between gap-3 border-b border-slate-200 p-4">
               <div className="flex min-w-0 items-center gap-3">
                 {selectedPlace ? (
-                  <CatalogImage alt={selectedPlace.name} className="size-12 rounded-full" imagePath={selectedPlace.image_path} />
+                  <CatalogImage alt={selectedPlace.name} className="size-12 rounded-full" imagePath={selectedPlace.image_path} placeType={selectedPlace.type} />
                 ) : (
                   <span className="grid size-12 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-600">
                     <ReceiptText aria-hidden="true" className="size-5" />
@@ -450,9 +453,7 @@ export function AdminLiveMonitorPage() {
                   </div>
 
                   {orderItemsQuery.isLoading ? (
-                    <div className="rounded-lg border border-slate-200 p-4 text-sm text-slate-500">
-                      {t("ui.zagruzka_dannyh_6811312")}
-                    </div>
+                    <SkeletonList rows={3} />
                   ) : null}
 
                   {activeOrderItems.length ? (

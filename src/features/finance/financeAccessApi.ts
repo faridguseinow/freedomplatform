@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase/client'
+import { ServerError, toServerError } from '../../lib/errors/serverErrors'
 
 export type FinancePinState = {
   has_pin: boolean
@@ -24,7 +25,7 @@ export function useFinancePinState(organizationId: string | null) {
         target_organization_id: organizationId!,
       })
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return (data[0] ?? null) as FinancePinState | null
     },
   })
@@ -33,14 +34,14 @@ export function useFinancePinState(organizationId: string | null) {
 export function useVerifyFinancePin(organizationId: string | null) {
   return useMutation({
     mutationFn: async (pin: string) => {
-      if (!organizationId) throw new Error('Organization is not selected.')
+      if (!organizationId) throw new ServerError('Organization is not selected.')
 
       const { data, error } = await supabase.rpc('verify_finance_pin', {
         target_organization_id: organizationId,
         target_pin: pin,
       })
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
       return (data[0] ?? { is_valid: false, locked_until: null }) as FinancePinVerification
     },
   })
@@ -51,7 +52,7 @@ export function useSetFinancePin(organizationId: string | null) {
 
   return useMutation({
     mutationFn: async ({ password, pin }: { password: string; pin: string }) => {
-      if (!organizationId) throw new Error('Organization is not selected.')
+      if (!organizationId) throw new ServerError('Organization is not selected.')
 
       const { error } = await supabase.rpc('set_finance_pin', {
         target_account_password: password,
@@ -59,7 +60,7 @@ export function useSetFinancePin(organizationId: string | null) {
         target_pin: pin,
       })
 
-      if (error) throw new Error(error.message)
+      if (error) throw toServerError(error)
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: financePinStateKey(organizationId) })

@@ -31,7 +31,7 @@ export function ThemeToggle({ className, compact = false }: ThemeToggleProps) {
         ) : (
           <Sun aria-hidden="true" className="size-4 text-amber-600" />
         )}
-        <span>{t('theme.darkTheme')}</span>
+        <span className="text-sm font-medium">{t('theme.darkTheme')}</span>
       </span>
       <span
         aria-hidden="true"
