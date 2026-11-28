@@ -12,6 +12,7 @@ import { RoleRoute } from './RoleRoute'
 import { RootRedirect } from './RootRedirect'
 import { AccessNotConfiguredPage } from '../../features/auth/pages/AccessNotConfiguredPage'
 import { LoginPage } from '../../features/auth/pages/LoginPage'
+import { MfaGate } from '../../features/auth/pages/MfaPage'
 import { NotFoundPage } from '../../pages/NotFoundPage'
 import { USER_ROLES } from '../../types/roles'
 import { FinanceAccessGuard } from '../../features/finance/components/FinanceAccessGuard'
@@ -330,6 +331,8 @@ export function AppRouter() {
 
   return (
     <BrowserRouter>
+      {/* Inside the router: the authenticator screen uses router-aware components. */}
+      <MfaGate>
       <Routes>
         {host.mode === 'platform-admin' ? (
           <>
@@ -372,6 +375,7 @@ export function AppRouter() {
 
         <Route element={<NotFoundPage />} path="*" />
       </Routes>
+      </MfaGate>
     </BrowserRouter>
   )
 }
